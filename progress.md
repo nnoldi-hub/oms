@@ -185,6 +185,14 @@
 - Realizat: au fost introduse declaratiile cunoscute pentru retetele cu gluten, oua, lapte si telina; catalogul local a fost actualizat prin seeder.
 - Verificat: testele acopera validarea alergenilor si continutul de siguranta din fisa congregatiei.
 
+### 30.08.2026 - Publicare GitHub si pregatire Hostico
+
+- Status: Finalizat
+- Realizat: proiectul OMS este publicat in repository-ul GitHub `https://github.com/nnoldi-hub/oms` pe ramura `main`.
+- Securitate: `.env`, baza SQLite locala, `vendor` si alte fisiere locale sensibile sunt excluse prin `.gitignore`.
+- Realizat: `.env.example` si README contin configuratia de productie MySQL, domeniul `modulia.app` si pasii de deploy Hostico/cPanel.
+- Urmatorul pas: configurarea bazei MySQL, Document Root catre `public` si a fisierului `.env` in contul Hostico.
+
 ### 30.08.2026 - Corectie izolare baza de test
 
 - Status: Finalizat
