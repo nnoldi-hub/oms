@@ -1,0 +1,6 @@
+---
+deployment:
+  tasks:
+    # modulia.app already serves this repository's public/ directory.
+    # No file copy is needed or safe because the repository is the live source.
+    - /bin/true
