@@ -32,7 +32,7 @@
 <body>
     <main>
         <header>
-            <p class="kicker">OMS - fisa pentru congregatie</p>
+            <p class="kicker">Organizare masa pentru santier - fisa pentru congregatie</p>
             <h1>{{ $congregation->name }}</h1>
             <p class="meta"><strong>Saptamana {{ $week->week_number }}:</strong> {{ $week->start_date->translatedFormat('j F Y') }} - {{ $week->start_date->addDays(4)->translatedFormat('j F Y') }}</p>
             @if ($congregation->assistant_name)
