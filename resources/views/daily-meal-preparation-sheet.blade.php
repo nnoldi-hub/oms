@@ -71,7 +71,11 @@
                     @if ($dailyCost['has_missing_prices'])
                         <p>Completeaza preturile ingredientelor pentru a calcula bugetul si contributia.</p>
                     @else
-                        <p><strong>Cost estimat total:</strong> {{ number_format($dailyCost['total_cost'], 2, '.', ' ') }} RON@if ($dailyMeal->estimated_people > 0), {{ number_format($dailyCost['total_cost'] / $dailyMeal->estimated_people, 2, '.', ' ') }} RON/portie@endif.</p>
+                        @if ($dailyMeal->estimated_people > 0)
+                            <p><strong>Cost estimat total:</strong> {{ number_format($dailyCost['total_cost'], 2, '.', ' ') }} RON, {{ number_format($dailyCost['total_cost'] / $dailyMeal->estimated_people, 2, '.', ' ') }} RON/portie.</p>
+                        @else
+                            <p><strong>Cost estimat total:</strong> {{ number_format($dailyCost['total_cost'], 2, '.', ' ') }} RON.</p>
+                        @endif
                         @if ($dailyMeal->maximum_budget !== null && $dailyMeal->estimated_people > 0 && $dailyCost['total_cost'] > 0)
                             <p><strong>Buget maxim:</strong> {{ number_format($dailyMeal->maximum_budget, 2, '.', ' ') }} RON. <strong>Portii posibile:</strong> {{ (int) floor((float) $dailyMeal->maximum_budget / ($dailyCost['total_cost'] / $dailyMeal->estimated_people)) }}. <strong>Diferenta:</strong> {{ number_format((float) $dailyMeal->maximum_budget - $dailyCost['total_cost'], 2, '.', ' ') }} RON.</p>
                         @endif
