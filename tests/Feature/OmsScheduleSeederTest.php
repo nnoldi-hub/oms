@@ -47,6 +47,20 @@ class OmsScheduleSeederTest extends TestCase
         $this->assertSame(80, DailyMeal::count());
         $this->assertSame(16, Menu::count());
         $this->assertSame(1, DailyMeal::where('week_id', 1)->whereNotNull('soup_menu_id')->count());
+
+        $weeklySoups = collect(range(1, 4))->map(function (int $weekNumber): string {
+            $week = Week::where('week_number', $weekNumber)->firstOrFail();
+            $soupMenuId = DailyMeal::where('week_id', $week->id)->whereNotNull('soup_menu_id')->value('soup_menu_id');
+
+            return Menu::findOrFail($soupMenuId)->name;
+        })->all();
+
+        $this->assertSame([
+            'Ciorba de legume',
+            'Ciorba de perisoare',
+            'Ciorba a la grec',
+            'Supa cu galuste',
+        ], $weeklySoups);
     }
 
     public function test_menu_ten_calculates_the_documented_ingredients_for_fifty_people(): void

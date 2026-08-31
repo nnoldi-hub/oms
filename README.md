@@ -37,6 +37,14 @@ php artisan storage:link
 php artisan optimize
 ```
 
+Comanda `php artisan db:seed --force` se ruleaza doar pe o baza complet noua: creeaza si programarea pilot. Pentru a adauga catalogul de 12 feluri principale si 4 ciorbe intr-o baza care are deja programari, ruleaza in schimb:
+
+```bash
+php artisan oms:import-menu-catalog
+```
+
+Aceasta comanda adauga doar retetele lipsa, le aproba pentru congregatiile existente si nu modifica zilele de masa, portiile sau statusurile deja introduse.
+
 6. Exporturile CSV/XLSX au nevoie de coada Laravel. Daca Hostico permite worker persistent/Supervisor, ruleaza `php artisan queue:work`. Altfel seteaza `QUEUE_CONNECTION=sync` in `.env` pentru exporturi mici.
 
 ## Actualizare dupa GitHub

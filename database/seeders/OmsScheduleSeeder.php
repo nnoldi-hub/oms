@@ -216,10 +216,12 @@ class OmsScheduleSeeder extends Seeder
 
         $firstMealDate = CarbonImmutable::parse('2026-11-28');
         $finalWeekAssignments = [0, 0, 1, 1, 2];
+        $soups = collect([$soup])->merge($additionalSoups)->values();
 
         foreach (range(1, 16) as $weekNumber) {
             $weekStartDate = $firstMealDate->addWeeks($weekNumber - 1);
             $weeklyCongregation = $congregations[($weekNumber - 1) % $congregations->count()];
+            $weeklySoup = $soups[($weekNumber - 1) % $soups->count()];
             $week = Week::updateOrCreate(
                 ['week_number' => $weekNumber],
                 [
@@ -240,7 +242,7 @@ class OmsScheduleSeeder extends Seeder
                         'week_id' => $week->id,
                         'congregation_id' => $dailyCongregation->id,
                         'menu_id' => $menus[($weekNumber + $dayIndex - 1) % $menus->count()]->id,
-                        'soup_menu_id' => $dayIndex === 0 ? $soup->id : null,
+                        'soup_menu_id' => $dayIndex === 0 ? $weeklySoup->id : null,
                         'estimated_people' => 0,
                         'status' => 'draft',
                     ],

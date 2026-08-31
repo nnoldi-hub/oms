@@ -193,6 +193,15 @@
 - Realizat: `.env.example` si README contin configuratia de productie MySQL, domeniul `modulia.app` si pasii de deploy Hostico/cPanel.
 - Urmatorul pas: configurarea bazei MySQL, Document Root catre `public` si a fisierului `.env` in contul Hostico.
 
+### 31.08.2026 - Import sigur catalog si rotatie ciorbe
+
+- Status: Finalizat
+- Realizat: comanda `php artisan oms:import-menu-catalog` importa catalogul standard cu 12 feluri principale si 4 ciorbe: Ciorba de legume, Ciorba de perisoare, Ciorba a la grec si Supa cu galuste.
+- Securitate operationala: importul foloseste numai retetele lipsa, le asociaza congregatiilor existente si nu modifica programarile, portiile sau statusurile deja create.
+- Realizat: pentru instalari noi, seeder-ul de programare alterneaza automat cele patru ciorbe, cate una in fiecare saptamana.
+- Adaptare: retetele importate pot fi modificate ulterior din `Bucatarie > Meniuri` in panoul OMS; rerularea comenzii nu suprascrie aceste adaptari.
+- Verificat: testele focalizate confirma protectia unei zile confirmate existente si rotatia saptamanala a celor patru ciorbe.
+
 ### 30.08.2026 - Corectie izolare baza de test
 
 - Status: Finalizat
