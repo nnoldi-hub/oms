@@ -2,6 +2,10 @@
 
 Aplicatie Laravel pentru planificarea meselor de santier: zile, congregatii, feluri principale, ciorbe, portii estimate, costuri, alergeni, rapoarte si fise personalizate pentru fiecare congregatie.
 
+## Catalog bucatarie
+
+In `Bucatarie > Ingrediente`, echipa gastronomica introduce fiecare produs o singura data, cu unitatea de cumparare si pretul curent. In `Bucatarie > Meniuri`, retetele se filtreaza dupa `Fel principal`, `Ciorbe` sau `Desert / gustare`, iar ingredientele se aleg din catalogul global. Modificarea unui pret actualizeaza automat calculele din retete, calendar, bugete si rapoarte. Butonul `Raport retete si costuri` tipareste costul estimat per portie pentru toate categoriile.
+
 ## Cerinte
 
 - PHP 8.2 sau mai nou, cu extensiile `pdo_mysql`, `mbstring`, `xml`, `ctype`, `json`, `openssl` si `zip`.

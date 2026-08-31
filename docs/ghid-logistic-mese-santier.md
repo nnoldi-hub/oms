@@ -19,6 +19,9 @@ Acest ghid explica organizarea simpla a meselor pentru urmatoarele patru luni. S
 
 ## Echipa de bucatarie
 
+- In `Bucatarie > Ingrediente`, introduceti pretul curent pentru fiecare produs o singura data. Nu modificati pretul separat in retete; orice actualizare se aplica automat la toate calculele.
+- In `Bucatarie > Meniuri`, filtrati retetele dupa fel principal, ciorbe sau desert/gustare. Fiecare ingredient al retetei se alege din catalogul global, cu cantitatea per persoana.
+- Folositi `Raport retete si costuri` din pagina Meniuri pentru a tipari costurile estimate per portie si pentru a identifica ingredientele fara pret.
 - Cele 12 meniuri standard contin cantitatile per persoana; nu sunt necesare calcule manuale.
 - In fiecare reteta, verificati si actualizati lista `Alergeni declarati` dupa ingredientele si etichetele folosite efectiv. Nu lasati o lista goala pana nu este verificata reteta.
 - Pentru fiecare zi, alegeti felul principal aprobat pentru congregatia responsabila. Sistemul nu permite repetarea aceluiasi fel principal mai devreme de sase zile.

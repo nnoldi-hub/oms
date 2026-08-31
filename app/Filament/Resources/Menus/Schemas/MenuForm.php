@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Menus\Schemas;
 
 use App\Models\Menu;
+use App\Models\Ingredient;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
@@ -35,31 +36,24 @@ class MenuForm
                 Repeater::make('ingredients')
                     ->label('Ingrediente per persoana')
                     ->schema([
-                        TextInput::make('name')
+                        Select::make('ingredient_id')
                             ->label('Ingredient')
                             ->required()
-                            ->maxLength(100),
+                            ->options(fn (): array => Ingredient::query()
+                                ->where('is_active', true)
+                                ->orderBy('name')
+                                ->get()
+                                ->mapWithKeys(fn (Ingredient $ingredient): array => [$ingredient->id => "{$ingredient->name} ({$ingredient->unit})"])
+                                ->all())
+                            ->searchable()
+                            ->preload(),
                         TextInput::make('quantity_per_person')
                             ->label('Cantitate per persoana')
                             ->numeric()
                             ->minValue(0.001)
                             ->required(),
-                        Select::make('unit')
-                            ->label('Unitate')
-                            ->options([
-                                'kg' => 'kg',
-                                'g' => 'g',
-                                'l' => 'l',
-                                'buc' => 'buc',
-                            ])
-                            ->required(),
-                        TextInput::make('estimated_unit_cost')
-                            ->label('Pret estimat / unitate')
-                            ->helperText('RON pentru kg, l sau buc')
-                            ->numeric()
-                            ->minValue(0)
-                            ->prefix('RON'),
                     ])
+                    ->helperText('Alege ingredientul din catalogul global. Unitatea si pretul sunt preluate automat de acolo.')
                     ->required()
                     ->columnSpanFull(),
                 CheckboxList::make('allergens')

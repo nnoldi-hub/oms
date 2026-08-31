@@ -33,7 +33,30 @@ class Menu extends Model
     protected static function booted(): void
     {
         static::saving(function (Menu $menu): void {
-            foreach ($menu->ingredients ?? [] as $ingredient) {
+            $ingredientIds = collect($menu->ingredients)->pluck('ingredient_id')->filter()->unique();
+            $catalogIngredients = $ingredientIds->isEmpty()
+                ? collect()
+                : Ingredient::query()->whereIn('id', $ingredientIds)->get()->keyBy('id');
+            $recipeIngredients = $menu->ingredients ?? [];
+
+            foreach ($recipeIngredients as &$ingredient) {
+                $catalogIngredient = $catalogIngredients->get($ingredient['ingredient_id'] ?? null);
+
+                if ($catalogIngredient !== null) {
+                    $ingredient['name'] = $catalogIngredient->name;
+                    $ingredient['unit'] = $catalogIngredient->unit;
+                    unset($ingredient['estimated_unit_cost']);
+                }
+
+                if ($catalogIngredient === null && filled($ingredient['name'] ?? null) && filled($ingredient['unit'] ?? null)) {
+                    $catalogIngredient = Ingredient::firstOrCreate(
+                        ['name' => trim((string) $ingredient['name']), 'unit' => $ingredient['unit']],
+                        ['unit_price' => $ingredient['estimated_unit_cost'] ?? null, 'is_active' => true],
+                    );
+                    $ingredient['ingredient_id'] = $catalogIngredient->id;
+                    unset($ingredient['estimated_unit_cost']);
+                }
+
                 if (
                     blank($ingredient['name'] ?? null)
                     || ! is_numeric($ingredient['quantity_per_person'] ?? null)
@@ -48,6 +71,8 @@ class Menu extends Model
                     ]);
                 }
             }
+
+            $menu->ingredients = $recipeIngredients;
 
             if ($menu->allergens !== null && array_diff($menu->allergens, self::ALLERGENS) !== []) {
                 throw ValidationException::withMessages([

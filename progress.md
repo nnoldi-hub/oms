@@ -210,6 +210,15 @@
 - Realizat: cantitatile ingredientelor si preturile sunt definite per persoana in reteta, astfel costul desertului este inclus automat in lista saptamanala, costul zilei, buget, contributie si fisa de pregatire tiparita.
 - Verificat: testele acopera calculul costului complet, lista saptamanala, afisarea din calendar si autorizarea fisei individuale.
 
+### 31.08.2026 - Catalog global de ingrediente si raport retete
+
+- Status: Finalizat
+- Realizat: modulul `Bucatarie > Ingrediente` permite adaugarea, editarea, dezactivarea si stergerea produselor cu o unitate de cumparare si un pret global curent.
+- Realizat: retetele folosesc ingrediente selectate din catalog; orice reteta existenta a fost legata automat la catalog, pastrand gramajele si preluand pretul configurat anterior.
+- Realizat: meniurile pot fi filtrate dupa `Fel principal`, `Ciorbe` si `Desert / gustare`; se pot adauga, edita si sterge cu permisiunile existente pentru administrator si echipa gastronomica.
+- Realizat: `Raport retete si costuri` este imprimabil si arata ingredientele si costul estimat per portie pe fiecare categorie.
+- Verificat: modificarea unui pret global actualizeaza automat costul retetei, iar raportul este disponibil doar administratorului si echipei gastronomice.
+
 ### 30.08.2026 - Corectie izolare baza de test
 
 - Status: Finalizat

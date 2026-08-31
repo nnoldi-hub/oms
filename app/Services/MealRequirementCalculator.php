@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\DailyMeal;
+use App\Models\Ingredient;
 use Illuminate\Support\Arr;
 use InvalidArgumentException;
 
@@ -20,13 +21,18 @@ class MealRequirementCalculator
         }
 
         $requirements = [];
+        $ingredientIds = collect($menu->ingredients)->pluck('ingredient_id')->filter()->unique();
+        $catalogIngredients = $ingredientIds->isEmpty()
+            ? collect()
+            : Ingredient::query()->whereIn('id', $ingredientIds)->get()->keyBy('id');
 
-        foreach ($menu->ingredients as $ingredient) {
-            $name = trim((string) Arr::get($ingredient, 'name'));
-            $unit = (string) Arr::get($ingredient, 'unit');
+        foreach ($menu->ingredients as $recipeIngredient) {
+            $catalogIngredient = $catalogIngredients->get(Arr::get($recipeIngredient, 'ingredient_id'));
+            $name = $catalogIngredient?->name ?? trim((string) Arr::get($recipeIngredient, 'name'));
+            $unit = $catalogIngredient?->unit ?? (string) Arr::get($recipeIngredient, 'unit');
             $key = mb_strtolower($name).'|'.$unit;
-            $quantity = $dailyMeal->estimated_people * (float) Arr::get($ingredient, 'quantity_per_person');
-            $unitCost = Arr::get($ingredient, 'estimated_unit_cost');
+            $quantity = $dailyMeal->estimated_people * (float) Arr::get($recipeIngredient, 'quantity_per_person');
+            $unitCost = $catalogIngredient?->unit_price ?? Arr::get($recipeIngredient, 'estimated_unit_cost');
             $hasPrice = is_numeric($unitCost) && (float) $unitCost >= 0;
 
             if (! isset($requirements[$key])) {
