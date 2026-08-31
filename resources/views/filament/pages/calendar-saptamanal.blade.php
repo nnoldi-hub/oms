@@ -33,6 +33,7 @@
         .oms-card__save:disabled { cursor: wait; opacity: .65; }
         .oms-card__count { color: var(--green); font-size: 32px; font-weight: 750; margin: 5px 0 0; }
         .oms-card__error { color: #be123c; font-size: 13px; margin: 7px 0 0; }
+        .oms-card__print { color: var(--green); display: inline-block; font-size: 13px; font-weight: 700; margin-top: 12px; text-decoration: underline; }
         .oms-calendar__empty { border: 1px dashed #aebcb5; border-radius: 8px; color: var(--muted); padding: 32px; text-align: center; }
         .dark .oms-calendar { --ink: #ecf5ef; --muted: #b4c1ba; --line: #3d4d45; --surface: #1e2823; --soft: #26322c; --green-soft: #123c2b; --amber-soft: #3d2c10; }
         @media (max-width: 1100px) { .oms-calendar__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -103,6 +104,7 @@
                             @else
                                 <p class="oms-card__count">{{ $dailyMeal->estimated_people }}</p>
                             @endif
+                            <a class="oms-card__print" href="{{ route('daily-meal-preparation-sheets.show', $dailyMeal) }}" target="_blank">Printeaza ziua</a>
                         </footer>
                     </article>
                 @endforeach
