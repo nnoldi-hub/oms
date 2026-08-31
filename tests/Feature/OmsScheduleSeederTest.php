@@ -7,6 +7,7 @@ use App\Models\DailyMeal;
 use App\Models\Menu;
 use App\Models\Week;
 use App\Services\MealRequirementCalculator;
+use Carbon\CarbonImmutable;
 use Database\Seeders\OmsScheduleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -23,7 +24,7 @@ class OmsScheduleSeederTest extends TestCase
         $this->assertDatabaseCount('menus', 16);
         $this->assertDatabaseCount('weeks', 16);
         $this->assertDatabaseCount('daily_meals', 80);
-        $this->assertSame('2026-11-28', Week::findOrFail(1)->start_date->toDateString());
+        $this->assertSame('2026-11-28', CarbonImmutable::parse(Week::findOrFail(1)->start_date)->toDateString());
 
         $finalWeekAssignments = Week::where('week_number', 16)
             ->firstOrFail()
