@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\PublicDailyMealController;
+use App\Http\Controllers\PublicCongregationWeekSheetController;
 use App\Http\Controllers\CongregationWeeklyReportController;
 use App\Http\Controllers\DailyMealPreparationSheetController;
 use App\Http\Controllers\MenuCostReportController;
@@ -13,6 +14,9 @@ Route::get('/', function () {
 
 Route::get('/mese/{dailyMeal:public_token}', PublicDailyMealController::class)
     ->name('public-daily-meals.show');
+
+Route::get('/fise/{publicCongregationWeekLink:token}', PublicCongregationWeekSheetController::class)
+    ->name('public-congregation-week-sheets.show');
 
 Route::middleware('auth')->get('/rapoarte/saptamani/{week}', WeeklyReportController::class)
     ->name('weekly-reports.show');

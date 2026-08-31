@@ -227,6 +227,14 @@
 - Siguranta: intervalele care au deja zile de masa sunt respinse; generatorul nu rescrie retete, portii, bugete sau planificari existente.
 - Verificat: testele automate confirma rotatia, impartirea finala si blocarea suprapunerilor.
 
+### 31.08.2026 - Fise publice individuale pentru congregatii
+
+- Status: Finalizat
+- Realizat: administratorul genereaza din pagina unei saptamani un link public aleatoriu pentru fiecare congregatie programata.
+- Realizat: fisa publica este optimizata pentru mobil si tiparire; include doar zilele, preparatele, alergenii declarati, portiile si lista de cumparaturi ale congregatiei.
+- Securitate: linkurile nu afiseaza datele asistentului, costurile, bugetele, contributiile sau datele altor congregatii; nu exista un selector public care sa permita explorarea organizarii.
+- Verificat: test automat confirma izolarea completa intre doua congregatii si absenta datelor de contact.
+
 ### 30.08.2026 - Corectie izolare baza de test
 
 - Status: Finalizat
