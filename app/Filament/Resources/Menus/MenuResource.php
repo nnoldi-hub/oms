@@ -11,6 +11,7 @@ use App\Filament\Resources\Menus\Schemas\MenuInfolist;
 use App\Filament\Resources\Menus\Tables\MenusTable;
 use App\Models\Menu;
 use BackedEnum;
+use Illuminate\Database\Eloquent\Builder;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
@@ -31,6 +32,19 @@ class MenuResource extends Resource
     protected static ?string $pluralModelLabel = 'meniuri';
 
     protected static ?string $recordTitleAttribute = 'name';
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        $type = request()->query('type');
+
+        return parent::getEloquentQuery()
+            ->when(in_array($type, ['main', 'soup', 'dessert'], true), fn (Builder $query) => $query->where('type', $type));
+    }
 
     public static function form(Schema $schema): Schema
     {

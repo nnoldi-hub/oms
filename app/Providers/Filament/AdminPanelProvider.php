@@ -8,6 +8,7 @@ use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Pages\Dashboard;
+use Filament\Navigation\NavigationItem;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
@@ -37,6 +38,20 @@ class AdminPanelProvider extends PanelProvider
                 'danger' => Color::Rose,
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
+            ->navigationItems([
+                NavigationItem::make('Feluri principale')
+                    ->group('Bucatarie')
+                    ->icon('heroicon-o-squares-2x2')
+                    ->url('/admin/menus?type=main'),
+                NavigationItem::make('Ciorbe')
+                    ->group('Bucatarie')
+                    ->icon('heroicon-o-fire')
+                    ->url('/admin/menus?type=soup'),
+                NavigationItem::make('Deserturi / gustari')
+                    ->group('Bucatarie')
+                    ->icon('heroicon-o-cake')
+                    ->url('/admin/menus?type=dessert'),
+            ])
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
                 Dashboard::class,
