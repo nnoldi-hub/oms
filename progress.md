@@ -219,6 +219,14 @@
 - Realizat: `Raport retete si costuri` este imprimabil si arata ingredientele si costul estimat per portie pe fiecare categorie.
 - Verificat: modificarea unui pret global actualizeaza automat costul retetei, iar raportul este disponibil doar administratorului si echipei gastronomice.
 
+### 31.08.2026 - Generator reutilizabil de planificare
+
+- Status: Finalizat
+- Realizat: administratorul poate genera din `Saptamani` un interval nou de planificare, cu data de inceput, numar de saptamani si cele trei congregatii in ordinea rotatiei.
+- Realizat: generatorul creeaza cinci zile goale pentru fiecare saptamana, roteste congregatia responsabila si imparte ultima saptamana intre cele trei congregatii in raportul 2 / 2 / 1.
+- Siguranta: intervalele care au deja zile de masa sunt respinse; generatorul nu rescrie retete, portii, bugete sau planificari existente.
+- Verificat: testele automate confirma rotatia, impartirea finala si blocarea suprapunerilor.
+
 ### 30.08.2026 - Corectie izolare baza de test
 
 - Status: Finalizat

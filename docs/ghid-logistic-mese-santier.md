@@ -43,6 +43,8 @@ Acest ghid explica organizarea simpla a meselor pentru urmatoarele patru luni. S
 
 ## Rapoarte si exporturi
 
+- Administratorul poate folosi `Saptamani > Genereaza planificare` pentru un proiect nou: alege data de inceput, numarul de saptamani si cele trei congregatii in ordinea rotatiei. Sistemul creeaza cinci zile pe saptamana, imparte ultima saptamana 2/2/1 si blocheaza orice suprapunere cu zile existente.
+- Generatorul creeaza doar structura de planificare. Completati apoi retetele, deserturile, portiile si bugetele pentru fiecare zi.
 - `Saptamani`: deschideti saptamana dorita. Vedeti cele cinci zile si alegeti `Raport saptamanal`; pagina se poate printa sau salva ca PDF din browser.
 - `Calendar saptamanal`: alegeti saptamana si vedeti toate zilele ca niste cartonase. Administratorul sau echipa de constructii poate actualiza rapid portiile direct din cartonas si confirma cu butonul bifat.
 - Din Calendar, butonul `Fisa [numele congregatiei]` genereaza o pagina separata, gata de printare sau salvare PDF si trimitere catre acea congregatie.
