@@ -23,6 +23,8 @@
         th, td { border: 1px solid #d6dfd9; padding: 11px 12px; vertical-align: top; }
         .number { text-align: right; white-space: nowrap; }
         .notice { background: #fef3c7; border-left: 4px solid #d97706; padding: 12px 14px; }
+        .budget { background: #e4efe8; border-left: 4px solid #047857; line-height: 1.55; padding: 14px 16px; }
+        .budget p { margin: 4px 0; }
         .safety { background: #fff1f2; border: 1px solid #fecdd3; border-left: 4px solid #e11d48; padding: 16px; }
         .safety h3 { color: #9f1239; font-size: 1rem; margin: 0 0 8px; }
         .safety p { line-height: 1.45; }
@@ -61,6 +63,25 @@
                 </section>
             @endif
         @endforeach
+
+        @if ($dailyMeal->maximum_budget !== null || $dailyMeal->contributor_count !== null)
+            <section>
+                <h2>Buget si contributie</h2>
+                <div class="budget">
+                    @if ($dailyCost['has_missing_prices'])
+                        <p>Completeaza preturile ingredientelor pentru a calcula bugetul si contributia.</p>
+                    @else
+                        <p><strong>Cost estimat total:</strong> {{ number_format($dailyCost['total_cost'], 2, '.', ' ') }} RON@if ($dailyMeal->estimated_people > 0), {{ number_format($dailyCost['total_cost'] / $dailyMeal->estimated_people, 2, '.', ' ') }} RON/portie@endif.</p>
+                        @if ($dailyMeal->maximum_budget !== null && $dailyMeal->estimated_people > 0 && $dailyCost['total_cost'] > 0)
+                            <p><strong>Buget maxim:</strong> {{ number_format($dailyMeal->maximum_budget, 2, '.', ' ') }} RON. <strong>Portii posibile:</strong> {{ (int) floor((float) $dailyMeal->maximum_budget / ($dailyCost['total_cost'] / $dailyMeal->estimated_people)) }}. <strong>Diferenta:</strong> {{ number_format((float) $dailyMeal->maximum_budget - $dailyCost['total_cost'], 2, '.', ' ') }} RON.</p>
+                        @endif
+                        @if ($dailyMeal->contributor_count)
+                            <p><strong>Contributie recomandata:</strong> {{ number_format($dailyCost['total_cost'] / $dailyMeal->contributor_count, 2, '.', ' ') }} RON pentru fiecare dintre cele {{ $dailyMeal->contributor_count }} persoane.</p>
+                        @endif
+                    @endif
+                </div>
+            </section>
+        @endif
 
         <section class="safety">
             <h3>Siguranta alimentara</h3>

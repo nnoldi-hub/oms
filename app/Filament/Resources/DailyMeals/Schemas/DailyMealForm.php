@@ -57,6 +57,18 @@ class DailyMealForm
                     ->required()
                     ->numeric()
                     ->default(0),
+                TextInput::make('maximum_budget')
+                    ->label('Buget maxim (RON)')
+                    ->disabled(fn (): bool => auth()->user()?->isConstructionTeam() ?? false)
+                    ->numeric()
+                    ->minValue(0)
+                    ->step(0.01),
+                TextInput::make('contributor_count')
+                    ->label('Persoane care contribuie')
+                    ->disabled(fn (): bool => auth()->user()?->isConstructionTeam() ?? false)
+                    ->numeric()
+                    ->integer()
+                    ->minValue(1),
                 Textarea::make('notes')
                     ->label('Observatii')
                     ->disabled(fn (): bool => auth()->user()?->isConstructionTeam() || auth()->user()?->isCoordinator())

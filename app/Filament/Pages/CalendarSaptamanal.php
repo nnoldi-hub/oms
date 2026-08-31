@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Models\DailyMeal;
 use App\Models\Week;
+use App\Services\DailyMealCostCalculator;
 use Filament\Notifications\Notification;
 use Filament\Support\Icons\Heroicon;
 use Filament\Pages\Page;
@@ -29,15 +30,21 @@ class CalendarSaptamanal extends Page
     /** @var array<int, int> */
     public array $estimatedPeople = [];
 
+    /** @var array<int, string|null> */
+    public array $maximumBudget = [];
+
+    /** @var array<int, int|null> */
+    public array $contributorCount = [];
+
     public function mount(): void
     {
         $this->weekId = $this->weeks->first()?->id;
-        $this->loadEstimatedPeople();
+        $this->loadCalendarValues();
     }
 
     public function updatedWeekId(): void
     {
-        $this->loadEstimatedPeople();
+        $this->loadCalendarValues();
     }
 
     public static function canAccess(): bool
@@ -95,10 +102,39 @@ class CalendarSaptamanal extends Page
             ->send();
     }
 
-    private function loadEstimatedPeople(): void
+    public function saveBudget(int $mealId): void
     {
-        $this->estimatedPeople = $this->selectedWeek?->dailyMeals
-            ->mapWithKeys(fn (DailyMeal $dailyMeal): array => [$dailyMeal->id => $dailyMeal->estimated_people])
+        $this->validate([
+            "maximumBudget.{$mealId}" => ['nullable', 'numeric', 'min:0', 'max:1000000'],
+            "contributorCount.{$mealId}" => ['nullable', 'integer', 'min:1', 'max:5000'],
+        ]);
+
+        $dailyMeal = DailyMeal::query()->whereKey($mealId)->where('week_id', $this->weekId)->firstOrFail();
+
+        Gate::authorize('update', $dailyMeal);
+        abort_unless(auth()->user()?->isAdmin() || auth()->user()?->isCoordinator(), 403);
+
+        $dailyMeal->update([
+            'maximum_budget' => blank($this->maximumBudget[$mealId] ?? null) ? null : $this->maximumBudget[$mealId],
+            'contributor_count' => blank($this->contributorCount[$mealId] ?? null) ? null : $this->contributorCount[$mealId],
+        ]);
+
+        Notification::make()->title('Bugetul zilei a fost actualizat.')->success()->send();
+    }
+
+    /** @return array<int, array{total_cost: float, has_missing_prices: bool}> */
+    public function getDailyCostsProperty(DailyMealCostCalculator $calculator): array
+    {
+        return $this->selectedWeek?->dailyMeals
+            ->mapWithKeys(fn (DailyMeal $dailyMeal): array => [$dailyMeal->id => $calculator->calculate($dailyMeal)])
             ->all() ?? [];
+    }
+
+    private function loadCalendarValues(): void
+    {
+        $dailyMeals = $this->selectedWeek?->dailyMeals ?? collect();
+        $this->estimatedPeople = $dailyMeals->mapWithKeys(fn (DailyMeal $dailyMeal): array => [$dailyMeal->id => $dailyMeal->estimated_people])->all();
+        $this->maximumBudget = $dailyMeals->mapWithKeys(fn (DailyMeal $dailyMeal): array => [$dailyMeal->id => $dailyMeal->maximum_budget])->all();
+        $this->contributorCount = $dailyMeals->mapWithKeys(fn (DailyMeal $dailyMeal): array => [$dailyMeal->id => $dailyMeal->contributor_count])->all();
     }
 }

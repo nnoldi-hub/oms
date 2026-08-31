@@ -22,6 +22,8 @@ class DailyMeal extends Model
         'menu_id',
         'soup_menu_id',
         'estimated_people',
+        'maximum_budget',
+        'contributor_count',
         'notes',
         'public_token',
         'status',
@@ -29,7 +31,7 @@ class DailyMeal extends Model
 
     protected function casts(): array
     {
-        return ['meal_date' => 'date'];
+        return ['meal_date' => 'date', 'maximum_budget' => 'decimal:2'];
     }
 
     protected static function booted(): void
@@ -47,6 +49,8 @@ class DailyMeal extends Model
                 'menu_id',
                 'soup_menu_id',
                 'notes',
+                'maximum_budget',
+                'contributor_count',
                 'public_token',
                 'status',
             ])) {

@@ -34,6 +34,12 @@
         .oms-card__count { color: var(--green); font-size: 32px; font-weight: 750; margin: 5px 0 0; }
         .oms-card__error { color: #be123c; font-size: 13px; margin: 7px 0 0; }
         .oms-card__print { color: var(--green); display: inline-block; font-size: 13px; font-weight: 700; margin-top: 12px; text-decoration: underline; }
+        .oms-card__budget { border-top: 1px solid var(--line); display: grid; gap: 9px; margin-top: 14px; padding-top: 14px; }
+        .oms-card__budget-grid { display: grid; gap: 8px; grid-template-columns: 1fr 1fr auto; }
+        .oms-card__budget-input { background: var(--surface); border: 1px solid #b9c8bf; border-radius: 5px; color: var(--ink); min-width: 0; padding: 8px; width: 100%; }
+        .oms-card__budget-save { background: #b45309; border: 0; border-radius: 5px; color: #fff; cursor: pointer; font-size: 18px; font-weight: 800; padding: 0 11px; }
+        .oms-card__budget-result { font-size: 12px; line-height: 1.45; margin: 0; }
+        .oms-card__budget-result strong { color: var(--green); }
         .oms-calendar__empty { border: 1px dashed #aebcb5; border-radius: 8px; color: var(--muted); padding: 32px; text-align: center; }
         .dark .oms-calendar { --ink: #ecf5ef; --muted: #b4c1ba; --line: #3d4d45; --surface: #1e2823; --soft: #26322c; --green-soft: #123c2b; --amber-soft: #3d2c10; }
         @media (max-width: 1100px) { .oms-calendar__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -69,6 +75,11 @@
 
             <div class="oms-calendar__grid">
                 @foreach ($this->selectedWeek->dailyMeals as $dailyMeal)
+                    @php($dailyCost = $this->dailyCosts[$dailyMeal->id])
+                    @php($costPerPortion = $dailyMeal->estimated_people > 0 ? $dailyCost['total_cost'] / $dailyMeal->estimated_people : null)
+                    @php($maximumPortions = $dailyMeal->maximum_budget !== null && $costPerPortion !== null && $costPerPortion > 0 ? (int) floor((float) $dailyMeal->maximum_budget / $costPerPortion) : null)
+                    @php($budgetDifference = $dailyMeal->maximum_budget === null ? null : (float) $dailyMeal->maximum_budget - $dailyCost['total_cost'])
+                    @php($contribution = $dailyMeal->contributor_count ? $dailyCost['total_cost'] / $dailyMeal->contributor_count : null)
                     <article class="oms-card">
                         <header class="oms-card__header">
                             <div>
@@ -104,6 +115,23 @@
                             @else
                                 <p class="oms-card__count">{{ $dailyMeal->estimated_people }}</p>
                             @endif
+                            <div class="oms-card__budget">
+                                <p class="oms-card__label">Buget si contributie</p>
+                                @if (auth()->user()?->isAdmin() || auth()->user()?->isCoordinator())
+                                    <div class="oms-card__budget-grid">
+                                        <input class="oms-card__budget-input" type="number" min="0" step="0.01" wire:model.live.debounce.300ms="maximumBudget.{{ $dailyMeal->id }}" aria-label="Buget maxim in RON">
+                                        <input class="oms-card__budget-input" type="number" min="1" step="1" wire:model.live.debounce.300ms="contributorCount.{{ $dailyMeal->id }}" aria-label="Persoane care contribuie">
+                                        <button class="oms-card__budget-save" type="button" title="Salveaza bugetul" aria-label="Salveaza bugetul" wire:click="saveBudget({{ $dailyMeal->id }})">✓</button>
+                                    </div>
+                                @endif
+                                @if ($dailyCost['has_missing_prices'])
+                                    <p class="oms-card__budget-result">Costul complet nu poate fi calculat pana nu sunt introduse toate preturile ingredientelor.</p>
+                                @else
+                                    <p class="oms-card__budget-result"><strong>Cost estimat:</strong> {{ number_format($dailyCost['total_cost'], 2, '.', ' ') }} RON{{ $costPerPortion === null ? '' : ' (' . number_format($costPerPortion, 2, '.', ' ') . ' RON/portie)' }}.</p>
+                                    @if ($maximumPortions !== null)<p class="oms-card__budget-result"><strong>In buget:</strong> aproximativ {{ $maximumPortions }} portii. Diferenta: {{ number_format($budgetDifference, 2, '.', ' ') }} RON.</p>@endif
+                                    @if ($contribution !== null)<p class="oms-card__budget-result"><strong>Contributie:</strong> {{ number_format($contribution, 2, '.', ' ') }} RON/persoana.</p>@endif
+                                @endif
+                            </div>
                             <a class="oms-card__print" href="{{ route('daily-meal-preparation-sheets.show', $dailyMeal) }}" target="_blank">Printeaza ziua</a>
                         </footer>
                     </article>

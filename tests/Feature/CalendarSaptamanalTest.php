@@ -55,4 +55,25 @@ class CalendarSaptamanalTest extends TestCase
 
         $this->assertDatabaseHas('daily_meals', ['id' => $dailyMeal->id, 'estimated_people' => 55]);
     }
+
+    public function test_a_coordinator_can_save_a_budget_and_contribution_for_their_day(): void
+    {
+        $congregation = Congregation::factory()->create();
+        $menu = Menu::factory()->create([
+            'ingredients' => [['name' => 'Orez', 'quantity_per_person' => 0.1, 'unit' => 'kg', 'estimated_unit_cost' => 10]],
+            'packaging_cost' => 2,
+        ]);
+        $dailyMeal = DailyMeal::factory()->for(Week::factory()->for($congregation))->for($congregation)->for($menu)->create(['estimated_people' => 20]);
+        $coordinator = User::factory()->create(['role' => 'coordinator', 'congregation_id' => $congregation->id]);
+
+        Livewire::actingAs($coordinator)
+            ->test(CalendarSaptamanal::class)
+            ->set('weekId', $dailyMeal->week_id)
+            ->set("maximumBudget.{$dailyMeal->id}", 300)
+            ->set("contributorCount.{$dailyMeal->id}", 4)
+            ->call('saveBudget', $dailyMeal->id)
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('daily_meals', ['id' => $dailyMeal->id, 'maximum_budget' => 300, 'contributor_count' => 4]);
+    }
 }
