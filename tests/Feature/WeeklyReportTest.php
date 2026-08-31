@@ -82,6 +82,27 @@ class WeeklyReportTest extends TestCase
         $this->assertSame(0.0, $report['totals']['total_cost']);
     }
 
+    public function test_weekly_calculator_includes_the_selected_dessert_in_quantities_and_costs(): void
+    {
+        $week = Week::factory()->create();
+        $mainMenu = Menu::factory()->create([
+            'ingredients' => [['name' => 'Orez', 'quantity_per_person' => 0.1, 'unit' => 'kg', 'estimated_unit_cost' => 5]],
+            'packaging_cost' => 1,
+        ]);
+        $dessertMenu = Menu::factory()->create([
+            'type' => 'dessert',
+            'ingredients' => [['name' => 'Napolitana', 'quantity_per_person' => 1, 'unit' => 'buc', 'estimated_unit_cost' => 2]],
+            'packaging_cost' => 0,
+        ]);
+        DailyMeal::factory()->for($week)->for($mainMenu)->create(['estimated_people' => 10, 'dessert_menu_id' => $dessertMenu->id]);
+
+        $report = app(WeeklyShoppingListCalculator::class)->calculate($week);
+
+        $this->assertSame(1.0, collect($report['ingredients'])->firstWhere('name', 'Orez')['quantity']);
+        $this->assertSame(10.0, collect($report['ingredients'])->firstWhere('name', 'Napolitana')['quantity']);
+        $this->assertSame(35.0, $report['totals']['total_cost']);
+    }
+
     public function test_congregation_report_contains_only_its_days_and_assistant_contact(): void
     {
         $firstCongregation = Congregation::factory()->create([

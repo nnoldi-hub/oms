@@ -25,12 +25,13 @@ class MenuCatalogSeederTest extends TestCase
 
         $this->seed(MenuCatalogSeeder::class);
 
-        $this->assertDatabaseCount('menus', 17);
+        $this->assertDatabaseCount('menus', 23);
         $this->assertSame(13, Menu::where('type', 'main')->where('is_active', true)->count());
         $this->assertSame(4, Menu::where('type', 'soup')->where('is_active', true)->count());
+        $this->assertSame(6, Menu::where('type', 'dessert')->where('is_active', true)->count());
         $this->assertSame(47, $meal->fresh()->estimated_people);
         $this->assertSame('confirmed', $meal->fresh()->status);
         $this->assertSame($menu->id, $meal->fresh()->menu_id);
-        $this->assertSame(16, $congregation->fresh()->menus()->count());
+        $this->assertSame(22, $congregation->fresh()->menus()->count());
     }
 }

@@ -29,6 +29,17 @@ class DailyMealCostCalculator
             $hasMissingPrices = $hasMissingPrices || $soupRequirements['totals']['has_missing_prices'];
         }
 
+        if ($dailyMeal->dessert_menu_id !== null) {
+            $dessertMenu = $dailyMeal->relationLoaded('dessertMenu')
+                ? $dailyMeal->getRelation('dessertMenu')
+                : $dailyMeal->dessertMenu;
+            $dessertMeal = clone $dailyMeal;
+            $dessertMeal->setRelation('menu', $dessertMenu);
+            $dessertRequirements = $this->mealRequirementCalculator->calculate($dessertMeal);
+            $totalCost += $dessertRequirements['totals']['total_cost'];
+            $hasMissingPrices = $hasMissingPrices || $dessertRequirements['totals']['has_missing_prices'];
+        }
+
         return ['total_cost' => round($totalCost, 2), 'has_missing_prices' => $hasMissingPrices];
     }
 }

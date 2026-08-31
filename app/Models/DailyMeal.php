@@ -21,6 +21,7 @@ class DailyMeal extends Model
         'congregation_id',
         'menu_id',
         'soup_menu_id',
+        'dessert_menu_id',
         'estimated_people',
         'maximum_budget',
         'contributor_count',
@@ -48,6 +49,7 @@ class DailyMeal extends Model
                 'week_id',
                 'menu_id',
                 'soup_menu_id',
+                'dessert_menu_id',
                 'notes',
                 'maximum_budget',
                 'contributor_count',
@@ -93,6 +95,11 @@ class DailyMeal extends Model
     public function soupMenu(): BelongsTo
     {
         return $this->belongsTo(Menu::class, 'soup_menu_id');
+    }
+
+    public function dessertMenu(): BelongsTo
+    {
+        return $this->belongsTo(Menu::class, 'dessert_menu_id');
     }
 
     public function volunteers(): HasMany

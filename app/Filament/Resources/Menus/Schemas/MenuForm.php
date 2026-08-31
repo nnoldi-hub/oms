@@ -25,6 +25,7 @@ class MenuForm
                     ->options([
                         'main' => 'Fel principal',
                         'soup' => 'Ciorba',
+                        'dessert' => 'Desert / gustare',
                     ])
                     ->default('main')
                     ->required(),

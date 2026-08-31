@@ -41,7 +41,7 @@
             <button class="print" type="button" onclick="window.print()">Printeaza fisa zilei</button>
         </header>
 
-        @foreach ([['label' => 'Fel principal', 'menu' => $dailyMeal->menu, 'requirements' => $mainRequirements, 'class' => ''], ['label' => 'Ciorba suplimentara', 'menu' => $dailyMeal->soupMenu, 'requirements' => $soupRequirements, 'class' => 'recipe--soup']] as $section)
+        @foreach ([['label' => 'Fel principal', 'menu' => $dailyMeal->menu, 'requirements' => $mainRequirements, 'class' => ''], ['label' => 'Ciorba suplimentara', 'menu' => $dailyMeal->soupMenu, 'requirements' => $soupRequirements, 'class' => 'recipe--soup'], ['label' => 'Desert / gustare', 'menu' => $dailyMeal->dessertMenu, 'requirements' => $dessertRequirements, 'class' => 'recipe--soup']] as $section)
             @if ($section['menu'] && $section['requirements'])
                 <section>
                     <h2>{{ $section['label'] }}</h2>

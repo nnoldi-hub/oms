@@ -51,6 +51,16 @@ class DailyMealForm
                             ->whereHas('congregations', fn (Builder $congregationQuery) => $congregationQuery->whereKey($get('congregation_id'))),
                     )
                     ->disabled(fn (): bool => auth()->user()?->isConstructionTeam() ?? false),
+                Select::make('dessert_menu_id')
+                    ->label('Desert / gustare')
+                    ->relationship(
+                        name: 'dessertMenu',
+                        titleAttribute: 'name',
+                        modifyQueryUsing: fn (Builder $query, Get $get): Builder => $query
+                            ->where('type', 'dessert')
+                            ->whereHas('congregations', fn (Builder $congregationQuery) => $congregationQuery->whereKey($get('congregation_id'))),
+                    )
+                    ->disabled(fn (): bool => auth()->user()?->isConstructionTeam() ?? false),
                 TextInput::make('estimated_people')
                     ->label('Numar estimat persoane')
                     ->disabled(fn (): bool => auth()->user()?->isCoordinator() ?? false)

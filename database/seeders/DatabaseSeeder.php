@@ -11,6 +11,9 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $this->call(OmsScheduleSeeder::class);
+        $this->call([
+            OmsScheduleSeeder::class,
+            MenuCatalogSeeder::class,
+        ]);
     }
 }

@@ -19,7 +19,8 @@ class DailyMealPreparationSheetTest extends TestCase
         $congregation = Congregation::factory()->create(['name' => 'Congregatia Est']);
         $mainMenu = Menu::factory()->create(['name' => 'Mancare de cartofi', 'ingredients' => [['name' => 'Cartofi', 'quantity_per_person' => 0.2, 'unit' => 'kg']], 'allergens' => ['Telina']]);
         $soupMenu = Menu::factory()->create(['name' => 'Ciorba de legume', 'type' => 'soup', 'ingredients' => [['name' => 'Morcovi', 'quantity_per_person' => 0.1, 'unit' => 'kg']]]);
-        $dailyMeal = DailyMeal::factory()->for(Week::factory()->for($congregation))->for($congregation)->for($mainMenu)->create(['meal_date' => '2026-12-09', 'estimated_people' => 30, 'soup_menu_id' => $soupMenu->id]);
+        $dessertMenu = Menu::factory()->create(['name' => 'Napolitana', 'type' => 'dessert', 'ingredients' => [['name' => 'Napolitana', 'quantity_per_person' => 1, 'unit' => 'buc']]]);
+        $dailyMeal = DailyMeal::factory()->for(Week::factory()->for($congregation))->for($congregation)->for($mainMenu)->create(['meal_date' => '2026-12-09', 'estimated_people' => 30, 'soup_menu_id' => $soupMenu->id, 'dessert_menu_id' => $dessertMenu->id]);
         $coordinator = User::factory()->create(['role' => 'coordinator', 'congregation_id' => $congregation->id]);
 
         $this->actingAs($coordinator)
@@ -29,6 +30,7 @@ class DailyMealPreparationSheetTest extends TestCase
             ->assertSee('Congregatia Est')
             ->assertSee('Mancare de cartofi')
             ->assertSee('Ciorba de legume')
+            ->assertSee('Napolitana')
             ->assertSee('6 kg')
             ->assertSee('3 kg')
             ->assertSee('Telina');

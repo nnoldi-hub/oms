@@ -23,6 +23,7 @@ class CongregationWeeklyReportController extends Controller
             'dailyMeals' => fn ($query) => $query->where('congregation_id', $congregation->id)->orderBy('meal_date'),
             'dailyMeals.menu',
             'dailyMeals.soupMenu',
+            'dailyMeals.dessertMenu',
             'dailyMeals.congregation',
         ]);
 

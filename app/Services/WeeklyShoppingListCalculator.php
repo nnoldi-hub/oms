@@ -13,7 +13,7 @@ class WeeklyShoppingListCalculator
      */
     public function calculate(Week $week): array
     {
-        $week->loadMissing('dailyMeals.menu', 'dailyMeals.soupMenu');
+        $week->loadMissing('dailyMeals.menu', 'dailyMeals.soupMenu', 'dailyMeals.dessertMenu');
         $ingredients = [];
         $packagingCount = 0;
         $packagingCost = 0.0;
@@ -32,6 +32,7 @@ class WeeklyShoppingListCalculator
             $packagingCost += $requirements['packaging']['total_cost'];
             $ingredientsCost = $requirements['totals']['ingredients_cost'];
             $hasMissingPrices = $requirements['totals']['has_missing_prices'];
+            $dessertPackagingCost = 0.0;
 
             foreach ($requirements['ingredients'] as $ingredient) {
                 $this->addIngredient($ingredients, $ingredient);
@@ -50,11 +51,30 @@ class WeeklyShoppingListCalculator
                 $hasMissingPrices = $hasMissingPrices || $soupRequirements['totals']['has_missing_prices'];
             }
 
+            if ($dailyMeal->dessert_menu_id !== null) {
+                $dessertMenu = $dailyMeal->relationLoaded('dessertMenu')
+                    ? $dailyMeal->getRelation('dessertMenu')
+                    : $dailyMeal->dessertMenu;
+                $dessertMeal = clone $dailyMeal;
+                $dessertMeal->setRelation('menu', $dessertMenu);
+                $dessertRequirements = $this->mealRequirementCalculator->calculate($dessertMeal);
+
+                foreach ($dessertRequirements['ingredients'] as $ingredient) {
+                    $this->addIngredient($ingredients, $ingredient);
+                }
+
+                $packagingCount += $dessertRequirements['packaging']['count'];
+                $packagingCost += $dessertRequirements['packaging']['total_cost'];
+                $dessertPackagingCost = $dessertRequirements['packaging']['total_cost'];
+                $ingredientsCost += $dessertRequirements['totals']['ingredients_cost'];
+                $hasMissingPrices = $hasMissingPrices || $dessertRequirements['totals']['has_missing_prices'];
+            }
+
             $dailyCosts[] = [
                 'daily_meal_id' => $dailyMeal->id,
                 'ingredients_cost' => round($ingredientsCost, 2),
-                'packaging_cost' => $requirements['packaging']['total_cost'],
-                'total_cost' => round($ingredientsCost + $requirements['packaging']['total_cost'], 2),
+                'packaging_cost' => round($requirements['packaging']['total_cost'] + $dessertPackagingCost, 2),
+                'total_cost' => round($ingredientsCost + $requirements['packaging']['total_cost'] + $dessertPackagingCost, 2),
                 'has_missing_prices' => $hasMissingPrices,
             ];
         }

@@ -18,6 +18,7 @@ class WeeklyReportController extends Controller
             'dailyMeals' => fn ($query) => $query->orderBy('meal_date'),
             'dailyMeals.menu',
             'dailyMeals.soupMenu',
+            'dailyMeals.dessertMenu',
             'dailyMeals.congregation',
         ]);
 

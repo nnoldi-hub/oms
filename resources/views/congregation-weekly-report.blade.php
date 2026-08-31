@@ -44,7 +44,7 @@
         <section>
             <h2>Zile si portii de pregatit</h2>
             <table>
-                <thead><tr><th>Data</th><th>Fel principal si alergeni</th><th>Ciorba si alergeni</th><th class="number">Portii</th></tr></thead>
+                <thead><tr><th>Data</th><th>Fel principal si alergeni</th><th>Ciorba si alergeni</th><th>Desert si alergeni</th><th class="number">Portii</th></tr></thead>
                 <tbody>
                     @forelse ($week->dailyMeals as $dailyMeal)
                         <tr>
@@ -61,10 +61,18 @@
                                     -
                                 @endif
                             </td>
+                            <td>
+                                @if ($dailyMeal->dessertMenu)
+                                    <strong>{{ $dailyMeal->dessertMenu->name }}</strong><br>
+                                    <small>Alergeni: {{ is_array($dailyMeal->dessertMenu->allergens) ? ($dailyMeal->dessertMenu->allergens === [] ? 'Niciunul declarat' : implode(', ', $dailyMeal->dessertMenu->allergens)) : 'De confirmat' }}</small>
+                                @else
+                                    -
+                                @endif
+                            </td>
                             <td class="number">{{ $dailyMeal->estimated_people }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="4">Aceasta congregatie nu are zile alocate in saptamana selectata.</td></tr>
+                        <tr><td colspan="5">Aceasta congregatie nu are zile alocate in saptamana selectata.</td></tr>
                     @endforelse
                 </tbody>
             </table>

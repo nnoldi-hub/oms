@@ -21,10 +21,12 @@ class CalendarSaptamanalTest extends TestCase
         $congregation = Congregation::factory()->create(['name' => 'Congregatia Nord']);
         $week = Week::factory()->for($congregation)->create(['week_number' => 3]);
         $menu = Menu::factory()->create(['name' => 'Meniu calendar']);
-        $congregation->menus()->attach($menu);
+        $dessert = Menu::factory()->create(['name' => 'Napolitana calendar', 'type' => 'dessert']);
+        $congregation->menus()->attach([$menu->id, $dessert->id]);
         DailyMeal::factory()->for($week)->for($congregation)->for($menu)->create([
             'meal_date' => '2026-12-07',
             'estimated_people' => 45,
+            'dessert_menu_id' => $dessert->id,
         ]);
         $user = User::factory()->create(['role' => 'coordinator', 'congregation_id' => $congregation->id]);
 
@@ -34,6 +36,7 @@ class CalendarSaptamanalTest extends TestCase
             ->assertSee('Calendar saptamanal')
             ->assertSee('Congregatia Nord')
             ->assertSee('Meniu calendar')
+            ->assertSee('Napolitana calendar')
             ->assertSee('45');
     }
 

@@ -67,6 +67,11 @@ class Menu extends Model
         return $this->hasMany(DailyMeal::class, 'soup_menu_id');
     }
 
+    public function dessertDailyMeals(): HasMany
+    {
+        return $this->hasMany(DailyMeal::class, 'dessert_menu_id');
+    }
+
     public function congregations(): BelongsToMany
     {
         return $this->belongsToMany(Congregation::class)->withTimestamps();

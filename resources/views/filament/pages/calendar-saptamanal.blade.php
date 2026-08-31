@@ -24,8 +24,10 @@
         .oms-card__meal { border: 1px solid #b8dbc6; border-radius: 6px; padding: 12px; }
         .oms-card__meal--main { background: var(--green-soft); }
         .oms-card__meal--soup { background: var(--amber-soft); border-color: #f0d29e; }
+        .oms-card__meal--dessert { background: #eef2ff; border-color: #bfc9ef; }
         .oms-card__meal--main .oms-card__label { color: var(--green); }
         .oms-card__meal--soup .oms-card__label { color: var(--amber); }
+        .oms-card__meal--dessert .oms-card__label { color: #4338ca; }
         .oms-card__footer { background: var(--soft); border-top: 1px solid var(--line); margin-top: auto; padding: 16px; }
         .oms-card__edit { align-items: center; display: flex; gap: 8px; margin-top: 7px; }
         .oms-card__input { font-size: 20px; font-weight: 750; text-align: center; }
@@ -42,6 +44,8 @@
         .oms-card__budget-result strong { color: var(--green); }
         .oms-calendar__empty { border: 1px dashed #aebcb5; border-radius: 8px; color: var(--muted); padding: 32px; text-align: center; }
         .dark .oms-calendar { --ink: #ecf5ef; --muted: #b4c1ba; --line: #3d4d45; --surface: #1e2823; --soft: #26322c; --green-soft: #123c2b; --amber-soft: #3d2c10; }
+        .dark .oms-card__meal--dessert { background: #27264d; border-color: #5653a4; }
+        .dark .oms-card__meal--dessert .oms-card__label { color: #c7d2fe; }
         @media (max-width: 1100px) { .oms-calendar__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
         @media (max-width: 700px) { .oms-calendar__toolbar { align-items: stretch; flex-direction: column; } .oms-calendar__selector { min-width: 0; } .oms-calendar__grid { grid-template-columns: 1fr; } .oms-calendar__title { font-size: 26px; } }
     </style>
@@ -100,6 +104,10 @@
                             <div class="oms-card__meal oms-card__meal--soup">
                                 <p class="oms-card__label">Ciorba suplimentara</p>
                                 <p class="oms-card__value">{{ $dailyMeal->soupMenu?->name ?? '-' }}</p>
+                            </div>
+                            <div class="oms-card__meal oms-card__meal--dessert">
+                                <p class="oms-card__label">Desert / gustare</p>
+                                <p class="oms-card__value">{{ $dailyMeal->dessertMenu?->name ?? '-' }}</p>
                             </div>
                         </div>
                         <footer class="oms-card__footer">

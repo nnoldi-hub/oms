@@ -24,6 +24,9 @@ class DailyMealInfolist
                 TextEntry::make('soupMenu.name')
                     ->label('Ciorba saptamanii')
                     ->placeholder('-'),
+                TextEntry::make('dessertMenu.name')
+                    ->label('Desert / gustare')
+                    ->placeholder('-'),
                 TextEntry::make('estimated_people')
                     ->label('Numar estimat persoane')
                     ->numeric(),

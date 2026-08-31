@@ -202,6 +202,14 @@
 - Adaptare: retetele importate pot fi modificate ulterior din `Bucatarie > Meniuri` in panoul OMS; rerularea comenzii nu suprascrie aceste adaptari.
 - Verificat: testele focalizate confirma protectia unei zile confirmate existente si rotatia saptamanala a celor patru ciorbe.
 
+### 31.08.2026 - Deserturi, costuri si contributii pe zi
+
+- Status: Finalizat
+- Realizat: fiecare zi poate avea optional un `Desert / gustare`; administratorul sau coordonatorul selecteaza reteta aprobata pentru congregatie din formularul zilei.
+- Realizat: au fost adaugate sase optiuni initiale editabile: Biscuiti asortati, Napolitana ambalata, Chec simplu la tava, Negresa la tava, Placinta cu mere si Banana.
+- Realizat: cantitatile ingredientelor si preturile sunt definite per persoana in reteta, astfel costul desertului este inclus automat in lista saptamanala, costul zilei, buget, contributie si fisa de pregatire tiparita.
+- Verificat: testele acopera calculul costului complet, lista saptamanala, afisarea din calendar si autorizarea fisei individuale.
+
 ### 30.08.2026 - Corectie izolare baza de test
 
 - Status: Finalizat

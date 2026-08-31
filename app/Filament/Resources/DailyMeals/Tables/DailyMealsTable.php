@@ -35,6 +35,9 @@ class DailyMealsTable
                 TextColumn::make('soupMenu.name')
                     ->label('Ciorba')
                     ->searchable(),
+                TextColumn::make('dessertMenu.name')
+                    ->label('Desert / gustare')
+                    ->searchable(),
                 TextColumn::make('estimated_people')
                     ->label('Persoane estimate')
                     ->numeric()

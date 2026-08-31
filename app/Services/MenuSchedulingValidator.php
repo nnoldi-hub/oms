@@ -13,6 +13,7 @@ class MenuSchedulingValidator
     {
         $this->validateMenu($dailyMeal, $dailyMeal->menu_id, 'main', 'menu_id');
         $this->validateMenu($dailyMeal, $dailyMeal->soup_menu_id, 'soup', 'soup_menu_id');
+        $this->validateMenu($dailyMeal, $dailyMeal->dessert_menu_id, 'dessert', 'dessert_menu_id');
 
         if ($dailyMeal->soup_menu_id !== null && $dailyMeal->week_id !== null) {
             $anotherSoupExists = DailyMeal::query()

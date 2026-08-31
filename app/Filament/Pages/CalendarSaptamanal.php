@@ -77,6 +77,7 @@ class CalendarSaptamanal extends Page
             'dailyMeals.congregation',
             'dailyMeals.menu',
             'dailyMeals.soupMenu',
+            'dailyMeals.dessertMenu',
         ]);
     }
 

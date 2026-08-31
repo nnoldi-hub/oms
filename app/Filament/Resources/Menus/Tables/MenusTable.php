@@ -18,6 +18,13 @@ class MenusTable
             ->columns([
                 TextColumn::make('name')
                     ->searchable(),
+                TextColumn::make('type')
+                    ->label('Tip')
+                    ->formatStateUsing(fn (string $state): string => [
+                        'main' => 'Fel principal',
+                        'soup' => 'Ciorba',
+                        'dessert' => 'Desert / gustare',
+                    ][$state] ?? $state),
                 TextColumn::make('packaging_cost')
                     ->money('RON')
                     ->sortable(),
