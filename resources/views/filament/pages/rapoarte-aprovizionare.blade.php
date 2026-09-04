@@ -3,6 +3,14 @@
         .supply-report { --report-line: rgb(148 163 184 / .2); --report-muted: rgb(148 163 184); }
         .supply-report__hero { background: linear-gradient(135deg, rgb(16 185 129 / .16), rgb(15 23 42 / .08)); border: 1px solid rgb(16 185 129 / .25); border-radius: 18px; padding: 28px 30px; }
         .supply-report__hero h1 { font-size: clamp(1.8rem, 3vw, 2.5rem); letter-spacing: -.04em; }
+        .supply-report__layout { align-items: start; display: grid; gap: 24px; grid-template-columns: minmax(260px, 320px) minmax(0, 1fr); }
+        .supply-report__control { display: grid; gap: 18px; position: sticky; top: 20px; }
+        .supply-report__control .supply-report__filters { display: grid; grid-template-columns: 1fr; }
+        .supply-report__overview { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
+        .supply-report__overview .supply-report__kpi { min-height: 155px; padding: 17px; }
+        .supply-report__overview .supply-report__kpi-icon { font-size: 1.8rem; }
+        .supply-report__overview .supply-report__kpi-value { font-size: 1.6rem; margin-top: 12px; }
+        .supply-report__analysis { display: grid; gap: 18px; min-width: 0; }
         .supply-report__filters { align-items: end; display: grid; gap: 12px; grid-template-columns: 1fr 1.5fr 1.6fr auto; }
         .supply-report__filter { min-width: 0; }
         .supply-report__filter label { color: var(--report-muted); display: block; font-size: .7rem; font-weight: 700; letter-spacing: .06em; margin-bottom: 6px; text-transform: uppercase; }
@@ -22,7 +30,9 @@
         .supply-report__alert--info { background: rgb(14 165 233 / .1); border-color: rgb(14 165 233 / .3); }
         .supply-report__chart { border: 1px solid var(--report-line); border-radius: 14px; padding: 20px; }
         @media (max-width: 900px) { .supply-report__filters { grid-template-columns: 1fr 1fr; } }
-        @media (max-width: 600px) { .supply-report__filters { grid-template-columns: 1fr; } .supply-report__hero { padding: 22px; } }
+        @media (max-width: 1100px) { .supply-report__layout { grid-template-columns: 1fr; } .supply-report__control { position: static; } .supply-report__control .supply-report__filters { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+        @media (max-width: 700px) { .supply-report__filters, .supply-report__control .supply-report__filters { grid-template-columns: 1fr; } .supply-report__overview { grid-template-columns: 1fr 1fr; } .supply-report__hero { padding: 22px; } }
+        @media (max-width: 420px) { .supply-report__overview { grid-template-columns: 1fr; } }
     </style>
     <div class="supply-report space-y-6">
         <div class="supply-report__hero flex flex-wrap items-end justify-between gap-5">
@@ -37,7 +47,9 @@
             </div>
         </div>
 
-        <x-filament::section>
+        <div class="supply-report__layout">
+            <aside class="supply-report__control">
+                <x-filament::section heading="Control raport">
             <div class="supply-report__filters">
                 <div class="supply-report__filter">
                     <label class="mb-1 block text-xs font-semibold uppercase text-gray-500">Interval</label>
@@ -68,13 +80,13 @@
                 </div>
                 <x-filament::button color="warning" icon="heroicon-o-arrow-path" wire:click="generateReport">Genereaza raport</x-filament::button>
             </div>
-        </x-filament::section>
+                </x-filament::section>
 
         @php($totals = $this->totals)
         @php($waterRatio = $totals['water_required'] > 0 ? min(100, ($totals['water_confirmed'] / $totals['water_required']) * 100) : 100)
         @php($snackRatio = $totals['snacks_required'] > 0 ? min(100, ($totals['snacks_confirmed'] / $totals['snacks_required']) * 100) : 100)
         @php($dessertRatio = $totals['desserts_required'] > 0 ? min(100, ($totals['desserts_confirmed'] / $totals['desserts_required']) * 100) : 100)
-        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div class="supply-report__overview">
             @foreach ([
                 ['icon' => '👥', 'label' => 'Persoane programate', 'value' => $totals['people'], 'sub' => 'in perioada selectata', 'color' => 'primary'],
                 ['icon' => '💧', 'label' => 'Necesar apa', 'value' => $this->formatQuantity($totals['water_required']).' L', 'sub' => 'Confirmat: '.$this->formatQuantity($totals['water_confirmed']).' L', 'color' => $waterRatio >= 100 ? 'success' : ($waterRatio >= 70 ? 'warning' : 'danger')],
@@ -89,7 +101,9 @@
                 </div>
             @endforeach
         </div>
+            </aside>
 
+            <main class="supply-report__analysis">
         @if ($reportType === 'stock')
             <x-filament::section heading="Verificare stoc si aprovizionare">
                 <div class="supply-report__table overflow-x-auto"><table class="text-sm"><thead><tr class="text-left"><th class="p-3">Consumabil</th><th class="p-3">Categorie</th><th class="p-3">Stoc</th><th class="p-3">Minim</th><th class="p-3">Consum/zi</th><th class="p-3">Actiune</th></tr></thead><tbody>
@@ -141,5 +155,7 @@
                 @endforeach
             </div>
         </x-filament::section>
+            </main>
+        </div>
     </div>
 </x-filament-panels::page>
