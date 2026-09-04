@@ -19,6 +19,8 @@
         .oms-card__day { font-size: 18px; font-weight: 750; margin: 0; text-transform: capitalize; }
         .oms-card__date { color: var(--muted); font-size: 13px; margin: 3px 0 0; }
         .oms-card__ordinal { background: var(--green-soft); border-radius: 5px; color: var(--green); font-size: 12px; font-weight: 700; padding: 6px 8px; }
+        .oms-card__supply-indicators { align-items: center; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+        .oms-card__supply-indicator { align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; cursor: help; display: inline-flex; font-size: 17px; height: 30px; justify-content: center; width: 30px; }
         .oms-card__content { display: grid; gap: 15px; padding: 17px; }
         .oms-card__value { font-size: 15px; font-weight: 650; line-height: 1.45; margin: 4px 0 0; }
         .oms-card__meal { border: 1px solid #b8dbc6; border-radius: 6px; padding: 12px; }
@@ -92,6 +94,13 @@
                             </div>
                             <span class="oms-card__ordinal">Ziua {{ $loop->iteration }}</span>
                         </header>
+                        @if (!empty($this->supplyIndicators[$dailyMeal->meal_date->toDateString()] ?? []))
+                            <div class="oms-card__supply-indicators" aria-label="Resurse de aprovizionare">
+                                @foreach ($this->supplyIndicators[$dailyMeal->meal_date->toDateString()] as $indicator)
+                                    <span class="oms-card__supply-indicator" title="{{ $indicator['label'] }}" aria-label="{{ $indicator['label'] }}">{{ $indicator['icon'] }}</span>
+                                @endforeach
+                            </div>
+                        @endif
                         <div class="oms-card__content">
                             <div>
                                 <p class="oms-card__label">Congregatie</p>
