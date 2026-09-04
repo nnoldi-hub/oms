@@ -11,6 +11,16 @@ use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable implements FilamentUser
 {
+    public const ROLES = [
+        'admin',
+        'coordinator',
+        'construction',
+        'kitchen',
+        'supply_manager',
+        'congregation_responsible',
+        'project_supervisor',
+    ];
+
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
@@ -75,8 +85,33 @@ class User extends Authenticatable implements FilamentUser
         return $this->role === 'kitchen';
     }
 
+    public function isSupplyManager(): bool
+    {
+        return $this->role === 'supply_manager';
+    }
+
+    public function isCongregationResponsible(): bool
+    {
+        return $this->role === 'congregation_responsible';
+    }
+
+    public function isProjectSupervisor(): bool
+    {
+        return $this->role === 'project_supervisor';
+    }
+
+    public function canManageSupply(): bool
+    {
+        return $this->isAdmin() || $this->isSupplyManager();
+    }
+
+    public function canManageContributions(): bool
+    {
+        return $this->canManageSupply() || $this->isCongregationResponsible();
+    }
+
     public function canAccessPanel(Panel $panel): bool
     {
-        return in_array($this->role, ['admin', 'coordinator', 'construction', 'kitchen'], true);
+        return in_array($this->role, self::ROLES, true);
     }
 }
