@@ -7,6 +7,7 @@ use BackedEnum;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
@@ -67,12 +68,15 @@ class SupplyContributionResource extends Resource
             Select::make('supply_item_id')->label('Resursa')->relationship('supplyItem', 'name')->searchable()->preload()->required(),
             DatePicker::make('delivery_date')->label('Ziua livrarii')->default(today())->required(),
             TextInput::make('quantity')->label('Cantitate')->numeric()->minValue(0)->required(),
+            TextInput::make('delivered_quantity')->label('Cantitate livrata efectiv')->numeric()->minValue(0),
             TextInput::make('responsible_name')->label('Responsabil')->maxLength(120),
             Select::make('delivery_status')->label('Status livrare')->options([
                 'confirmed' => 'Confirmat',
                 'in_transit' => 'In drum',
                 'delivered' => 'Livrat',
             ])->required(),
+            DateTimePicker::make('delivered_at')->label('Ora livrarii'),
+            TextInput::make('received_by')->label('Responsabil receptie')->maxLength(120),
             Textarea::make('notes')->label('Observatii')->columnSpanFull(),
         ]);
     }
@@ -84,6 +88,7 @@ class SupplyContributionResource extends Resource
             TextColumn::make('congregation.name')->label('Congregatie')->searchable()->sortable(),
             TextColumn::make('supplyItem.name')->label('Resursa')->searchable(),
             TextColumn::make('quantity')->label('Cantitate')->numeric(3),
+            TextColumn::make('delivered_quantity')->label('Livrat efectiv')->numeric(3),
             TextColumn::make('delivery_status')->label('Status')->badge(),
             TextColumn::make('responsible_name')->label('Responsabil'),
         ])->defaultSort('delivery_date', 'desc')->recordActions([

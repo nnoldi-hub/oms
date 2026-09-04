@@ -41,6 +41,7 @@ class SupplyItemResource extends Resource
                 'auxiliary' => 'Materiale auxiliare',
             ])->required(),
             TextInput::make('unit')->label('Unitate')->required()->maxLength(20),
+            TextInput::make('unit_cost')->label('Cost / unitate')->numeric()->minValue(0)->prefix('RON'),
             TextInput::make('current_stock')->label('Stoc actual')->numeric()->minValue(0)->required(),
             TextInput::make('minimum_stock')->label('Stoc minim')->numeric()->minValue(0)->required(),
             TextInput::make('estimated_daily_consumption')->label('Consum estimat / zi')->numeric()->minValue(0)->required(),
@@ -56,6 +57,7 @@ class SupplyItemResource extends Resource
             TextColumn::make('category')->label('Categorie')->badge(),
             TextColumn::make('current_stock')->label('Stoc')->numeric(3)->suffix(fn (SupplyItem $record): string => ' '.$record->unit)->sortable(),
             TextColumn::make('minimum_stock')->label('Minim')->numeric(3)->sortable(),
+            TextColumn::make('unit_cost')->label('Cost/unitate')->money('RON')->placeholder('De configurat'),
             IconColumn::make('below_minimum')->label('Alerta')->boolean()->state(fn (SupplyItem $record): bool => $record->isBelowMinimum()),
             IconColumn::make('is_active')->label('Activ')->boolean(),
         ])->recordActions([
