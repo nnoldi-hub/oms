@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Models\DailyMeal;
+use App\Models\SupplyContribution;
 use App\Models\Week;
 use App\Services\DailyMealCostCalculator;
 use Filament\Notifications\Notification;
@@ -81,6 +82,29 @@ class CalendarSaptamanal extends Page
         ]);
     }
 
+    /**
+     * @return array<string, list<array{icon: string, label: string}>>
+     */
+    public function getSupplyIndicatorsProperty(): array
+    {
+        $week = $this->selectedWeek;
+
+        if ($week === null) {
+            return [];
+        }
+
+        return SupplyContribution::query()
+            ->whereBetween('delivery_date', [
+                $week->start_date->toDateString(),
+                $week->start_date->copy()->addDays(4)->toDateString(),
+            ])
+            ->with(['congregation', 'supplyItem'])
+            ->get()
+            ->groupBy(fn (SupplyContribution $contribution): string => $contribution->delivery_date->toDateString())
+            ->map(fn ($contributions): array => $this->buildSupplyIndicators($contributions))
+            ->all();
+    }
+
     public function saveEstimatedPeople(int $mealId): void
     {
         $this->validate([
@@ -137,5 +161,56 @@ class CalendarSaptamanal extends Page
         $this->estimatedPeople = $dailyMeals->mapWithKeys(fn (DailyMeal $dailyMeal): array => [$dailyMeal->id => $dailyMeal->estimated_people])->all();
         $this->maximumBudget = $dailyMeals->mapWithKeys(fn (DailyMeal $dailyMeal): array => [$dailyMeal->id => $dailyMeal->maximum_budget])->all();
         $this->contributorCount = $dailyMeals->mapWithKeys(fn (DailyMeal $dailyMeal): array => [$dailyMeal->id => $dailyMeal->contributor_count])->all();
+    }
+
+    /**
+     * @param Collection<int, SupplyContribution> $contributions
+     * @return list<array{icon: string, label: string}>
+     */
+    private function buildSupplyIndicators(Collection $contributions): array
+    {
+        $indicators = [];
+
+        foreach ([
+            'snack' => ['icon' => '🍪', 'label' => 'Gustari'],
+            'water' => ['icon' => '💧', 'label' => 'Apa'],
+        ] as $category => $definition) {
+            $categoryContributions = $contributions->filter(
+                fn (SupplyContribution $contribution): bool => $contribution->supplyItem?->category === $category,
+            );
+
+            if ($categoryContributions->isEmpty()) {
+                continue;
+            }
+
+            $details = $categoryContributions
+                ->groupBy(fn (SupplyContribution $contribution): string => $contribution->congregation?->name ?? 'Congregatie nealocata')
+                ->map(function (Collection $congregationContributions): string {
+                    $name = $congregationContributions->first()->congregation?->name ?? 'Congregatie nealocata';
+                    $quantity = (float) $congregationContributions->sum('quantity');
+                    $unit = $congregationContributions->first()->supplyItem?->unit ?? 'buc';
+
+                    return sprintf('%s (%s %s)', $name, rtrim(rtrim(number_format($quantity, 3, '.', ''), '0'), '.'), $unit);
+                })
+                ->implode(', ');
+
+            $indicators[] = [
+                'icon' => $definition['icon'],
+                'label' => $definition['label'].': '.$details,
+            ];
+        }
+
+        if ($contributions->isNotEmpty()) {
+            $indicators[] = [
+                'icon' => '👥',
+                'label' => 'Congregatii participante: '.$contributions
+                    ->pluck('congregation.name')
+                    ->filter()
+                    ->unique()
+                    ->implode(', '),
+            ];
+        }
+
+        return $indicators;
     }
 }
