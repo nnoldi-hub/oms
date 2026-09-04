@@ -14,6 +14,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             OmsScheduleSeeder::class,
             MenuCatalogSeeder::class,
+            SupplyCatalogSeeder::class,
         ]);
     }
 }

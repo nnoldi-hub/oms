@@ -106,4 +106,14 @@ class DailyMeal extends Model
     {
         return $this->hasMany(Volunteer::class);
     }
+
+    public function supplyPlan(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(DailySupplyPlan::class);
+    }
+
+    public function workTeams(): HasMany
+    {
+        return $this->hasMany(WorkTeam::class);
+    }
 }
