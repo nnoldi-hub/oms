@@ -13,7 +13,7 @@ class SupplyItem extends Model
     public const CATEGORIES = ['snack', 'water', 'meal', 'auxiliary'];
 
     protected $fillable = [
-        'name', 'category', 'unit', 'current_stock', 'minimum_stock',
+        'name', 'category', 'unit', 'unit_cost', 'current_stock', 'minimum_stock',
         'estimated_daily_consumption', 'actual_consumption', 'is_active',
     ];
 
@@ -21,6 +21,7 @@ class SupplyItem extends Model
     {
         return [
             'current_stock' => 'decimal:3',
+            'unit_cost' => 'decimal:2',
             'minimum_stock' => 'decimal:3',
             'estimated_daily_consumption' => 'decimal:3',
             'actual_consumption' => 'decimal:3',
@@ -31,6 +32,11 @@ class SupplyItem extends Model
     public function contributions(): HasMany
     {
         return $this->hasMany(SupplyContribution::class);
+    }
+
+    public function consumptions(): HasMany
+    {
+        return $this->hasMany(SupplyConsumption::class);
     }
 
     public function isBelowMinimum(): bool

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class DailySupplyPlan extends Model
 {
@@ -31,6 +32,11 @@ class DailySupplyPlan extends Model
     public function dailyMeal(): BelongsTo
     {
         return $this->belongsTo(DailyMeal::class);
+    }
+
+    public function consumptions(): HasMany
+    {
+        return $this->hasMany(SupplyConsumption::class);
     }
 
     public function toBuy(string $resource): float
