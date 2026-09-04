@@ -37,6 +37,11 @@ class CosturiBuget extends Page
         return Week::with(['dailyMeals.menu', 'dailyMeals.soupMenu', 'dailyMeals.dessertMenu'])->find($this->weekId);
     }
 
+    public function getWeeksProperty(): Collection
+    {
+        return Week::query()->orderBy('week_number')->get();
+    }
+
     public function getCostsProperty(DailyMealCostCalculator $calculator): Collection
     {
         return $this->week?->dailyMeals->map(function (DailyMeal $meal) use ($calculator): array {
