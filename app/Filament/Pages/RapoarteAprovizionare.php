@@ -31,6 +31,8 @@ class RapoarteAprovizionare extends Page
 
     public ?int $weekId = null;
 
+    public int $reportVersion = 0;
+
     public function mount(): void
     {
         $this->selectedDate = today()->toDateString();
@@ -54,7 +56,16 @@ class RapoarteAprovizionare extends Page
 
         $date = Carbon::parse($this->selectedDate);
 
+        if ($this->period === 'month') {
+            return [$date->copy()->startOfMonth(), $date->copy()->endOfMonth()];
+        }
+
         return [$date->copy(), $date->copy()];
+    }
+
+    public function generateReport(): void
+    {
+        $this->reportVersion++;
     }
 
     public function getPlansProperty(): Collection
@@ -91,8 +102,45 @@ class RapoarteAprovizionare extends Page
             'water_confirmed' => (float) $this->plans->sum(fn (DailySupplyPlan $plan): float => (float) $plan->still_water_confirmed + (float) $plan->mineral_water_confirmed),
             'snacks_required' => (float) $this->plans->sum('snacks_required'),
             'snacks_confirmed' => (float) $this->plans->sum('snacks_confirmed'),
+            'desserts_required' => (float) $this->plans->sum('desserts_required'),
+            'desserts_confirmed' => (float) $this->plans->sum('desserts_confirmed'),
             'stock_alerts' => $this->stockItems->filter->isBelowMinimum()->count(),
         ];
+    }
+
+    public function getAlertsProperty(): array
+    {
+        $alerts = [];
+        $missingWaterDays = $this->plans->filter(fn (DailySupplyPlan $plan): bool => $plan->toBuy('still_water') + $plan->toBuy('mineral_water') > 0)->count();
+
+        if ($missingWaterDays > 0) {
+            $alerts[] = ['type' => 'danger', 'text' => "Lipsa apa in {$missingWaterDays} ".($missingWaterDays === 1 ? 'zi' : 'zile').' din perioada selectata.'];
+        }
+
+        $missingSnackDays = $this->plans->filter(fn (DailySupplyPlan $plan): bool => $plan->toBuy('snacks') > 0)->count();
+
+        if ($missingSnackDays > 0) {
+            $alerts[] = ['type' => 'warning', 'text' => "Gustari neconfirmate complet in {$missingSnackDays} ".($missingSnackDays === 1 ? 'zi' : 'zile').'.'];
+        }
+
+        if (($stockAlertCount = $this->totals['stock_alerts']) > 0) {
+            $alerts[] = ['type' => 'info', 'text' => "Stoc sub minim pentru {$stockAlertCount} ".($stockAlertCount === 1 ? 'consumabil' : 'consumabile').'. Recomandare: aprovizionare.'];
+        }
+
+        return $alerts;
+    }
+
+    public function getChartDataProperty(): Collection
+    {
+        return $this->plans->map(fn (DailySupplyPlan $plan): array => [
+            'label' => $plan->plan_date->format('d.m'),
+            'water_required' => (float) $plan->still_water_required + (float) $plan->mineral_water_required,
+            'water_confirmed' => (float) $plan->still_water_confirmed + (float) $plan->mineral_water_confirmed,
+            'snacks_required' => (float) $plan->snacks_required,
+            'snacks_confirmed' => (float) $plan->snacks_confirmed,
+            'desserts_required' => (float) $plan->desserts_required,
+            'desserts_confirmed' => (float) $plan->desserts_confirmed,
+        ]);
     }
 
     public function formatQuantity(float $quantity): string
