@@ -1,10 +1,35 @@
 <x-filament-panels::page>
-    <div class="space-y-6">
-        <div class="flex flex-wrap items-end justify-between gap-4">
+    <style>
+        .supply-report { --report-line: rgb(148 163 184 / .2); --report-muted: rgb(148 163 184); }
+        .supply-report__hero { background: linear-gradient(135deg, rgb(16 185 129 / .16), rgb(15 23 42 / .08)); border: 1px solid rgb(16 185 129 / .25); border-radius: 18px; padding: 28px 30px; }
+        .supply-report__hero h1 { font-size: clamp(1.8rem, 3vw, 2.5rem); letter-spacing: -.04em; }
+        .supply-report__filters { align-items: end; display: grid; gap: 12px; grid-template-columns: 1fr 1.5fr 1.6fr auto; }
+        .supply-report__filter { min-width: 0; }
+        .supply-report__filter label { color: var(--report-muted); display: block; font-size: .7rem; font-weight: 700; letter-spacing: .06em; margin-bottom: 6px; text-transform: uppercase; }
+        .supply-report__kpi { border: 1px solid var(--report-line); border-radius: 16px; min-height: 170px; padding: 22px; position: relative; box-shadow: 0 4px 16px rgb(15 23 42 / .08); }
+        .supply-report__kpi-icon { font-size: 2.2rem; line-height: 1; }
+        .supply-report__kpi-value { font-size: clamp(1.8rem, 3vw, 2.5rem); font-weight: 800; letter-spacing: -.04em; margin-top: 18px; }
+        .supply-report__kpi-label { color: var(--report-muted); font-size: .85rem; font-weight: 700; margin-top: 12px; }
+        .supply-report__kpi-sub { color: var(--report-muted); font-size: .75rem; margin-top: 4px; }
+        .supply-report__table { border: 1px solid var(--report-line); border-radius: 14px; overflow: hidden; }
+        .supply-report__table table { border-collapse: collapse; min-width: 800px; width: 100%; }
+        .supply-report__table th { background: rgb(100 116 139 / .14); color: var(--report-muted); font-size: .7rem; letter-spacing: .04em; padding: 13px 14px; text-transform: uppercase; }
+        .supply-report__table td { border-top: 1px solid var(--report-line); padding: 13px 14px; vertical-align: middle; }
+        .supply-report__table tbody tr:nth-child(even) { background: rgb(100 116 139 / .055); }
+        .supply-report__alert { align-items: center; border: 1px solid; border-radius: 12px; display: flex; gap: 10px; padding: 13px 15px; }
+        .supply-report__alert--danger { background: rgb(244 63 94 / .1); border-color: rgb(244 63 94 / .3); }
+        .supply-report__alert--warning { background: rgb(245 158 11 / .1); border-color: rgb(245 158 11 / .3); }
+        .supply-report__alert--info { background: rgb(14 165 233 / .1); border-color: rgb(14 165 233 / .3); }
+        .supply-report__chart { border: 1px solid var(--report-line); border-radius: 14px; padding: 20px; }
+        @media (max-width: 900px) { .supply-report__filters { grid-template-columns: 1fr 1fr; } }
+        @media (max-width: 600px) { .supply-report__filters { grid-template-columns: 1fr; } .supply-report__hero { padding: 22px; } }
+    </style>
+    <div class="supply-report space-y-6">
+        <div class="supply-report__hero flex flex-wrap items-end justify-between gap-5">
             <div>
                 <p class="text-sm font-semibold uppercase tracking-wide text-primary-600">📦 Control operational</p>
-                <h1 class="text-3xl font-bold tracking-tight">Rapoarte aprovizionare</h1>
-                <p class="mt-1 text-sm text-gray-500">Overview si detaliu pentru perioada selectata.</p>
+                <h1 class="mt-2 font-bold">Rapoarte aprovizionare</h1>
+                <p class="mt-2 text-sm text-gray-500">Overview & detaliu pentru perioada selectata.</p>
             </div>
             <div class="flex gap-2">
                 <x-filament::button color="gray" icon="heroicon-o-arrow-down-tray" disabled>Export PDF</x-filament::button>
@@ -13,15 +38,15 @@
         </div>
 
         <x-filament::section>
-            <div class="flex flex-wrap items-end gap-3">
-                <div class="min-w-36 flex-1">
+            <div class="supply-report__filters">
+                <div class="supply-report__filter">
                     <label class="mb-1 block text-xs font-semibold uppercase text-gray-500">Interval</label>
                     <select wire:model="period" class="fi-select-input block w-full rounded-lg border-gray-300 bg-white dark:border-white/10 dark:bg-white/5">
                         <option value="day">O zi</option><option value="week">O saptamana</option><option value="month">O luna</option>
                     </select>
                 </div>
                 @if ($period === 'week')
-                    <div class="min-w-52 flex-1">
+                    <div class="supply-report__filter">
                         <label class="mb-1 block text-xs font-semibold uppercase text-gray-500">Saptamana</label>
                         <select wire:model="weekId" class="fi-select-input block w-full rounded-lg border-gray-300 bg-white dark:border-white/10 dark:bg-white/5">
                             @foreach (App\Models\Week::query()->orderBy('week_number')->get() as $week)
@@ -30,18 +55,18 @@
                         </select>
                     </div>
                 @else
-                    <div class="min-w-44 flex-1">
+                    <div class="supply-report__filter">
                         <label class="mb-1 block text-xs font-semibold uppercase text-gray-500">Data de referinta</label>
                         <input type="{{ $period === 'month' ? 'month' : 'date' }}" wire:model="selectedDate" class="fi-input block w-full rounded-lg border-gray-300 dark:border-white/10 dark:bg-white/5">
                     </div>
                 @endif
-                <div class="min-w-52 flex-1">
+                <div class="supply-report__filter">
                     <label class="mb-1 block text-xs font-semibold uppercase text-gray-500">Tip raport</label>
                     <select wire:model="reportType" class="fi-select-input block w-full rounded-lg border-gray-300 bg-white dark:border-white/10 dark:bg-white/5">
                         <option value="supplies">Necesar si aprovizionare</option><option value="contributions">Aprovizionare / contributii</option><option value="stock">Verificare stoc</option>
                     </select>
                 </div>
-                <x-filament::button icon="heroicon-o-arrow-path" wire:click="generateReport">Genereaza raport</x-filament::button>
+                <x-filament::button color="warning" icon="heroicon-o-arrow-path" wire:click="generateReport">Genereaza raport</x-filament::button>
             </div>
         </x-filament::section>
 
@@ -56,18 +81,18 @@
                 ['icon' => '🍪', 'label' => 'Gustari necesare', 'value' => $this->formatQuantity($totals['snacks_required']).' portii', 'sub' => 'Confirmat: '.$this->formatQuantity($totals['snacks_confirmed']).' portii', 'color' => $snackRatio >= 100 ? 'success' : ($snackRatio >= 70 ? 'warning' : 'danger')],
                 ['icon' => '🍰', 'label' => 'Deserturi necesare', 'value' => $this->formatQuantity($totals['desserts_required']).' portii', 'sub' => 'Confirmat: '.$this->formatQuantity($totals['desserts_confirmed']).' portii', 'color' => $dessertRatio >= 100 ? 'success' : ($dessertRatio >= 70 ? 'warning' : 'danger')],
             ] as $card)
-                <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/5">
-                    <div class="flex items-start justify-between"><span class="text-2xl">{{ $card['icon'] }}</span><span class="h-2.5 w-2.5 rounded-full bg-{{ $card['color'] }}-500"></span></div>
-                    <p class="mt-4 text-sm font-medium text-gray-500">{{ $card['label'] }}</p>
-                    <p class="mt-1 text-2xl font-bold">{{ $card['value'] }}</p>
-                    <p class="mt-1 text-xs text-gray-500">{{ $card['sub'] }}</p>
+                <div class="supply-report__kpi bg-white dark:bg-white/5">
+                    <div class="flex items-start justify-between"><span class="supply-report__kpi-icon">{{ $card['icon'] }}</span><span class="h-3 w-3 rounded-full bg-{{ $card['color'] }}-500"></span></div>
+                    <p class="supply-report__kpi-label">{{ $card['label'] }}</p>
+                    <p class="supply-report__kpi-value">{{ $card['value'] }}</p>
+                    <p class="supply-report__kpi-sub">{{ $card['sub'] }}</p>
                 </div>
             @endforeach
         </div>
 
         @if ($reportType === 'stock')
             <x-filament::section heading="Verificare stoc si aprovizionare">
-                <div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="border-b text-left"><th class="p-3">Consumabil</th><th class="p-3">Categorie</th><th class="p-3">Stoc</th><th class="p-3">Minim</th><th class="p-3">Consum/zi</th><th class="p-3">Actiune</th></tr></thead><tbody>
+                <div class="supply-report__table overflow-x-auto"><table class="text-sm"><thead><tr class="text-left"><th class="p-3">Consumabil</th><th class="p-3">Categorie</th><th class="p-3">Stoc</th><th class="p-3">Minim</th><th class="p-3">Consum/zi</th><th class="p-3">Actiune</th></tr></thead><tbody>
                     @foreach ($this->stockItems as $item)
                         <tr class="border-b odd:bg-gray-50 dark:odd:bg-white/5"><td class="p-3 font-medium">{{ $item->name }}</td><td class="p-3">{{ $item->category }}</td><td class="p-3">{{ $this->formatQuantity((float) $item->current_stock) }} {{ $item->unit }}</td><td class="p-3">{{ $this->formatQuantity((float) $item->minimum_stock) }} {{ $item->unit }}</td><td class="p-3">{{ $this->formatQuantity((float) $item->estimated_daily_consumption) }} {{ $item->unit }}</td><td class="p-3 font-semibold {{ $item->isBelowMinimum() ? 'text-danger-600' : 'text-success-600' }}">{{ $item->isBelowMinimum() ? 'De aprovizionat' : 'In regula' }}</td></tr>
                     @endforeach
@@ -75,9 +100,9 @@
             </x-filament::section>
         @elseif ($reportType === 'contributions')
             <x-filament::section heading="Contributii in perioada selectata">
-                <div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="border-b text-left"><th class="p-3">Data</th><th class="p-3">Congregatie</th><th class="p-3">Resursa</th><th class="p-3">Cantitate</th><th class="p-3">Status</th><th class="p-3">Responsabil</th></tr></thead><tbody>
+                <div class="supply-report__table overflow-x-auto"><table class="text-sm"><thead><tr class="text-left"><th class="p-3">Data</th><th class="p-3">Congregatie</th><th class="p-3">Resursa</th><th class="p-3">Cantitate</th><th class="p-3">Status</th><th class="p-3">Responsabil</th></tr></thead><tbody>
                     @forelse ($this->contributions as $contribution)
-                        <tr class="border-b odd:bg-gray-50 dark:odd:bg-white/5"><td class="p-3">{{ $contribution->delivery_date->format('d.m.Y') }}</td><td class="p-3">{{ $contribution->congregation?->name }}</td><td class="p-3">{{ $contribution->supplyItem?->name }}</td><td class="p-3">{{ $this->formatQuantity((float) $contribution->quantity) }} {{ $contribution->supplyItem?->unit }}</td><td class="p-3">{{ $contribution->delivery_status }}</td><td class="p-3">{{ $contribution->responsible_name ?: '-' }}</td></tr>
+                        <tr><td class="p-3">{{ $contribution->delivery_date->format('d.m.Y') }}</td><td class="p-3">{{ $contribution->congregation?->name }}</td><td class="p-3">{{ $contribution->supplyItem?->name }}</td><td class="p-3">{{ $this->formatQuantity((float) $contribution->quantity) }} {{ $contribution->supplyItem?->unit }}</td><td class="p-3">{{ $contribution->delivery_status }}</td><td class="p-3">{{ $contribution->responsible_name ?: '-' }}</td></tr>
                     @empty
                         <tr><td colspan="6" class="p-6 text-center text-gray-500">Nu exista contributii in perioada selectata.</td></tr>
                     @endforelse
@@ -85,7 +110,7 @@
             </x-filament::section>
         @else
             <x-filament::section heading="Necesar si aprovizionare pe zile">
-                <div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="border-b text-left"><th class="p-3">Data</th><th class="p-3">Persoane</th><th class="p-3">Apa necesara</th><th class="p-3">Apa confirmata</th><th class="p-3">Diferenta</th><th class="p-3">Gustari necesare / confirmate</th><th class="p-3">Deserturi necesare / confirmate</th></tr></thead><tbody>
+                <div class="supply-report__table overflow-x-auto"><table class="text-sm"><thead><tr class="text-left"><th class="p-3">Data</th><th class="p-3">Persoane</th><th class="p-3">Apa necesara</th><th class="p-3">Apa confirmata</th><th class="p-3">Diferenta</th><th class="p-3">Gustari necesare / confirmate</th><th class="p-3">Deserturi necesare / confirmate</th></tr></thead><tbody>
                     @forelse ($this->plans as $plan)
                         @php($waterDifference = $plan->toBuy('still_water') + $plan->toBuy('mineral_water'))
                         @php($snackDifference = $plan->toBuy('snacks'))
@@ -102,14 +127,14 @@
 
         <x-filament::section heading="Alerte & recomandari">
             @forelse ($this->alerts as $alert)
-                <div class="mb-2 rounded-lg border p-3 text-sm {{ $alert['type'] === 'danger' ? 'border-danger-200 bg-danger-50 text-danger-700' : ($alert['type'] === 'warning' ? 'border-warning-200 bg-warning-50 text-warning-700' : 'border-info-200 bg-info-50 text-info-700') }}">{{ $alert['type'] === 'danger' ? '🔴' : ($alert['type'] === 'warning' ? '🟡' : '🔵') }} {{ $alert['text'] }}</div>
+                <div class="supply-report__alert supply-report__alert--{{ $alert['type'] }} mb-2 text-sm"><span class="text-lg">{{ $alert['type'] === 'danger' ? '🔴' : ($alert['type'] === 'warning' ? '🟡' : '🔵') }}</span><span>{{ $alert['text'] }}</span></div>
             @empty
                 <p class="text-sm text-success-600">✅ Nu exista alerte pentru perioada selectata.</p>
             @endforelse
         </x-filament::section>
 
         <x-filament::section heading="Consum vs aprovizionare">
-            <div class="space-y-4">
+            <div class="supply-report__chart space-y-4">
                 @foreach ($this->chartData as $chart)
                     @php($max = max($chart['water_required'], $chart['snacks_required'], $chart['desserts_required'], 1))
                     <div><div class="mb-1 flex justify-between text-xs text-gray-500"><span>{{ $chart['label'] }}</span><span>Apa / Gustari / Deserturi</span></div><div class="flex h-5 gap-1"><div class="rounded bg-primary-500" style="width: {{ ($chart['water_required'] / $max) * 100 }}%" title="Apa necesara"></div><div class="rounded bg-warning-500" style="width: {{ ($chart['snacks_required'] / $max) * 100 }}%" title="Gustari necesare"></div><div class="rounded bg-danger-500" style="width: {{ ($chart['desserts_required'] / $max) * 100 }}%" title="Deserturi necesare"></div></div></div>
