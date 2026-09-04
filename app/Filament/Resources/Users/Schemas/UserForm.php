@@ -33,6 +33,9 @@ class UserForm
                         'coordinator' => 'Coordonator congregatie',
                         'construction' => 'Echipa constructii',
                         'kitchen' => 'Echipa gastronomica',
+                        'supply_manager' => 'Responsabil aprovizionare',
+                        'congregation_responsible' => 'Responsabil congregatie',
+                        'project_supervisor' => 'Supraveghetor proiect',
                     ])
                     ->default('coordinator')
                     ->required()

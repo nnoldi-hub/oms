@@ -25,6 +25,11 @@ class SupplyItemResource extends Resource
     protected static ?string $modelLabel = 'consumabil';
     protected static ?string $pluralModelLabel = 'consumabile';
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->canManageSupply() ?? false;
+    }
+
     public static function form(Schema $schema): Schema
     {
         return $schema->components([

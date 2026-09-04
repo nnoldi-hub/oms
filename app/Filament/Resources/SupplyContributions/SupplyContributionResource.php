@@ -15,6 +15,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class SupplyContributionResource extends Resource
 {
@@ -24,6 +25,40 @@ class SupplyContributionResource extends Resource
     protected static string|\UnitEnum|null $navigationGroup = 'Aprovizionare';
     protected static ?string $modelLabel = 'contributie';
     protected static ?string $pluralModelLabel = 'contributii';
+
+    public static function canAccess(): bool
+    {
+        $user = auth()->user();
+
+        return ($user?->canManageContributions() ?? false) || ($user?->isProjectSupervisor() ?? false);
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->canManageContributions() ?? false;
+    }
+
+    public static function canEdit($record): bool
+    {
+        return auth()->user()?->canManageContributions() ?? false;
+    }
+
+    public static function canDelete($record): bool
+    {
+        return auth()->user()?->canManageContributions() ?? false;
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        $user = auth()->user();
+
+        if ($user?->isCongregationResponsible()) {
+            $query->where('congregation_id', $user->congregation_id);
+        }
+
+        return $query;
+    }
 
     public static function form(Schema $schema): Schema
     {
