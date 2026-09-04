@@ -35,6 +35,11 @@ class Congregation extends Model
         return $this->belongsToMany(Menu::class)->withTimestamps();
     }
 
+    public function supplyContributions(): HasMany
+    {
+        return $this->hasMany(SupplyContribution::class);
+    }
+
     protected static function booted(): void
     {
         static::saving(function (Congregation $congregation): void {
