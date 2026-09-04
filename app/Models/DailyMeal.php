@@ -36,15 +36,20 @@ class DailyMeal extends Model
     }
 
     protected static function booted(): void
-    {
-        static::creating(function (DailyMeal $dailyMeal): void {
-            $dailyMeal->public_token ??= (string) Str::uuid();
-        });
+{
+    static::creating(function (DailyMeal $dailyMeal): void {
+        $dailyMeal->public_token ??= (string) Str::uuid();
+    });
 
-        static::saving(function (DailyMeal $dailyMeal): void {
-            $user = auth()->user();
+    static::saving(function (DailyMeal $dailyMeal): void {
+        $user = auth()->user();
 
-            if ($dailyMeal->exists && $user?->isConstructionTeam() && $dailyMeal->isDirty([
+        // ⚠️ COREMPARE: Verificăm restricțiile de securitate doar dacă înregistrarea EXISTĂ deja în baza de date
+        // Acest lucru lasă generatorul automat să creeze zilele goale fără să verifice rolurile utilizatorilor
+        if ($dailyMeal->exists) {
+
+            // 1. Restricții pentru Echipa de Construcții
+            if ($user?->isConstructionTeam() && $dailyMeal->isDirty([
                 'meal_date',
                 'week_id',
                 'menu_id',
@@ -59,7 +64,8 @@ class DailyMeal extends Model
                 throw new AuthorizationException('Echipa de constructii poate modifica doar numarul de persoane.');
             }
 
-            if ($dailyMeal->exists && $user?->isCoordinator()) {
+            // 2. Restricții pentru Coordonatorul de Congregație
+            if ($user?->isCoordinator()) {
                 if ($user->congregation_id !== $dailyMeal->congregation_id || $dailyMeal->isDirty([
                     'meal_date',
                     'week_id',
@@ -72,10 +78,17 @@ class DailyMeal extends Model
                     throw new AuthorizationException('Coordonatorul poate modifica doar retetele zilelor congregatiei sale.');
                 }
             }
+        }
 
+        // ⚠️ AL DOILEA SUSPECT DE BLOCAJ: 
+        // Dacă generatorul încă se blochează, înseamnă că validatorul de rețete (MenuSchedulingValidator) 
+        // dă eroare pentru că zilele noi create sunt complet goale (n-au meniuri alocate încă).
+        // De aceea, îl rulăm tot DOAR la editare/salvare ulterioară.
+        if ($dailyMeal->exists) {
             app(MenuSchedulingValidator::class)->validate($dailyMeal);
-        });
-    }
+        }
+    });
+}
 
     public function week(): BelongsTo
     {
