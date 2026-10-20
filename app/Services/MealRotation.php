@@ -9,10 +9,12 @@ use Illuminate\Support\Collection;
 /**
  * Rotatia retetelor depinde de ORDINEA meselor din program, nu de zilele calendaristice.
  *
- * - Felul principal: catalog_principale[ordine % N], unde ordinea numara mesele sortate
- *   dupa data si exclude zilele libere.
- * - Ciorba: se pune pe a 2-a si a 4-a masa din fiecare saptamana (dupa pozitie).
- *   Slujba k = 2 * (saptamana - 1) + (0 pentru a 2-a masa, 1 pentru a 4-a masa),
+ * - Felul principal: catalog_principale[ordine % N], unde ordinea numara DOAR mesele care
+ *   urmeaza a fi completate automat (fara meniu inca), sortate dupa data. Zilele libere si
+ *   mesele cu meniu setat manual NU consuma un loc in rotatie, deci o interventie manuala
+ *   nu decaleaza restul programului.
+ * - Ciorba: se pune pe a 2-a si a 4-a masa din fiecare saptamana (dupa pozitia reala in
+ *   saptamana). Slujba k = 2 * (saptamana - 1) + (0 pentru a 2-a masa, 1 pentru a 4-a masa),
  *   ciorba = catalog_ciorbe[k % M]. Cele doua ciorbe dintr-o saptamana difera.
  */
 class MealRotation
@@ -22,7 +24,8 @@ class MealRotation
     public const SOUP_SLOTS_PER_WEEK = [1, 3];
 
     /**
-     * Ordinea globala (index de la 0) doar pentru mesele programate, sarind zilele libere.
+     * Ordinea globala (index de la 0) doar pentru mesele completate automat, sarind zilele
+     * libere si mesele care au deja un meniu setat.
      *
      * @param  Collection<int, DailyMeal>  $meals
      * @return array<int, int>  meal_id => index
@@ -31,10 +34,28 @@ class MealRotation
     {
         return $meals
             ->reject(fn (DailyMeal $meal): bool => (bool) $meal->is_free_day)
+            ->filter(fn (DailyMeal $meal): bool => $meal->menu_id === null)
             ->sortBy(fn (DailyMeal $meal) => $meal->meal_date->toDateString())
             ->values()
             ->mapWithKeys(fn (DailyMeal $meal, int $index): array => [$meal->id => $index])
             ->all();
+    }
+
+    /**
+     * Pozitia reala (0..4) a unei mese in saptamana ei, dupa data, excluzand zilele libere.
+     *
+     * @param  Collection<int, DailyMeal>  $meals  toate mesele din aceeasi saptamana
+     */
+    public function positionInWeek(Collection $meals, DailyMeal $target): ?int
+    {
+        $position = $meals
+            ->where('week_id', $target->week_id)
+            ->reject(fn (DailyMeal $meal): bool => (bool) $meal->is_free_day)
+            ->sortBy(fn (DailyMeal $meal) => $meal->meal_date->toDateString())
+            ->values()
+            ->search(fn (DailyMeal $meal): bool => $meal->id === $target->id);
+
+        return $position === false ? null : $position;
     }
 
     /** @param Collection<int, Menu> $catalog */

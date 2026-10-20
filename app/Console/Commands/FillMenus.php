@@ -7,6 +7,8 @@ use App\Models\Menu;
 use App\Models\Week;
 use App\Services\MealRotation;
 use App\Services\MenuSchedulingValidator;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 
@@ -42,6 +44,8 @@ class FillMenus extends Command
         $weeks = Week::query()->pluck('week_number', 'id');
         $mainOrder = $rotation->mainOrder($meals);
 
+        $usedMainDates = $this->usedMainDates($meals);
+
         $sequence = [];
         $mainFilled = 0;
         $soupFilled = 0;
@@ -60,6 +64,8 @@ class FillMenus extends Command
                 ->filter()
                 ->values();
 
+            $positionInWeek = $rotation->positionInWeek($meals, $meal);
+
             [$mainChanged, $soupChanged] = $this->fillMeal(
                 $meal,
                 $rotation,
@@ -67,7 +73,9 @@ class FillMenus extends Command
                 $soups,
                 $mainOrder[$meal->id] ?? 0,
                 (int) ($weeks[$meal->week_id] ?? 0),
+                $positionInWeek,
                 $soupsInWeek,
+                $usedMainDates,
             );
 
             $mainFilled += $mainChanged ? 1 : 0;
@@ -139,6 +147,7 @@ class FillMenus extends Command
     /**
      * @param  Collection<int, Menu>  $mains
      * @param  Collection<int, Menu>  $soups
+     * @param  array<int, array<int, CarbonImmutable>>  $usedMainDates
      * @param  Collection<int, int>  $soupsInWeek
      * @return array{0: bool, 1: bool}
      */
@@ -149,24 +158,28 @@ class FillMenus extends Command
         Collection $soups,
         int $order,
         int $weekNumber,
+        ?int $positionInWeek,
         Collection $soupsInWeek,
+        array &$usedMainDates,
     ): array {
         $mainChanged = false;
         $soupChanged = false;
 
         if ($meal->status === 'draft' && $meal->menu_id === null) {
-            $main = $rotation->mainRecipe($mains, $order);
+            $main = $this->pickMain($rotation, $mains, $order, $meal->meal_date, $usedMainDates);
 
             if ($main !== null) {
                 $meal->menu_id = $main->id;
+                $usedMainDates[$main->id][] = $meal->meal_date;
                 $mainChanged = true;
             }
         }
 
-        $dayIndex = $order % MealRotation::MEALS_PER_WEEK;
-
-        if ($meal->status === 'draft' && $meal->soup_menu_id === null && $rotation->hostsSoup($dayIndex)) {
-            $soupIndex = $rotation->soupRecipeIndex($soups->count(), $weekNumber, $dayIndex);
+        if ($meal->status === 'draft'
+            && $meal->soup_menu_id === null
+            && $positionInWeek !== null
+            && $rotation->hostsSoup($positionInWeek)) {
+            $soupIndex = $rotation->soupRecipeIndex($soups->count(), $weekNumber, $positionInWeek);
             $soup = $soupIndex === null ? null : $soups[$soupIndex];
 
             if ($soup !== null && ! $soupsInWeek->contains($soup->id)) {
@@ -176,6 +189,73 @@ class FillMenus extends Command
         }
 
         return [$mainChanged, $soupChanged];
+    }
+
+    /**
+     * Alege urmatorul fel principal din ciclu care nu a fost gatit in ultimele 10 zile
+     * calendaristice, tinand cont si de mesele completate inainte. Daca toate retetele
+     * din ciclu sunt prea recente, revine la candidatul de rotatie pentru a nu lasa ziua goala.
+     *
+     * @param  Collection<int, Menu>  $mains
+     * @param  array<int, array<int, CarbonImmutable>>  $usedMainDates
+     */
+    private function pickMain(
+        MealRotation $rotation,
+        Collection $mains,
+        int $order,
+        CarbonInterface $date,
+        array $usedMainDates,
+    ): ?Menu {
+        if ($mains->isEmpty()) {
+            return null;
+        }
+
+        $fallback = $rotation->mainRecipe($mains, $order);
+
+        for ($offset = 0; $offset < $mains->count(); $offset++) {
+            $candidate = $mains[($order + $offset) % $mains->count()];
+
+            if ($this->respectsMinimumDistance($usedMainDates[$candidate->id] ?? [], $date)) {
+                return $candidate;
+            }
+        }
+
+        return $fallback;
+    }
+
+    /**
+     * @param  array<int, CarbonImmutable>  $usedDates
+     */
+    private function respectsMinimumDistance(array $usedDates, CarbonInterface $date): bool
+    {
+        foreach ($usedDates as $usedDate) {
+            if ((int) $usedDate->diffInDays($date, absolute: true) < MenuSchedulingValidator::MINIMUM_DAYS_BETWEEN_MAIN_RECIPES) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Datele (calendaristice) in care a fost gatita fiecare reteta, din mesele deja completate.
+     *
+     * @param  Collection<int, DailyMeal>  $meals
+     * @return array<int, array<int, CarbonImmutable>>
+     */
+    private function usedMainDates(Collection $meals): array
+    {
+        $used = [];
+
+        foreach ($meals as $meal) {
+            if ($meal->is_free_day || $meal->menu_id === null) {
+                continue;
+            }
+
+            $used[$meal->menu_id][] = $meal->meal_date;
+        }
+
+        return $used;
     }
 
     /**
@@ -240,3 +320,4 @@ class FillMenus extends Command
         return $issues;
     }
 }
+

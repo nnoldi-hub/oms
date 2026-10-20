@@ -106,6 +106,38 @@ class FillMenusCommandTest extends TestCase
             ->assertSuccessful();
     }
 
+    public function test_a_second_run_does_not_reuse_a_recipe_within_ten_days(): void
+    {
+        $this->seed(OmsScheduleSeeder::class);
+
+        $this->artisan('oms:fill-menus')->assertSuccessful();
+
+        $meal = $this->mealOn('2026-12-04');
+        $meal->update(['menu_id' => null]);
+
+        $this->artisan('oms:fill-menus')->assertSuccessful();
+
+        $this->assertSame(0, DailyMeal::query()->whereNull('menu_id')->count());
+
+        $mainDates = DailyMeal::query()
+            ->whereNotNull('menu_id')
+            ->orderBy('meal_date')
+            ->get()
+            ->reject(fn (DailyMeal $entry): bool => (bool) $entry->is_free_day)
+            ->groupBy('menu_id');
+
+        $mainDates->each(function ($meals): void {
+            $dates = $meals->map(fn (DailyMeal $meal) => CarbonImmutable::parse($meal->meal_date))->sort()->values();
+
+            for ($index = 1; $index < $dates->count(); $index++) {
+                $this->assertGreaterThanOrEqual(
+                    10,
+                    (int) $dates[$index - 1]->diffInDays($dates[$index], absolute: true),
+                );
+            }
+        });
+    }
+
     private function mealOn(string $date): DailyMeal
     {
         $meal = DailyMeal::query()

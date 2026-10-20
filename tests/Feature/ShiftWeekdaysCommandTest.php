@@ -96,6 +96,24 @@ class ShiftWeekdaysCommandTest extends TestCase
             ->assertSuccessful();
     }
 
+    public function test_a_second_run_after_a_successful_shift_refuses_to_move_again(): void
+    {
+        $congregation = Congregation::factory()->create();
+        Week::factory()->for($congregation)->create(['week_number' => 1, 'start_date' => '2026-12-03']);
+        Week::factory()->for($congregation)->create(['week_number' => 2, 'start_date' => '2026-12-10']);
+
+        $this->artisan('oms:shift-weekdays', ['--force' => true])->assertSuccessful();
+
+        $this->assertSame('2026-12-07', $this->date(Week::where('week_number', 1)->value('start_date')));
+
+        $this->artisan('oms:shift-weekdays', ['--force' => true])
+            ->expectsOutputToContain('deja intr-o zi de luni')
+            ->assertSuccessful();
+
+        $this->assertSame('2026-12-07', $this->date(Week::where('week_number', 1)->value('start_date')));
+        $this->assertSame('2026-12-14', $this->date(Week::where('week_number', 2)->value('start_date')));
+    }
+
     public function test_it_refuses_to_shift_when_the_weeks_do_not_share_the_same_start_day(): void
     {
         Week::factory()->create(['week_number' => 1, 'start_date' => '2026-11-28']);

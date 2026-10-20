@@ -153,6 +153,7 @@ class CalendarSaptamanalTest extends TestCase
 
         $this->assertSame('2026-12-05', $dailyMeal->meal_date->toDateString());
         $this->assertSame($menu->id, $dailyMeal->menu_id);
+        $this->assertSame($congregation->id, $dailyMeal->congregation_id);
         $this->assertSame(33, $dailyMeal->estimated_people);
     }
 
