@@ -23,7 +23,7 @@ class DailyMealsTable
                     ->label('Data mesei')
                     ->date()
                     ->sortable(),
-                TextColumn::make('week.id')
+                TextColumn::make('week.week_number')
                     ->label('Saptamana')
                     ->searchable(),
                 TextColumn::make('congregation.name')
@@ -77,3 +77,4 @@ class DailyMealsTable
             ]);
     }
 }
+

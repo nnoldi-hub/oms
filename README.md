@@ -41,7 +41,7 @@ php artisan storage:link
 php artisan optimize
 ```
 
-Comanda `php artisan db:seed --force` se ruleaza doar pe o baza complet noua: creeaza si programarea pilot. Pentru a adauga catalogul de 12 feluri principale, 4 ciorbe si 6 deserturi/gustari intr-o baza care are deja programari, ruleaza in schimb:
+Comanda `php artisan db:seed --force` se ruleaza doar pe o baza complet noua: creeaza si programarea pilot. Pentru a adauga catalogul de 12 feluri principale, 5 ciorbe si 6 deserturi/gustari intr-o baza care are deja programari, ruleaza in schimb:
 
 ```bash
 php artisan oms:import-menu-catalog
@@ -50,6 +50,28 @@ php artisan oms:import-menu-catalog
 Aceasta comanda adauga doar retetele lipsa, le aproba pentru congregatiile existente si nu modifica zilele de masa, portiile sau statusurile deja introduse. Deserturile pot fi editate din `Bucatarie > Meniuri` si selectate optional pentru fiecare zi; ingredientele, cantitatile per persoana si preturile lor intra automat in costurile si rapoartele zilei.
 
 6. Exporturile CSV/XLSX au nevoie de coada Laravel. Daca Hostico permite worker persistent/Supervisor, ruleaza `php artisan queue:work`. Altfel seteaza `QUEUE_CONNECTION=sync` in `.env` pentru exporturi mici.
+
+## Programul Luni-Vineri
+
+Programarea incepe lunea si acopera 16 saptamani Luni-Vineri. Ciorbele se programeaza marti si joi (doua pe saptamana), iar acelasi fel principal se repeta cel mai devreme dupa 10 zile calendaristice. Regulile care pot fi ignorate cu confirmare (repetarea unui fel principal prea devreme, aceeasi ciorba de doua ori) apar ca avertisment la salvare, iar cele care nu pot fi incalcate (tip de reteta gresit, a treia ciorba intr-o saptamana) sunt blocate.
+
+Pentru o baza existenta care inca incepe sambata:
+
+```bash
+php artisan oms:shift-weekdays --dry-run
+php artisan oms:shift-weekdays
+```
+
+Comanda muta toate saptamanile, zilele de masa, planurile de aprovizionare si livrarile care cad in perioada programului, astfel incat prima zi sa fie lunea. Rularea fara `--dry-run` modifica datele.
+
+Pentru a completa retetele lipsa din zilele inca in stare `draft`, fara a atinge zilele confirmate sau cele editate manual:
+
+```bash
+php artisan oms:fill-menus --dry-run
+php artisan oms:fill-menus
+```
+
+Comanda respecta rotatia, cele doua ciorbe pe saptamana (marti si joi) si distanta minima de 10 zile intre felurile principale.
 
 ## Actualizare dupa GitHub
 

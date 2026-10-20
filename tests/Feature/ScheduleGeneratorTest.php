@@ -18,11 +18,11 @@ class ScheduleGeneratorTest extends TestCase
     {
         $congregations = Congregation::factory()->count(3)->create();
 
-        app(ScheduleGenerator::class)->generate('2027-06-01', 4, $congregations->pluck('id')->all());
+        app(ScheduleGenerator::class)->generate('2027-05-31', 4, $congregations->pluck('id')->all());
 
         $this->assertDatabaseCount('weeks', 4);
         $this->assertDatabaseCount('daily_meals', 20);
-        $this->assertSame('2027-06-01', Week::where('week_number', 1)->value('start_date')->toDateString());
+        $this->assertSame('2027-05-31', Week::where('week_number', 1)->value('start_date')->toDateString());
         $this->assertSame([
             $congregations[0]->id,
             $congregations[0]->id,
@@ -32,13 +32,22 @@ class ScheduleGeneratorTest extends TestCase
         ], DailyMeal::where('week_id', Week::where('week_number', 4)->value('id'))->orderBy('meal_date')->pluck('congregation_id')->all());
     }
 
-    public function test_it_rejects_a_date_range_that_overlaps_existing_meals(): void
+    public function test_it_rejects_a_start_date_that_is_not_a_monday(): void
     {
         $congregations = Congregation::factory()->count(3)->create();
-        DailyMeal::factory()->create(['meal_date' => '2027-06-03']);
 
         $this->expectException(ValidationException::class);
 
-        app(ScheduleGenerator::class)->generate('2027-06-01', 2, $congregations->pluck('id')->all());
+        app(ScheduleGenerator::class)->generate('2027-06-01', 4, $congregations->pluck('id')->all());
+    }
+
+    public function test_it_rejects_a_date_range_that_overlaps_existing_meals(): void
+    {
+        $congregations = Congregation::factory()->count(3)->create();
+        DailyMeal::factory()->create(['meal_date' => '2027-06-02']);
+
+        $this->expectException(ValidationException::class);
+
+        app(ScheduleGenerator::class)->generate('2027-05-31', 2, $congregations->pluck('id')->all());
     }
 }

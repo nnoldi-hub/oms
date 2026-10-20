@@ -16,13 +16,13 @@ class DailyMealInfolist
                 TextEntry::make('meal_date')
                     ->label('Data mesei')
                     ->date(),
-                TextEntry::make('week.id')
+                TextEntry::make('week.week_number')
                     ->label('Saptamana'),
                 TextEntry::make('menu.name')
                     ->label('Fel principal')
                     ->placeholder('-'),
                 TextEntry::make('soupMenu.name')
-                    ->label('Ciorba saptamanii')
+                    ->label('Ciorba')
                     ->placeholder('-'),
                 TextEntry::make('dessertMenu.name')
                     ->label('Desert / gustare')
@@ -52,3 +52,5 @@ class DailyMealInfolist
             ]);
     }
 }
+
+

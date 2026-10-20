@@ -6,6 +6,8 @@ use App\Filament\Pages\CalendarSaptamanal;
 use App\Models\Congregation;
 use App\Models\DailyMeal;
 use App\Models\Menu;
+use App\Models\SupplyContribution;
+use App\Models\SupplyItem;
 use App\Models\User;
 use App\Models\Week;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -78,5 +80,51 @@ class CalendarSaptamanalTest extends TestCase
             ->assertHasNoErrors();
 
         $this->assertDatabaseHas('daily_meals', ['id' => $dailyMeal->id, 'maximum_budget' => 300, 'contributor_count' => 4]);
+    }
+
+    public function test_a_coordinator_only_sees_their_own_congregations_days_and_contributions(): void
+    {
+        $own = Congregation::factory()->create(['name' => 'Congregatia mea']);
+        $other = Congregation::factory()->create(['name' => 'Congregatia vecina']);
+        $week = Week::factory()->for($own)->create(['start_date' => '2026-12-07']);
+        $menu = Menu::factory()->create(['name' => 'Meniu comun']);
+        $own->menus()->attach($menu);
+        $other->menus()->attach($menu);
+
+        DailyMeal::factory()->for($week)->for($own)->for($menu)->create([
+            'meal_date' => '2026-12-07',
+        ]);
+        DailyMeal::factory()->for($week)->for($other)->for($menu)->create([
+            'meal_date' => '2026-12-08',
+        ]);
+
+        $item = SupplyItem::create(['name' => 'Apa', 'category' => 'water', 'unit' => 'buc']);
+        SupplyContribution::create([
+            'congregation_id' => $own->id,
+            'supply_item_id' => $item->id,
+            'delivery_date' => '2026-12-08',
+            'quantity' => 30,
+            'responsible_name' => 'Responsabil propriu',
+        ]);
+        SupplyContribution::create([
+            'congregation_id' => $other->id,
+            'supply_item_id' => $item->id,
+            'delivery_date' => '2026-12-08',
+            'quantity' => 99,
+            'responsible_name' => 'Responsabil vecin',
+        ]);
+
+        $coordinator = User::factory()->create(['role' => 'coordinator', 'congregation_id' => $own->id]);
+
+        $component = Livewire::actingAs($coordinator)->test(CalendarSaptamanal::class);
+
+        $this->assertSame(1, $component->instance()->selectedWeek->dailyMeals->count());
+        $this->assertSame($own->id, $component->instance()->selectedWeek->dailyMeals->first()->congregation_id);
+
+        $indicators = $component->instance()->supplyIndicators;
+        $rendered = json_encode($indicators);
+
+        $this->assertStringNotContainsString('Responsabil vecin', $rendered);
+        $this->assertStringNotContainsString('99', $rendered);
     }
 }

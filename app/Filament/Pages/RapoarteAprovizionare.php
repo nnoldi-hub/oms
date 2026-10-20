@@ -82,11 +82,15 @@ class RapoarteAprovizionare extends Page
     {
         [$from, $to] = $this->periodDates;
 
-        return SupplyContribution::query()
+        $query = SupplyContribution::query()
             ->whereBetween('delivery_date', [$from->toDateString(), $to->toDateString()])
-            ->with(['congregation', 'supplyItem'])
-            ->orderBy('delivery_date')
-            ->get();
+            ->with(['congregation', 'supplyItem']);
+
+        if (auth()->user()?->isCoordinator()) {
+            $query->where('congregation_id', auth()->user()->congregation_id);
+        }
+
+        return $query->orderBy('delivery_date')->get();
     }
 
     public function getStockItemsProperty(): Collection

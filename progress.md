@@ -13,9 +13,9 @@
 | --- | --- | --- | --- | --- |
 | M1 - Fundatie tehnica | In lucru | 75% | 30.08.2026 | Cont administrativ real si configurare MySQL Laragon. |
 | M2 - Acces si autorizare | Finalizat | 100% | 30.08.2026 | Verificare manuala a rolurilor pe conturile reale. |
-| M3 - Meniuri si alergii | In lucru | 95% | 30.08.2026 | Verificare manuala a fluxurilor Filament cu utilizatori reali. |
-| M4 - Calcul si publicare | In lucru | 90% | 30.08.2026 | Verificare manuala cu o zi publicata din panel. |
-| M5 - Seeding si calitate | In lucru | 90% | 30.08.2026 | Introducerea conturilor reale si verificarea manuala a fluxurilor. |
+| M3 - Meniuri si alergii | In lucru | 98% | 20.10.2026 | Verificare manuala a fluxurilor Filament cu utilizatori reali. |
+| M4 - Calcul si publicare | In lucru | 95% | 20.10.2026 | Verificare manuala cu o zi publicata din panel. |
+| M5 - Seeding si calitate | Finalizat | 100% | 20.10.2026 | Introducerea conturilor reale si verificarea manuala a fluxurilor. |
 | M6 - Lansare si operare | Neinceput | 0% | - | Checklist productie si test operational final. |
 
 ## Activitate
@@ -271,6 +271,18 @@
 - Verificat: testul seeder-ului confirma numarul de date, data de start, impartirea finala si lipsa dublarilor la a doua rulare; baza locala a fost populata cu `php artisan db:seed`.
 - Urmatorul pas: conturile operationale si meniurile reale, apoi verificarea manuala a fluxurilor din panel si pagina publica.
 
+### 20.10.2026 - Program Luni-Vineri, rotatie si buget
+
+- Status: Finalizat
+- Realizat: ziua de start a programului este lunea, cu 16 saptamani Luni-Vineri; `ScheduleGenerator` respinge orice data de start care nu este luni.
+- Realizat: rotatia felurilor principale se face pe indexul absolut al zilei (12 retete), iar ciorbele se programeaza marti si joi, cate doua pe saptamana, dintr-un catalog de 5 ciorbe.
+- Realizat: `MenuSchedulingValidator` separa regulile blocante (tip de reteta gresit/inactiva, a treia ciorba intr-o saptamana) de avertismentele confirmabile (fel principal sub 10 zile, aceeasi ciorba de doua ori, ciorba in afara de marti/joi); formularele cer o a doua apasare pe salvare pentru avertismente.
+- Realizat: comanda `oms:shift-weekdays` muta saptamanile, zilele, planurile si livrarile pe Luni-Vineri, cu `--dry-run`; `oms:fill-menus` completeaza retetele lipsa din zilele `draft` fara a atinge zilele confirmate. Seeder-ul refuza sa ruleze peste un program care nu incepe luni.
+- Realizat: widgetul „Maine" afiseaza urmatoarea masa (retete, portii, congregatie, alergeni de confirmat si necesarul de cumparat cu link la fisa de pregatire).
+- Realizat: pagina `Costuri & buget` compara costul estimat cu cheltuielile reale pe fiecare saptamana, marcheaza saptamanile incheiate si afiseaza costul proiectat, media pe saptamana incheiata si totalul cheltuit.
+- Securitate: coordonatorii vad in calendar si rapoarte doar zilele si livrarile congregatiei lor; statisticile fondului alimentar sunt vizibile doar supervizorului de proiect si rolurilor de aprovizionare; rutele publice au `noindex` si throttle.
+- Verificat: suita completa are 70 teste si 725 asertiuni verzi, inclusiv testele pentru rotatie, cele doua ciorbe pe saptamana, avertismente, comenzile `oms:shift-weekdays`/`oms:fill-menus`, widgetul „Maine" si pagina de buget.
+
 ## Decizii si blocaje
 
 | Data | Tip | Detaliu | Impact |
@@ -279,6 +291,9 @@
 | 30.08.2026 | Decizie | Se foloseste Laravel 12 in loc de Laravel 11. | Versiunile Laravel 11 disponibile sunt blocate de Composer prin alerte de securitate. |
 | 30.08.2026 | Decizie | Se foloseste Filament 4 in loc de Filament 3. | Versiunea Filament 3 disponibila este blocata de Composer prin alerta de securitate. |
 | 30.08.2026 | Decizie | Saptamana 16 este impartita 2 / 2 / 1: Congregația 1 primeste primele doua zile, Congregația 2 urmatoarele doua, iar Congregația 3 ultima zi. | Seeder-ul si autorizarea sunt implementate la nivelul fiecarei zile. |
+| 20.10.2026 | Decizie | Programul trece de la Sambata-Miercuri la Luni-Vineri, cu prima masa luni 30.11.2026. | Saptamanile, zilele, planurile si livrarile existente se muta cu `oms:shift-weekdays`; generatorul si seeder-ul cer data de start luni. |
+| 20.10.2026 | Decizie | Rotatia foloseste 12 feluri principale si 5 ciorbe, cu doua ciorbe pe saptamana (marti si joi). | Ambele ciorbe dintr-o saptamana sunt diferite, iar perechile se repeta dupa 5 saptamani. |
+| 20.10.2026 | Decizie | Regulile de rotatie sunt globale, nu per congregatie: cele de buna practica avertizeaza, cele invalide blocheaza. | Administratorul poate forta intentionat o repetare, dar nu poate salva o reteta de tip gresit sau o a treia ciorba. |
 
 ## Verificari de lansare
 

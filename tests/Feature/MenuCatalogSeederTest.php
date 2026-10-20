@@ -25,13 +25,14 @@ class MenuCatalogSeederTest extends TestCase
 
         $this->seed(MenuCatalogSeeder::class);
 
-        $this->assertDatabaseCount('menus', 23);
+        $this->assertDatabaseCount('menus', 24);
         $this->assertSame(13, Menu::where('type', 'main')->where('is_active', true)->count());
-        $this->assertSame(4, Menu::where('type', 'soup')->where('is_active', true)->count());
+        $this->assertSame(5, Menu::where('type', 'soup')->where('is_active', true)->count());
         $this->assertSame(6, Menu::where('type', 'dessert')->where('is_active', true)->count());
         $this->assertSame(47, $meal->fresh()->estimated_people);
         $this->assertSame('confirmed', $meal->fresh()->status);
         $this->assertSame($menu->id, $meal->fresh()->menu_id);
-        $this->assertSame(22, $congregation->fresh()->menus()->count());
+        $this->assertSame(23, $congregation->fresh()->menus()->count());
+        $this->assertNull(Menu::where('name', 'Ciorba de fasole')->firstOrFail()->allergens);
     }
 }

@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
     <title>Program mese {{ $congregation->name }}</title>
     <style>
         :root { color: #183c32; background: #f6f6f3; font-family: Arial, sans-serif; } * { box-sizing: border-box; } body { margin: 0; } main { margin: 0 auto; max-width: 960px; padding: 32px 20px 56px; } header { border-bottom: 4px solid #059669; padding-bottom: 18px; } .kicker { color: #047857; font-size: .78rem; font-weight: 700; letter-spacing: .08em; margin: 0 0 8px; text-transform: uppercase; } h1, h2 { font-family: Georgia, serif; } h1 { font-size: 2.1rem; margin: 0; } h2 { font-size: 1.4rem; margin: 30px 0 12px; } .dates { margin: 10px 0 0; } table { background: #fff; border-collapse: collapse; width: 100%; } th { background: #e4efe8; color: #14532d; text-align: left; } th, td { border: 1px solid #d6dfd9; padding: 10px; vertical-align: top; } .number { text-align: right; white-space: nowrap; } .notice { background: #fef3c7; border-left: 4px solid #d97706; padding: 12px 14px; } .print { background: #047857; border: 0; color: #fff; cursor: pointer; font-weight: 700; margin-top: 16px; padding: 10px 16px; } @media print { .print { display: none; } main { max-width: none; padding: 0; } } @media (max-width: 640px) { main { padding: 24px 12px 40px; } th, td { padding: 8px; } }

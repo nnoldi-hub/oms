@@ -8,6 +8,13 @@ use Filament\Widgets\StatsOverviewWidget\Stat;
 
 class FoodFundStatsOverview extends StatsOverviewWidget
 {
+    public static function canView(): bool
+    {
+        $user = auth()->user();
+
+        return ($user?->isProjectSupervisor() ?? false) || ($user?->canManageSupply() ?? false);
+    }
+
     protected function getStats(): array
     {
         $income = (float) FoodFundTransaction::query()->where('type', 'income')->sum('amount');

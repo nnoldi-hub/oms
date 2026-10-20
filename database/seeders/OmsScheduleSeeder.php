@@ -8,11 +8,19 @@ use App\Models\Menu;
 use App\Models\Week;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Seeder;
+use RuntimeException;
 
 class OmsScheduleSeeder extends Seeder
 {
     public function run(): void
     {
+        $nonMondayStarts = Week::query()->pluck('start_date')
+            ->filter(fn ($start) => ! CarbonImmutable::parse($start)->isMonday());
+
+        if ($nonMondayStarts->isNotEmpty()) {
+            throw new RuntimeException('Programul existent nu incepe intr-o zi de luni. Ruleaza intai: php artisan oms:shift-weekdays');
+        }
+
         $congregations = collect([
             'Congregatia 1',
             'Congregatia 2',
@@ -195,6 +203,16 @@ class OmsScheduleSeeder extends Seeder
                     ['name' => 'Faina si oua', 'quantity_per_person' => 0.04, 'unit' => 'kg'],
                 ],
             ],
+            [
+                'name' => 'Ciorba de fasole',
+                'instructions' => 'Fierbe fasolea din timp si serveste ciorba calda in recipiente separate.',
+                'ingredients' => [
+                    ['name' => 'Fasole boabe uscata', 'quantity_per_person' => 0.08, 'unit' => 'kg'],
+                    ['name' => 'Costita afumata', 'quantity_per_person' => 0.05, 'unit' => 'kg'],
+                    ['name' => 'Legume pentru ciorba', 'quantity_per_person' => 0.06, 'unit' => 'kg'],
+                    ['name' => 'Bors', 'quantity_per_person' => 0.05, 'unit' => 'l'],
+                ],
+            ],
         ])->map(fn (array $soupData) => Menu::updateOrCreate(
             ['name' => $soupData['name']],
             $soupData + ['type' => 'soup', 'packaging_cost' => 0, 'is_active' => true],
@@ -214,14 +232,13 @@ class OmsScheduleSeeder extends Seeder
         $congregations->each(fn (Congregation $congregation) => $congregation->menus()
             ->syncWithoutDetaching($menus->pluck('id')->push($soup->id)->merge($additionalSoups->pluck('id'))->all()));
 
-        $firstMealDate = CarbonImmutable::parse('2026-11-28');
+        $firstMealDate = CarbonImmutable::parse('2026-11-30');
         $finalWeekAssignments = [0, 0, 1, 1, 2];
         $soups = collect([$soup])->merge($additionalSoups)->values();
 
         foreach (range(1, 16) as $weekNumber) {
             $weekStartDate = $firstMealDate->addWeeks($weekNumber - 1);
             $weeklyCongregation = $congregations[($weekNumber - 1) % $congregations->count()];
-            $weeklySoup = $soups[($weekNumber - 1) % $soups->count()];
             $week = Week::updateOrCreate(
                 ['week_number' => $weekNumber],
                 [
@@ -236,13 +253,20 @@ class OmsScheduleSeeder extends Seeder
                     ? $congregations[$finalWeekAssignments[$dayIndex]]
                     : $weeklyCongregation;
 
+                $menuIndex = (($weekNumber - 1) * 5 + $dayIndex) % $menus->count();
+                $soupIndex = match ($dayIndex) {
+                    1 => (($weekNumber - 1) * 2) % $soups->count(),
+                    3 => (($weekNumber - 1) * 2 + 1) % $soups->count(),
+                    default => null,
+                };
+
                 DailyMeal::updateOrCreate(
                     ['meal_date' => $mealDate],
                     [
                         'week_id' => $week->id,
                         'congregation_id' => $dailyCongregation->id,
-                        'menu_id' => $menus[($weekNumber + $dayIndex - 1) % $menus->count()]->id,
-                        'soup_menu_id' => $dayIndex === 0 ? $weeklySoup->id : null,
+                        'menu_id' => $menus[$menuIndex]->id,
+                        'soup_menu_id' => $soupIndex === null ? null : $soups[$soupIndex]->id,
                         'estimated_people' => 0,
                         'status' => 'draft',
                     ],

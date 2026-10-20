@@ -2,9 +2,8 @@
 
 namespace App\Filament\Resources\DailyMeals\Schemas;
 
-use Filament\Schemas\Components\Utilities\Get;
-use Illuminate\Database\Eloquent\Builder;
 use Filament\Forms\Components\DatePicker;
+use Illuminate\Database\Eloquent\Builder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
@@ -33,32 +32,26 @@ class DailyMealForm
                 Select::make('menu_id')
                     ->label('Fel principal')
                     ->relationship(
-                        name: 'menu',
-                        titleAttribute: 'name',
-                        modifyQueryUsing: fn (Builder $query, Get $get): Builder => $query
-                            ->where('type', 'main')
-                            ->whereHas('congregations', fn (Builder $congregationQuery) => $congregationQuery->whereKey($get('congregation_id'))),
+                        'menu',
+                        'name',
+                        fn (Builder $query): Builder => $query->where('type', 'main')->orderBy('name'),
                     )
                     ->disabled(fn (): bool => auth()->user()?->isConstructionTeam() ?? false),
                 Select::make('soup_menu_id')
-                    ->label('Ciorba saptamanii')
-                    ->helperText('Alege ciorba doar pentru una dintre zilele saptamanii.')
+                    ->label('Ciorba')
+                    ->helperText('Recomandat: marti si joi, doua ciorbe diferite. Maximum 2 pe saptamana.')
                     ->relationship(
-                        name: 'soupMenu',
-                        titleAttribute: 'name',
-                        modifyQueryUsing: fn (Builder $query, Get $get): Builder => $query
-                            ->where('type', 'soup')
-                            ->whereHas('congregations', fn (Builder $congregationQuery) => $congregationQuery->whereKey($get('congregation_id'))),
+                        'soupMenu',
+                        'name',
+                        fn (Builder $query): Builder => $query->where('type', 'soup')->orderBy('name'),
                     )
                     ->disabled(fn (): bool => auth()->user()?->isConstructionTeam() ?? false),
                 Select::make('dessert_menu_id')
                     ->label('Desert / gustare')
                     ->relationship(
-                        name: 'dessertMenu',
-                        titleAttribute: 'name',
-                        modifyQueryUsing: fn (Builder $query, Get $get): Builder => $query
-                            ->where('type', 'dessert')
-                            ->whereHas('congregations', fn (Builder $congregationQuery) => $congregationQuery->whereKey($get('congregation_id'))),
+                        'dessertMenu',
+                        'name',
+                        fn (Builder $query): Builder => $query->where('type', 'dessert')->orderBy('name'),
                     )
                     ->disabled(fn (): bool => auth()->user()?->isConstructionTeam() ?? false),
                 TextInput::make('estimated_people')

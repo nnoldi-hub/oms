@@ -6,6 +6,7 @@ use App\Models\SupplyItem;
 use BackedEnum;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
+use Filament\Notifications\Notification;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -62,7 +63,18 @@ class SupplyItemResource extends Resource
             IconColumn::make('is_active')->label('Activ')->boolean(),
         ])->recordActions([
             EditAction::make(),
-            DeleteAction::make(),
+            DeleteAction::make()
+                ->before(function (DeleteAction $action, SupplyItem $record): void {
+                    if ($record->contributions()->exists() || $record->consumptions()->exists()) {
+                        Notification::make()
+                            ->warning()
+                            ->title('Consumabilul are istoric inregistrat')
+                            ->body('Nu poti sterge un produs cu contributii sau consumuri. Dezactiveaza-l din pagina de editare, ca sa pastrezi istoricul financiar.')
+                            ->send();
+
+                        $action->halt();
+                    }
+                }),
         ]);
     }
 

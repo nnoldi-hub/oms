@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
     <title>{{ $dailyMeal->menu->name }} - OMS</title>
     <style>
         :root { color: #17352c; background: #f5f3ec; font-family: Georgia, serif; }
@@ -41,7 +42,7 @@
 
         @if ($dailyMeal->soupMenu)
             <section>
-                <h2>Ciorba saptamanii</h2>
+                <h2>Ciorba</h2>
                 <p class="instructions">{{ $dailyMeal->soupMenu->name }}</p>
             </section>
         @endif

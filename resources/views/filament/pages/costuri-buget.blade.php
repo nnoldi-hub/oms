@@ -19,6 +19,8 @@
         .budget-status { border-radius: 999px; display: inline-flex; font-size: .72rem; font-weight: 700; padding: 5px 9px; }
         .budget-status--ok { background: rgb(16 185 129 / .13); color: rgb(4 120 87); }
         .budget-status--missing { background: rgb(245 158 11 / .15); color: rgb(180 83 9); }
+        .budget-status--over { background: rgb(239 68 68 / .14); color: rgb(185 28 28); }
+        .budget-kpi--spent { background: linear-gradient(135deg, rgb(16 185 129 / .14), transparent); }
         @media (max-width: 900px) { .budget-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
         @media (max-width: 600px) { .budget-hero { align-items: start; flex-direction: column; padding: 22px; } .budget-filter { grid-template-columns: 1fr; } .budget-kpis { grid-template-columns: 1fr 1fr; } }
     </style>
@@ -56,9 +58,11 @@
         @php($peopleTotal = $this->costs->sum('people'))
         <div class="budget-kpis">
             @foreach ([
-                ['icon' => '📊', 'label' => 'Cost saptamana', 'value' => number_format($weeklyTotal, 2, '.', ' ').' RON', 'class' => 'budget-kpi--primary'],
+                ['icon' => '📊', 'label' => 'Cost estimat saptamana', 'value' => number_format($weeklyTotal, 2, '.', ' ').' RON', 'class' => 'budget-kpi--primary'],
+                ['icon' => '💸', 'label' => 'Cheltuit real in saptamana', 'value' => number_format($this->spentThisWeek, 2, '.', ' ').' RON', 'class' => 'budget-kpi--spent'],
                 ['icon' => '📅', 'label' => 'Cost mediu / zi', 'value' => number_format($this->costs->avg('cost') ?: 0, 2, '.', ' ').' RON', 'class' => ''],
                 ['icon' => '👥', 'label' => 'Cost mediu / voluntar', 'value' => number_format($peopleTotal > 0 ? $weeklyTotal / $peopleTotal : 0, 2, '.', ' ').' RON', 'class' => ''],
+                ['icon' => '⚖️', 'label' => 'Diferenta estimat / real', 'value' => ($this->weekIsClosed && $this->spentThisWeek > 0 ? number_format($weeklyTotal - $this->spentThisWeek, 2, '.', ' ') : 'In curs') . ' RON', 'class' => ''],
                 ['icon' => '📦', 'label' => 'Valoare stoc actual', 'value' => number_format($this->supplyCost, 2, '.', ' ').' RON', 'class' => ''],
             ] as $card)
                 <article class="budget-kpi {{ $card['class'] }}">
@@ -68,6 +72,51 @@
                 </article>
             @endforeach
         </div>
+
+        <div class="budget-kpis">
+            @foreach ([
+                ['icon' => '📈', 'label' => 'Cost proiectat (16 saptamani)', 'value' => number_format($this->budget['projected_total'], 2, '.', ' ').' RON', 'class' => ''],
+                ['icon' => '🕒', 'label' => 'Saptamani incheiate', 'value' => $this->budget['completed_weeks'].' / '.$this->budget['total_weeks'], 'class' => ''],
+                ['icon' => '✅', 'label' => 'Cost mediu saptamana incheiata', 'value' => number_format($this->budget['completed_average'], 2, '.', ' ').' RON', 'class' => ''],
+                ['icon' => '💰', 'label' => 'Cheltuieli inregistrate total', 'value' => number_format($this->budget['recorded_expenses'], 2, '.', ' ').' RON', 'class' => ''],
+            ] as $card)
+                <article class="budget-kpi {{ $card['class'] }}">
+                    <div class="budget-kpi-icon">{{ $card['icon'] }}</div>
+                    <p class="budget-kpi-value">{{ $card['value'] }}</p>
+                    <p class="budget-kpi-label mt-2">{{ $card['label'] }}</p>
+                </article>
+            @endforeach
+        </div>
+
+        <x-filament::section heading="Buget saptamanal" description="Comparatie intre costul estimat al meniurilor si sumele cheltuite pentru fiecare saptamana.">
+            <div class="budget-table-wrap">
+                <table class="budget-table">
+                    <thead><tr><th>Saptamana</th><th>Interval</th><th>Cost estimat</th><th>Cheltuit real</th><th>Diferenta</th><th>Status</th></tr></thead>
+                    <tbody>
+                        @forelse ($this->budget['weeks'] as $weekBudget)
+                            <tr>
+                                <td class="font-semibold">Saptamana {{ $weekBudget['week_number'] }}</td>
+                                <td>{{ $weekBudget['start']->format('d.m.Y') }} - {{ $weekBudget['end']->format('d.m.Y') }}</td>
+                                <td class="font-semibold">{{ number_format($weekBudget['estimated'], 2, '.', ' ') }} RON</td>
+                                <td>{{ number_format($weekBudget['spent'], 2, '.', ' ') }} RON</td>
+                                <td>{{ $weekBudget['difference'] > 0 ? '+' : '' }}{{ number_format($weekBudget['difference'], 2, '.', ' ') }} RON</td>
+                                <td>
+                                    @if (! $weekBudget['closed'])
+                                        <span class="budget-status budget-status--missing">In curs</span>
+                                    @elseif ($weekBudget['over_budget'])
+                                        <span class="budget-status budget-status--over">Peste estimare</span>
+                                    @else
+                                        <span class="budget-status budget-status--ok">In limita</span>
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="6" class="p-6 text-center text-gray-500">Nu exista saptamani planificate.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </x-filament::section>
 
         <x-filament::section heading="Cost pe zi si meniu" description="Compara costul estimat pentru fiecare zi din saptamana selectata.">
             <div class="budget-table-wrap">

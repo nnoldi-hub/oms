@@ -74,7 +74,7 @@ class CalendarSaptamanal extends Page
         $week = $this->weeks->firstWhere('id', $this->weekId);
 
         return $week?->load([
-            'dailyMeals' => fn (HasMany $query) => $query->orderBy('meal_date'),
+            'dailyMeals' => fn (HasMany $query) => $this->scopeDailyMealsForUser($query)->orderBy('meal_date'),
             'dailyMeals.congregation',
             'dailyMeals.menu',
             'dailyMeals.soupMenu',
@@ -93,16 +93,33 @@ class CalendarSaptamanal extends Page
             return [];
         }
 
-        return SupplyContribution::query()
+        $query = SupplyContribution::query()
             ->whereBetween('delivery_date', [
                 $week->start_date->toDateString(),
                 $week->start_date->copy()->addDays(4)->toDateString(),
             ])
-            ->with(['congregation', 'supplyItem'])
+            ->with(['congregation', 'supplyItem']);
+
+        if (auth()->user()?->isCoordinator()) {
+            $query->where('congregation_id', auth()->user()->congregation_id);
+        }
+
+        return $query
             ->get()
             ->groupBy(fn (SupplyContribution $contribution): string => $contribution->delivery_date->toDateString())
             ->map(fn ($contributions): array => $this->buildSupplyIndicators($contributions))
             ->all();
+    }
+
+    private function scopeDailyMealsForUser(HasMany $query): HasMany
+    {
+        $user = auth()->user();
+
+        if ($user?->isCoordinator()) {
+            $query->where('congregation_id', $user->congregation_id);
+        }
+
+        return $query;
     }
 
     public function saveEstimatedPeople(int $mealId): void

@@ -52,6 +52,7 @@ class DailyMeal extends Model
             if ($user?->isConstructionTeam() && $dailyMeal->isDirty([
                 'meal_date',
                 'week_id',
+                'congregation_id',
                 'menu_id',
                 'soup_menu_id',
                 'dessert_menu_id',
@@ -80,12 +81,10 @@ class DailyMeal extends Model
             }
         }
 
-        // ⚠️ AL DOILEA SUSPECT DE BLOCAJ: 
-        // Dacă generatorul încă se blochează, înseamnă că validatorul de rețete (MenuSchedulingValidator) 
-        // dă eroare pentru că zilele noi create sunt complet goale (n-au meniuri alocate încă).
-        // De aceea, îl rulăm tot DOAR la editare/salvare ulterioară.
-        if ($dailyMeal->exists) {
-            app(MenuSchedulingValidator::class)->validate($dailyMeal);
+        $validator = app(MenuSchedulingValidator::class);
+
+        if ($validator->scheduleChanged($dailyMeal)) {
+            $validator->validate($dailyMeal);
         }
     });
 }

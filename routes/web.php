@@ -12,11 +12,13 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('/mese/{dailyMeal:public_token}', PublicDailyMealController::class)
-    ->name('public-daily-meals.show');
+Route::middleware('throttle:60,1')->group(function (): void {
+    Route::get('/mese/{dailyMeal:public_token}', PublicDailyMealController::class)
+        ->name('public-daily-meals.show');
 
-Route::get('/fise/{publicCongregationWeekLink:token}', PublicCongregationWeekSheetController::class)
-    ->name('public-congregation-week-sheets.show');
+    Route::get('/fise/{publicCongregationWeekLink:token}', PublicCongregationWeekSheetController::class)
+        ->name('public-congregation-week-sheets.show');
+});
 
 Route::middleware('auth')->get('/rapoarte/saptamani/{week}', WeeklyReportController::class)
     ->name('weekly-reports.show');
