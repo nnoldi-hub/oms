@@ -27,13 +27,6 @@ class MenuSchedulingValidator
 
     public const SOUP_LIMIT_PER_WEEK = 2;
 
-    /**
-     * Zilele saptamanii de lucru in care se programeaza ciorba: 2 = marti, 4 = joi.
-     *
-     * @var array<int, int>
-     */
-    public const SOUP_WEEKDAYS = [2, 4];
-
     public function scheduleChanged(DailyMeal $dailyMeal): bool
     {
         return ! $dailyMeal->exists || $dailyMeal->isDirty(self::SCHEDULE_FIELDS);
@@ -110,10 +103,9 @@ class MenuSchedulingValidator
         }
 
         $warnings = [];
-        $mealDate = CarbonImmutable::parse($dailyMeal->meal_date);
 
-        if (! in_array((int) $mealDate->isoWeekday(), self::SOUP_WEEKDAYS, true)) {
-            $warnings[] = 'Ciorba este recomandata in zilele de marti si joi.';
+        if (! $this->soupOnPositionSlot($dailyMeal)) {
+            $warnings[] = 'Ciorba este recomandata la a doua si a patra masa a saptamanii.';
         }
 
         $sameSoupInWeek = $this->otherSoupsInWeek($dailyMeal)
@@ -147,6 +139,31 @@ class MenuSchedulingValidator
             ->whereNotNull('soup_menu_id')
             ->when($dailyMeal->exists, fn ($query) => $query->whereKeyNot($dailyMeal->id))
             ->get();
+    }
+
+    /**
+     * Ciorba este asezata pe a 2-a sau a 4-a masa a saptamanii, dupa pozitie
+     * (mesele sortate dupa data, excluzand zilele libere).
+     */
+    private function soupOnPositionSlot(DailyMeal $dailyMeal): bool
+    {
+        if ($dailyMeal->week_id === null || $dailyMeal->meal_date === null) {
+            return true;
+        }
+
+        $position = DailyMeal::query()
+            ->where('week_id', $dailyMeal->week_id)
+            ->where('is_free_day', false)
+            ->orderBy('meal_date')
+            ->orderBy('id')
+            ->pluck('id')
+            ->search($dailyMeal->id);
+
+        if ($position === false) {
+            return true;
+        }
+
+        return in_array($position % \App\Services\MealRotation::MEALS_PER_WEEK, \App\Services\MealRotation::SOUP_SLOTS_PER_WEEK, true);
     }
 
     private function validateMenu(?int $menuId, string $type, string $field): void

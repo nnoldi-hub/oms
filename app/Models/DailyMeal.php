@@ -28,11 +28,12 @@ class DailyMeal extends Model
         'notes',
         'public_token',
         'status',
+        'is_free_day',
     ];
 
     protected function casts(): array
     {
-        return ['meal_date' => 'date', 'maximum_budget' => 'decimal:2'];
+        return ['meal_date' => 'date', 'maximum_budget' => 'decimal:2', 'is_free_day' => 'boolean'];
     }
 
     protected static function booted(): void

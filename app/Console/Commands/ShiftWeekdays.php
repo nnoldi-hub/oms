@@ -8,9 +8,23 @@ use Illuminate\Support\Facades\DB;
 
 class ShiftWeekdays extends Command
 {
-    protected $signature = 'oms:shift-weekdays {--dry-run : Afiseaza ce s-ar schimba, fara a salva}';
+    protected $signature = 'oms:shift-weekdays {--dry-run : Afiseaza ce s-ar schimba, fara a salva} {--force : Nu cere confirmarea finala}';
 
     protected $description = 'Muta programul astfel incat fiecare saptamana sa inceapa lunea (Luni-Vineri)';
+
+    /** Zile legale nelucratoare care pot cadea in program. */
+    private const HOLIDAYS = [
+        '01-01' => 'Anul Nou',
+        '01-02' => 'Anul Nou',
+        '01-24' => 'Ziua Unirii',
+        '05-01' => 'Ziua Muncii',
+        '06-01' => 'Ziua Copilului',
+        '08-15' => 'Adormirea Maicii Domnului',
+        '11-30' => 'Sfantul Andrei',
+        '12-01' => 'Ziua Nationala',
+        '12-25' => 'Craciun',
+        '12-26' => 'Craciun',
+    ];
 
     public function handle(): int
     {
@@ -25,7 +39,7 @@ class ShiftWeekdays extends Command
         $delta = $this->daysUntilMonday(CarbonImmutable::parse($starts->first()));
 
         if ($delta === 0) {
-            $this->info('Programul incepe deja intr-o zi de luni.');
+            $this->info('Programul incepe deja intr-o zi de luni; nu este necesara nicio mutare.');
 
             return self::SUCCESS;
         }
@@ -54,7 +68,7 @@ class ShiftWeekdays extends Command
         ));
 
         $weeks = DB::table('weeks')->orderBy('week_number')->get(['id', 'start_date']);
-        $meals = DB::table('daily_meals')->orderByDesc('meal_date')->get(['id', 'meal_date']);
+        $meals = DB::table('daily_meals')->orderByDesc('meal_date')->get(['id', 'meal_date', 'is_free_day']);
         $plans = DB::table('daily_supply_plans')->whereBetween('plan_date', $range)
             ->orderByDesc('plan_date')->get(['id', 'plan_date']);
         $contributions = DB::table('supply_contributions')->whereBetween('delivery_date', $range)
@@ -70,8 +84,18 @@ class ShiftWeekdays extends Command
             ],
         );
 
+        foreach ($this->holidayWarnings($meals, $delta) as $warning) {
+            $this->warn($warning);
+        }
+
         if ($this->option('dry-run')) {
             $this->info('Mod de testare (--dry-run): nu s-a modificat nimic.');
+
+            return self::SUCCESS;
+        }
+
+        if (! $this->option('force') && ! $this->confirm(sprintf('Muti intreg programul inainte cu %d zile?', $delta))) {
+            $this->info('Mutarea a fost anulata.');
 
             return self::SUCCESS;
         }
@@ -109,6 +133,29 @@ class ShiftWeekdays extends Command
         $this->info('Programul a fost mutat pe Luni-Vineri.');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, object>  $meals
+     * @return array<int, string>
+     */
+    private function holidayWarnings($meals, int $delta): array
+    {
+        $warnings = [];
+
+        foreach ($meals as $meal) {
+            $newDate = CarbonImmutable::parse($meal->meal_date)->addDays($delta);
+
+            if (! $meal->is_free_day && isset(self::HOLIDAYS[$newDate->format('m-d')])) {
+                $warnings[] = sprintf(
+                    'Ziua %s cade de %s (sarbatoare legala). Verifica daca se lucreaza.',
+                    $newDate->toDateString(),
+                    self::HOLIDAYS[$newDate->format('m-d')],
+                );
+            }
+        }
+
+        return $warnings;
     }
 
     private function daysUntilMonday(CarbonImmutable $date): int

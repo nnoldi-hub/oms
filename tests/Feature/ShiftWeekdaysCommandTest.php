@@ -61,7 +61,7 @@ class ShiftWeekdaysCommandTest extends TestCase
         $this->assertSame('2026-11-28', $this->date(Week::where('week_number', 1)->value('start_date')));
         $this->assertSame('2026-11-28', $this->date(DailyMeal::orderBy('meal_date')->value('meal_date')));
 
-        $this->artisan('oms:shift-weekdays')->assertSuccessful();
+        $this->artisan('oms:shift-weekdays', ['--force' => true])->assertSuccessful();
 
         $this->assertSame('2026-11-30', $this->date(Week::where('week_number', 1)->value('start_date')));
         $this->assertSame('2026-12-07', $this->date(Week::where('week_number', 2)->value('start_date')));
@@ -102,6 +102,18 @@ class ShiftWeekdaysCommandTest extends TestCase
         Week::factory()->create(['week_number' => 2, 'start_date' => '2026-12-06']);
 
         $this->artisan('oms:shift-weekdays')->assertFailed();
+
+        $this->assertSame('2026-11-28', $this->date(Week::where('week_number', 1)->value('start_date')));
+    }
+
+    public function test_it_can_be_cancelled_at_the_confirmation_prompt(): void
+    {
+        $congregation = Congregation::factory()->create();
+        Week::factory()->for($congregation)->create(['week_number' => 1, 'start_date' => '2026-11-28']);
+
+        $this->artisan('oms:shift-weekdays')
+            ->expectsConfirmation('Muti intreg programul inainte cu 2 zile?', 'no')
+            ->assertSuccessful();
 
         $this->assertSame('2026-11-28', $this->date(Week::where('week_number', 1)->value('start_date')));
     }

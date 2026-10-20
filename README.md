@@ -51,9 +51,19 @@ Aceasta comanda adauga doar retetele lipsa, le aproba pentru congregatiile exist
 
 6. Exporturile CSV/XLSX au nevoie de coada Laravel. Daca Hostico permite worker persistent/Supervisor, ruleaza `php artisan queue:work`. Altfel seteaza `QUEUE_CONNECTION=sync` in `.env` pentru exporturi mici.
 
-## Programul Luni-Vineri
+## Programul meselor
 
-Programarea incepe lunea si acopera 16 saptamani Luni-Vineri. Ciorbele se programeaza marti si joi (doua pe saptamana), iar acelasi fel principal se repeta cel mai devreme dupa 10 zile calendaristice. Regulile care pot fi ignorate cu confirmare (repetarea unui fel principal prea devreme, aceeasi ciorba de doua ori) apar ca avertisment la salvare, iar cele care nu pot fi incalcate (tip de reteta gresit, a treia ciorba intr-o saptamana) sunt blocate.
+Rotatia depinde de **ordinea meselor din program**, nu de zilele calendaristice:
+
+- fiecare saptamana are 5 mese consecutive (sambata si duminica sunt sarite automat; sambata poate fi activata ca zi de lucru);
+- programul poate incepe in orice zi lucratoare, inclusiv vineri;
+- felul principal urmeaza catalogul de 12 retete dupa indexul mesei (`(ordine de la 0) % 12`), unde ordinea numara mesele sortate dupa data si exclude zilele libere;
+- ciorba se pune pe **a 2-a si a 4-a masa din fiecare saptamana** (dupa pozitie), dintr-un catalog de 5 ciorbe; cele doua ciorbe dintr-o saptamana sunt diferite;
+- acelasi fel principal se repeta cel mai devreme dupa 10 zile calendaristice.
+
+Regulile care pot fi ignorate cu confirmare (repetarea unui fel principal prea devreme, aceeasi ciorba de doua ori, ciorba in afara pozitiei 2/4) apar ca avertisment la salvare, iar cele care nu pot fi incalcate (tip de reteta gresit, a treia ciorba intr-o saptamana) sunt blocate.
+
+In calendarul saptamanal, administratorul are trei actiuni rapide pe fiecare zi: **Mută ziua** (schimba data fara a schimba retetele, doar cu avertismente), **Mută săptămâna** (deplaseaza toate zilele saptamanii cu N zile) si **Zi liberă** (scoate ziua din rotatie si, optional, muta restul programului cu o zi).
 
 Pentru o baza existenta care inca incepe sambata:
 
@@ -62,16 +72,16 @@ php artisan oms:shift-weekdays --dry-run
 php artisan oms:shift-weekdays
 ```
 
-Comanda muta toate saptamanile, zilele de masa, planurile de aprovizionare si livrarile care cad in perioada programului, astfel incat prima zi sa fie lunea. Rularea fara `--dry-run` modifica datele.
+Comanda muta toate saptamanile, zilele de masa, planurile de aprovizionare si livrarile care cad in perioada programului, astfel incat prima zi sa fie lunea. Rularea fara `--dry-run` cere confirmare (`--force` o sare) si avertizeaza daca vreo zi cade intr-o sarbatoare legala. Daca saptamanile nu incep in aceeasi zi, comanda refuza sa continuie.
 
-Pentru a completa retetele lipsa din zilele inca in stare `draft`, fara a atinge zilele confirmate sau cele editate manual:
+Pentru a completa retetele lipsa din zilele inca in stare `draft`, fara a atinge zilele confirmate, editate manual sau marcate ca zi libera:
 
 ```bash
 php artisan oms:fill-menus --dry-run
 php artisan oms:fill-menus
 ```
 
-Comanda respecta rotatia, cele doua ciorbe pe saptamana (marti si joi) si distanta minima de 10 zile intre felurile principale.
+Comanda afiseaza un tabel pe zile (data, fel principal, ciorba), respecta rotatia pe ordinea meselor, cele doua ciorbe pe a 2-a si a 4-a masa a saptamanii si semnaleaza repetarile prea dese.
 
 ## Actualizare dupa GitHub
 

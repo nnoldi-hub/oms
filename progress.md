@@ -283,6 +283,16 @@
 - Securitate: coordonatorii vad in calendar si rapoarte doar zilele si livrarile congregatiei lor; statisticile fondului alimentar sunt vizibile doar supervizorului de proiect si rolurilor de aprovizionare; rutele publice au `noindex` si throttle.
 - Verificat: suita completa are 70 teste si 725 asertiuni verzi, inclusiv testele pentru rotatie, cele doua ciorbe pe saptamana, avertismente, comenzile `oms:shift-weekdays`/`oms:fill-menus`, widgetul „Maine" si pagina de buget.
 
+### 20.10.2026 - Program pe ordinea meselor si actiuni in calendar
+
+- Status: Finalizat
+- Realizat: rotatia nu mai depinde de zilele calendaristice, ci de ordinea meselor din program. `MealRotation` calculeaza ordinea (sortare dupa data, fara zilele libere) si aseaza ciorbele pe a 2-a si a 4-a masa a fiecarei saptamani, rotind prin 5 ciorbe.
+- Realizat: `ScheduleGenerator` accepta orice zi de start lucratoare (inclusiv vineri), sare automat sambata si duminica, considera o saptamana 5 mese consecutive si poate include sambata ca zi de lucru.
+- Realizat: `oms:fill-menus` a fost rescrisa: completeaza doar zilele `draft` fara reteta, sare zilele libere si cele confirmate, afiseaza un tabel pe zile si semnaleaza repetarile; `oms:shift-weekdays` cere confirmare, refuza cand saptamanile nu incep in aceeasi zi si avertizeaza sarbatorile legale in `--dry-run`.
+- Realizat: in `Calendar saptamanal` administratorul are actiunile **Muta ziua**, **Muta saptamana** si **Zi libera** (cu optiunea de a muta restul programului cu o zi); mutarile nu ating retetele, portiile, bugetele sau statusurile.
+- Realizat: migrare noua: `daily_meals.is_free_day` si `weeks.include_saturday`.
+- Verificat: suita completa are 82 teste si 766 asertiuni verzi, inclusiv rotatia pe ordine, mutarea unei zile fara schimbarea meniului, ziua libera cu/fara deplasarea restului, generatorul cu start vineri si confirmarea comenzii de mutare.
+
 ## Decizii si blocaje
 
 | Data | Tip | Detaliu | Impact |
@@ -294,6 +304,9 @@
 | 20.10.2026 | Decizie | Programul trece de la Sambata-Miercuri la Luni-Vineri, cu prima masa luni 30.11.2026. | Saptamanile, zilele, planurile si livrarile existente se muta cu `oms:shift-weekdays`; generatorul si seeder-ul cer data de start luni. |
 | 20.10.2026 | Decizie | Rotatia foloseste 12 feluri principale si 5 ciorbe, cu doua ciorbe pe saptamana (marti si joi). | Ambele ciorbe dintr-o saptamana sunt diferite, iar perechile se repeta dupa 5 saptamani. |
 | 20.10.2026 | Decizie | Regulile de rotatie sunt globale, nu per congregatie: cele de buna practica avertizeaza, cele invalide blocheaza. | Administratorul poate forta intentionat o repetare, dar nu poate salva o reteta de tip gresit sau o a treia ciorba. |
+| 20.10.2026 | Decizie | Rotatia depinde de ordinea meselor, nu de date: felul principal dupa indexul global, ciorbele pe a 2-a si a 4-a masa a saptamanii. | Programul poate incepe in orice zi lucratoare (inclusiv vineri), fara sa strice rotatia; zilele libere ies din numaratoare. |
+| 20.10.2026 | Decizie | Mutarea unei zile sau a unei saptamani nu recalculeaza meniurile; rotația se reface doar prin `oms:fill-menus` pe zilele goale. | Administratorul pastreaza controlul manual, iar retetele deja alese raman pe zilele mutate. |
+| 20.10.2026 | Decizie | Ziua libera se marcheaza cu `daily_meals.is_free_day` (nu se sterge masa) si poate impinge restul programului cu o zi. | Portiile, bugetele si statusurile nu se pierd; ziua iese din rotatie si din necesarul de aprovizionare. |
 
 ## Verificari de lansare
 

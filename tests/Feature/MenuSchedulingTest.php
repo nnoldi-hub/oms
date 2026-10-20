@@ -137,7 +137,7 @@ class MenuSchedulingTest extends TestCase
         ]);
 
         $this->assertSame(
-            ['Ciorba este recomandata in zilele de marti si joi.'],
+            ['Ciorba este recomandata la a doua si a patra masa a saptamanii.'],
             $this->validator()->warnings($meal),
         );
     }

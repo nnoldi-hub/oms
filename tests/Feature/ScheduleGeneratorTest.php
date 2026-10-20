@@ -32,13 +32,53 @@ class ScheduleGeneratorTest extends TestCase
         ], DailyMeal::where('week_id', Week::where('week_number', 4)->value('id'))->orderBy('meal_date')->pluck('congregation_id')->all());
     }
 
-    public function test_it_rejects_a_start_date_that_is_not_a_monday(): void
+    public function test_it_starts_on_any_weekday_and_skips_the_weekend(): void
+    {
+        $congregations = Congregation::factory()->count(3)->create();
+
+        app(ScheduleGenerator::class)->generate('2026-11-27', 2, $congregations->pluck('id')->all());
+
+        $dates = DailyMeal::query()->orderBy('meal_date')->pluck('meal_date')
+            ->map(fn ($date) => $date->toDateString())
+            ->all();
+
+        $this->assertSame([
+            '2026-11-27',
+            '2026-11-30',
+            '2026-12-01',
+            '2026-12-02',
+            '2026-12-03',
+            '2026-12-04',
+            '2026-12-07',
+            '2026-12-08',
+            '2026-12-09',
+            '2026-12-10',
+        ], $dates);
+
+        $this->assertFalse(Week::where('week_number', 1)->value('include_saturday'));
+    }
+
+    public function test_it_can_include_saturday_as_a_working_day(): void
+    {
+        $congregations = Congregation::factory()->count(3)->create();
+
+        app(ScheduleGenerator::class)->generate('2027-06-01', 1, $congregations->pluck('id')->all(), includeSaturday: true);
+
+        $this->assertDatabaseCount('daily_meals', 5);
+        $this->assertTrue(Week::where('week_number', 1)->value('include_saturday'));
+        $this->assertSame(
+            ['2027-06-01', '2027-06-02', '2027-06-03', '2027-06-04', '2027-06-05'],
+            DailyMeal::query()->orderBy('meal_date')->pluck('meal_date')->map(fn ($date) => $date->toDateString())->all(),
+        );
+    }
+
+    public function test_it_rejects_a_start_date_that_falls_on_a_weekend(): void
     {
         $congregations = Congregation::factory()->count(3)->create();
 
         $this->expectException(ValidationException::class);
 
-        app(ScheduleGenerator::class)->generate('2027-06-01', 4, $congregations->pluck('id')->all());
+        app(ScheduleGenerator::class)->generate('2027-06-05', 4, $congregations->pluck('id')->all());
     }
 
     public function test_it_rejects_a_date_range_that_overlaps_existing_meals(): void

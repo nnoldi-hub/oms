@@ -92,7 +92,7 @@ class FillMenusCommandTest extends TestCase
         });
     }
 
-    public function test_it_reports_a_soup_scheduled_outside_tuesday_and_thursday(): void
+    public function test_it_reports_a_soup_scheduled_outside_the_second_and_fourth_meal(): void
     {
         $this->seed(OmsScheduleSeeder::class);
 
@@ -102,7 +102,7 @@ class FillMenusCommandTest extends TestCase
         DailyMeal::query()->whereKey($monday->id)->update(['soup_menu_id' => $soup->id]);
 
         $this->artisan('oms:fill-menus')
-            ->expectsOutputToContain('zi nepermisa')
+            ->expectsOutputToContain('a 2-a sau a 4-a masa')
             ->assertSuccessful();
     }
 

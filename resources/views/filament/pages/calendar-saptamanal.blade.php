@@ -38,6 +38,19 @@
         .oms-card__count { color: var(--green); font-size: 32px; font-weight: 750; margin: 5px 0 0; }
         .oms-card__error { color: #be123c; font-size: 13px; margin: 7px 0 0; }
         .oms-card__print { color: var(--green); display: inline-block; font-size: 13px; font-weight: 700; margin-top: 12px; text-decoration: underline; }
+        .oms-card__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+        .oms-card__action { background: #fff; border: 1px solid #91b4a2; border-radius: 5px; color: #166534; cursor: pointer; font: inherit; font-size: 13px; font-weight: 700; padding: 7px 11px; }
+        .oms-card__action:hover { background: var(--green-soft); }
+        .oms-modal { background: rgb(22 35 30 / 55%); display: flex; inset: 0; justify-content: center; padding: 40px 16px; position: fixed; z-index: 60; }
+        .oms-modal__panel { background: var(--surface); border-radius: 10px; box-shadow: 0 18px 45px rgb(22 35 30 / 35%); display: flex; flex-direction: column; gap: 14px; max-width: 460px; padding: 22px; width: 100%; }
+        .oms-modal__title { font-size: 19px; font-weight: 750; margin: 0; }
+        .oms-modal__label { color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; }
+        .oms-modal__hint { color: var(--muted); font-size: 13px; line-height: 1.5; margin: 0; }
+        .oms-modal__row { display: grid; gap: 6px; }
+        .oms-modal__radio { align-items: center; display: flex; gap: 8px; font-size: 14px; }
+        .oms-modal__buttons { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; }
+        .oms-modal__confirm { background: var(--green); border: 0; border-radius: 6px; color: #fff; cursor: pointer; font: inherit; font-weight: 700; padding: 9px 15px; }
+        .oms-modal__cancel { background: #fff; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); cursor: pointer; font: inherit; font-weight: 700; padding: 9px 15px; }
         .oms-card__budget { border-top: 1px solid var(--line); display: grid; gap: 9px; margin-top: 14px; padding-top: 14px; }
         .oms-card__budget-grid { display: grid; gap: 8px; grid-template-columns: 1fr 1fr auto; }
         .oms-card__budget-input { background: var(--surface); border: 1px solid #b9c8bf; border-radius: 5px; color: var(--ink); min-width: 0; padding: 8px; width: 100%; }
@@ -72,6 +85,9 @@
             <div class="oms-calendar__summary">
                 <p class="oms-calendar__dates">{{ $this->selectedWeek->start_date->translatedFormat('j F Y') }} - {{ $this->selectedWeek->start_date->addDays(4)->translatedFormat('j F Y') }}</p>
                 <div class="oms-calendar__reports">
+                    @if (auth()->user()?->isAdmin())
+                        <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="openMoveWeek({{ $this->selectedWeek->id }})">Mută săptămâna</button>
+                    @endif
                     <a class="oms-calendar__report" href="{{ route('weekly-reports.show', $this->selectedWeek) }}" target="_blank">Raport saptamanal</a>
                     @foreach ($this->selectedWeek->dailyMeals->pluck('congregation')->filter()->unique('id') as $congregation)
                         <a class="oms-calendar__report oms-calendar__report--secondary" href="{{ route('congregation-weekly-reports.show', [$this->selectedWeek, $congregation]) }}" target="_blank">Fisa {{ $congregation->name }}</a>
@@ -150,12 +166,75 @@
                                 @endif
                             </div>
                             <a class="oms-card__print" href="{{ route('daily-meal-preparation-sheets.show', $dailyMeal) }}" target="_blank">Printeaza ziua</a>
+                            @if (auth()->user()?->isAdmin())
+                                <div class="oms-card__actions">
+                                    <button class="oms-card__action" type="button" wire:click="openMoveDay({{ $dailyMeal->id }})">Mută ziua</button>
+                                    <button class="oms-card__action" type="button" wire:click="openFreeDay({{ $dailyMeal->id }})">Zi liberă</button>
+                                </div>
+                            @endif
                         </footer>
                     </article>
                 @endforeach
             </div>
         @else
             <div class="oms-calendar__empty">Nu exista saptamani disponibile pentru acest cont.</div>
+        @endif
+
+        @if ($moveDayMealId !== null)
+            <div class="oms-modal">
+                <div class="oms-modal__panel">
+                    <h2 class="oms-modal__title">Mută ziua</h2>
+                    <p class="oms-modal__hint">Alege data noua. Retetele zilei raman neschimbate; vei primi doar avertizari daca rotatia iese din ritm.</p>
+                    <div class="oms-modal__row">
+                        <label class="oms-modal__label" for="move-day-date">Data noua</label>
+                        <input class="oms-card__input" id="move-day-date" type="date" wire:model="moveDayDate">
+                        @error('moveDayDate')<p class="oms-card__error">{{ $message }}</p>@enderror
+                    </div>
+                    <div class="oms-modal__buttons">
+                        <button class="oms-modal__cancel" type="button" wire:click="closeSchedulingAction">Renunta</button>
+                        <button class="oms-modal__confirm" type="button" wire:click="moveDay">Mută ziua</button>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        @if ($moveWeekId !== null)
+            <div class="oms-modal">
+                <div class="oms-modal__panel">
+                    <h2 class="oms-modal__title">Mută săptămâna</h2>
+                    <p class="oms-modal__hint">Muta toate zilele saptamanii cu numarul de zile ales. Meniurile si bugetele raman pe zilele respective.</p>
+                    <div class="oms-modal__row">
+                        <label class="oms-modal__label" for="move-week-days">Numar de zile</label>
+                        <input class="oms-card__input" id="move-week-days" type="number" min="-30" max="30" wire:model="moveWeekDays">
+                        @error('moveWeekDays')<p class="oms-card__error">{{ $message }}</p>@enderror
+                    </div>
+                    <div class="oms-modal__buttons">
+                        <button class="oms-modal__cancel" type="button" wire:click="closeSchedulingAction">Renunta</button>
+                        <button class="oms-modal__confirm" type="button" wire:click="moveWeek">Mută săptămâna</button>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        @if ($freeDayMealId !== null)
+            <div class="oms-modal">
+                <div class="oms-modal__panel">
+                    <h2 class="oms-modal__title">Zi liberă</h2>
+                    <p class="oms-modal__hint">Ziua este scoasa din rotatie (retetele se golesc). Alege daca muti si restul programului.</p>
+                    <label class="oms-modal__radio">
+                        <input type="radio" value="0" wire:model="freeDayShiftRest">
+                        Lasă restul neschimbat
+                    </label>
+                    <label class="oms-modal__radio">
+                        <input type="radio" value="1" wire:model="freeDayShiftRest">
+                        Mută restul programului cu o zi
+                    </label>
+                    <div class="oms-modal__buttons">
+                        <button class="oms-modal__cancel" type="button" wire:click="closeSchedulingAction">Renunta</button>
+                        <button class="oms-modal__confirm" type="button" wire:click="markFreeDay">Marcheaza ziua libera</button>
+                    </div>
+                </div>
+            </div>
         @endif
     </div>
 </x-filament-panels::page>

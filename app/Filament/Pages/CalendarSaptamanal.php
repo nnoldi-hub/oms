@@ -6,12 +6,15 @@ use App\Models\DailyMeal;
 use App\Models\SupplyContribution;
 use App\Models\Week;
 use App\Services\DailyMealCostCalculator;
+use App\Services\MenuSchedulingValidator;
+use Carbon\CarbonImmutable;
 use Filament\Notifications\Notification;
 use Filament\Support\Icons\Heroicon;
 use Filament\Pages\Page;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 class CalendarSaptamanal extends Page
@@ -36,6 +39,18 @@ class CalendarSaptamanal extends Page
 
     /** @var array<int, int|null> */
     public array $contributorCount = [];
+
+    public ?int $moveDayMealId = null;
+
+    public ?string $moveDayDate = null;
+
+    public ?int $moveWeekId = null;
+
+    public int $moveWeekDays = 1;
+
+    public ?int $freeDayMealId = null;
+
+    public bool $freeDayShiftRest = false;
 
     public function mount(): void
     {
@@ -164,9 +179,208 @@ class CalendarSaptamanal extends Page
         Notification::make()->title('Bugetul zilei a fost actualizat.')->success()->send();
     }
 
-    /** @return array<int, array{total_cost: float, has_missing_prices: bool}> */
-    public function getDailyCostsProperty(DailyMealCostCalculator $calculator): array
+    public function openMoveDay(int $mealId): void
     {
+        $meal = $this->calendarMeal($mealId);
+
+        $this->moveDayMealId = $meal->id;
+        $this->moveDayDate = $meal->meal_date->toDateString();
+    }
+
+    public function moveDay(): void
+    {
+        $this->validate([
+            'moveDayDate' => ['required', 'date'],
+        ]);
+
+        $meal = $this->calendarMeal((int) $this->moveDayMealId);
+
+        $newDate = CarbonImmutable::parse($this->moveDayDate)->toDateString();
+
+        if ($newDate === $meal->meal_date->toDateString()) {
+            $this->closeSchedulingAction();
+
+            return;
+        }
+
+        $conflict = DailyMeal::query()
+            ->whereDate('meal_date', $newDate)
+            ->whereKeyNot($meal->id)
+            ->exists();
+
+        if ($conflict) {
+            Notification::make()
+                ->title('In acea zi exista deja o masa programata.')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $warnings = $this->previewWarnings($meal, $newDate);
+
+        $meal->meal_date = $newDate;
+        $meal->save();
+
+        $this->closeSchedulingAction();
+        $this->loadCalendarValues();
+        $this->notifyWarnings($warnings, 'Ziua a fost mutata. Retetele au ramas neschimbate.');
+    }
+
+    public function openMoveWeek(int $weekId): void
+    {
+        $this->moveWeekId = $weekId;
+        $this->moveWeekDays = 1;
+    }
+
+    public function moveWeek(): void
+    {
+        $this->validate([
+            'moveWeekDays' => ['required', 'integer', 'min:-30', 'max:30'],
+        ]);
+
+        $week = Week::query()->findOrFail((int) $this->moveWeekId);
+        $meals = $week->dailyMeals()->orderBy('meal_date')->get();
+
+        $targetDates = $meals->map(
+            fn (DailyMeal $meal): string => $meal->meal_date->addDays($this->moveWeekDays)->toDateString(),
+        );
+
+        $conflict = DailyMeal::query()
+            ->whereIn(DB::raw('date(meal_date)'), $targetDates->all())
+            ->whereNotIn('id', $meals->pluck('id'))
+            ->exists();
+
+        if ($conflict) {
+            Notification::make()
+                ->title('Mutarea intra in conflict cu alte zile de masa existente.')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        DB::transaction(function () use ($meals, $targetDates): void {
+            $sorted = $meals
+                ->sortByDesc(fn (DailyMeal $meal): string => $meal->meal_date->toDateString())
+                ->values();
+
+            foreach ($sorted as $meal) {
+                $offset = $meals->search(fn (DailyMeal $candidate): bool => $candidate->id === $meal->id);
+                $meal->meal_date = $targetDates[$offset];
+                $meal->save();
+            }
+
+            $week = $meals->first()->week;
+            $week->start_date = $week->start_date->addDays($this->moveWeekDays);
+            $week->save();
+        });
+
+        $this->closeSchedulingAction();
+        $this->loadCalendarValues();
+
+        Notification::make()
+            ->title('Saptamana a fost mutata cu '.$this->moveWeekDays.' zile.')
+            ->success()
+            ->send();
+    }
+
+    public function openFreeDay(int $mealId): void
+    {
+        $meal = $this->calendarMeal($mealId);
+
+        $this->freeDayMealId = $meal->id;
+        $this->freeDayShiftRest = false;
+    }
+
+    public function markFreeDay(): void
+    {
+        $meal = $this->calendarMeal((int) $this->freeDayMealId);
+
+        DB::transaction(function () use ($meal): void {
+            $meal->is_free_day = true;
+            $meal->menu_id = null;
+            $meal->soup_menu_id = null;
+            $meal->dessert_menu_id = null;
+            $meal->save();
+
+            if ($this->freeDayShiftRest) {
+                $following = DailyMeal::query()
+                    ->where('week_id', $meal->week_id)
+                    ->whereDate('meal_date', '>', $meal->meal_date->toDateString())
+                    ->orderBy('meal_date')
+                    ->get();
+
+                foreach ($following as $next) {
+                    $next->meal_date = $next->meal_date->addDay();
+                    $next->save();
+                }
+            }
+        });
+
+        $this->closeSchedulingAction();
+        $this->loadCalendarValues();
+
+        Notification::make()
+            ->title($this->freeDayShiftRest
+                ? 'Ziua a fost marcata libera, iar restul programului a fost mutat cu o zi.'
+                : 'Ziua a fost marcata libera; restul programului a ramas neschimbat.')
+            ->success()
+            ->send();
+    }
+
+    public function closeSchedulingAction(): void
+    {
+        $this->moveDayMealId = null;
+        $this->moveDayDate = null;
+        $this->moveWeekId = null;
+        $this->freeDayMealId = null;
+        $this->freeDayShiftRest = false;
+    }
+
+    private function calendarMeal(int $mealId): DailyMeal
+    {
+        $meal = DailyMeal::query()
+            ->whereKey($mealId)
+            ->where('week_id', $this->weekId)
+            ->firstOrFail();
+
+        Gate::authorize('update', $meal);
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        return $meal;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function previewWarnings(DailyMeal $meal, string $newDate): array
+    {
+        $probe = $meal->replicate(['id']);
+        $probe->meal_date = $newDate;
+
+        return app(MenuSchedulingValidator::class)->warnings($probe);
+    }
+
+    /**
+     * @param  array<int, string>  $warnings
+     */
+    private function notifyWarnings(array $warnings, string $title): void
+    {
+        $notification = Notification::make()->title($title)->success();
+
+        if ($warnings !== []) {
+            $notification
+                ->title($title)
+                ->body(implode(' ', $warnings))
+                ->warning();
+        }
+
+        $notification->send();
+    }
+
+    /** @return array<int, array{total_cost: float, has_missing_prices: bool}> */
+    public function getDailyCostsProperty(DailyMealCostCalculator $calculator): array    {
         return $this->selectedWeek?->dailyMeals
             ->mapWithKeys(fn (DailyMeal $dailyMeal): array => [$dailyMeal->id => $calculator->calculate($dailyMeal)])
             ->all() ?? [];

@@ -12,11 +12,11 @@ class Week extends Model
     /** @use HasFactory<\Database\Factories\WeekFactory> */
     use HasFactory;
 
-    protected $fillable = ['week_number', 'start_date', 'congregation_id'];
+    protected $fillable = ['week_number', 'start_date', 'include_saturday', 'congregation_id'];
 
     protected function casts(): array
     {
-        return ['start_date' => 'date'];
+        return ['start_date' => 'date', 'include_saturday' => 'boolean'];
     }
 
     public function congregation(): BelongsTo
