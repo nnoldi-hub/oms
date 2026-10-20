@@ -30,6 +30,17 @@ class DailyMealInfolist
                 TextEntry::make('estimated_people')
                     ->label('Numar estimat persoane')
                     ->numeric(),
+                IconEntry::make('is_cooked')
+                    ->label('S-a gatit')
+                    ->boolean()
+                    ->trueColor('success'),
+                TextEntry::make('actualMenu.name')
+                    ->label('Fel gatit de fapt')
+                    ->placeholder('La fel ca cel planificat'),
+                TextEntry::make('actual_cost')
+                    ->label('Cost real al zilei (RON)')
+                    ->money('RON')
+                    ->placeholder('-'),
                 IconEntry::make('has_allergies')
                     ->label('Alergii declarate')
                     ->state(fn (DailyMeal $record): bool => $record->volunteers()->where('has_allergies', true)->exists())
@@ -52,5 +63,3 @@ class DailyMealInfolist
             ]);
     }
 }
-
-

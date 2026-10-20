@@ -87,7 +87,7 @@ class MenuSchedulingTest extends TestCase
         ]);
     }
 
-    public function test_two_soups_are_allowed_in_a_week_but_a_third_one_is_blocked(): void
+    public function test_two_soups_are_allowed_in_a_week_but_a_third_one_only_produces_a_warning(): void
     {
         $congregation = Congregation::factory()->create();
         $week = Week::factory()->for($congregation)->create();
@@ -115,12 +115,15 @@ class MenuSchedulingTest extends TestCase
             'soup_menu_id' => $secondSoup->id,
         ]);
 
-        $this->expectException(ValidationException::class);
-
-        DailyMeal::factory()->for($week)->for($congregation)->for($thirdMainMenu)->create([
+        $thirdMeal = DailyMeal::factory()->for($week)->for($congregation)->for($thirdMainMenu)->create([
             'meal_date' => CarbonImmutable::parse('2026-12-04'),
             'soup_menu_id' => $thirdSoup->id,
         ]);
+
+        $this->assertStringContainsString(
+            'maximum 2 ciorbe',
+            implode(' ', $this->validator()->warnings($thirdMeal)),
+        );
     }
 
     public function test_a_soup_scheduled_outside_tuesday_and_thursday_produces_a_warning(): void
@@ -188,6 +191,31 @@ class MenuSchedulingTest extends TestCase
         $this->assertStringContainsString(
             'alternarea ciorbelor',
             implode(' ', $this->validator()->warnings($secondMeal)),
+        );
+    }
+
+    public function test_a_shared_dominant_ingredient_between_main_and_soup_produces_a_warning(): void
+    {
+        $congregation = Congregation::factory()->create();
+        $week = Week::factory()->for($congregation)->create();
+        $mainMenu = Menu::factory()->create([
+            'type' => 'main',
+            'ingredients' => [['name' => 'Galuste', 'quantity_per_person' => 0.1, 'unit' => 'kg']],
+        ]);
+        $soupMenu = Menu::factory()->create([
+            'type' => 'soup',
+            'ingredients' => [['name' => 'galuste', 'quantity_per_person' => 0.05, 'unit' => 'kg']],
+        ]);
+        $congregation->menus()->attach([$mainMenu->id, $soupMenu->id]);
+
+        $meal = DailyMeal::factory()->for($week)->for($congregation)->for($mainMenu)->create([
+            'meal_date' => CarbonImmutable::parse('2026-12-01'),
+            'soup_menu_id' => $soupMenu->id,
+        ]);
+
+        $this->assertStringContainsString(
+            'acelasi ingredient dominant (galuste)',
+            implode(' ', $this->validator()->warnings($meal)),
         );
     }
 }

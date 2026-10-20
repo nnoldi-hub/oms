@@ -293,6 +293,17 @@
 - Realizat: migrare noua: `daily_meals.is_free_day` si `weeks.include_saturday`.
 - Verificat: suita completa are 82 teste si 766 asertiuni verzi, inclusiv rotatia pe ordine, mutarea unei zile fara schimbarea meniului, ziua libera cu/fara deplasarea restului, generatorul cu start vineri si confirmarea comenzii de mutare.
 
+### 20.10.2026 - Calendar controlat din panou (fara reguli de rotatie obligatorii)
+
+- Status: Finalizat
+- Realizat: zilele lucratoare se bifeaza pe saptamana. Bifarea creeaza masa, debifarea o sterge dupa confirmare (se sterg masa si planurile de aprovizionare asociate; cheltuielile din fondul alimentar raman). Saptamanile pot incepe din orice data.
+- Realizat: pe fiecare cartonas (fel principal / ciorba / desert) exista un dropdown cu cautare si buton de salvare rapida, plus **Fel nou** care creeaza reteta in catalog si o selecteaza imediat.
+- Realizat: cost simplu pentru retete fara ingrediente: `menus.cost_per_portion` (cost estimat per portie) si `daily_meals.actual_cost` (cost real al zilei). Rapoartele si bugetul marcheaza totalurile ca **partiale** cand lipsesc preturi, fara sa le arate ca zero.
+- Realizat: **Ce s-a gatit de fapt**: bifa `daily_meals.is_cooked` si felul real `daily_meals.actual_menu_id`; raportul saptamanal si fisa afiseaza starea si felul gatit de fapt.
+- Realizat: regulile de varietate sunt doar avertismente afisate pe cartonas (fel principal sub 10 zile, aceeasi ciorba in aceeasi saptamana, ciorba in afara pozitiei 2/4, ingredient dominant comun intre felul principal si ciorba). Doar tipul/activitatea retetei ramane blocant.
+- Realizat: rotatia existenta a devenit butonul optional **Sugereaza meniul** pe saptamana, care completeaza doar zilele goale (`FillMenus::fillWeek`).
+- Verificat: suita completa are 97 teste si 952 asertiuni verzi.
+
 ## Decizii si blocaje
 
 | Data | Tip | Detaliu | Impact |
@@ -307,6 +318,9 @@
 | 20.10.2026 | Decizie | Rotatia depinde de ordinea meselor, nu de date: felul principal dupa indexul global, ciorbele pe a 2-a si a 4-a masa a saptamanii. | Programul poate incepe in orice zi lucratoare (inclusiv vineri), fara sa strice rotatia; zilele libere ies din numaratoare. |
 | 20.10.2026 | Decizie | Mutarea unei zile sau a unei saptamani nu recalculeaza meniurile; rotația se reface doar prin `oms:fill-menus` pe zilele goale. | Administratorul pastreaza controlul manual, iar retetele deja alese raman pe zilele mutate. |
 | 20.10.2026 | Decizie | Ziua libera se marcheaza cu `daily_meals.is_free_day` (nu se sterge masa) si poate impinge restul programului cu o zi. | Portiile, bugetele si statusurile nu se pierd; ziua iese din rotatie si din necesarul de aprovizionare. |
+| 20.10.2026 | Decizie | Planificarea devine manuala: bife de zile lucratoare, dropdown-uri pe cartonas si **Fel nou**; rotatia ramane doar sugerare optionala. | Administratorul controleaza direct meniurile, fara sa depinda de regulile automate. |
+| 20.10.2026 | Decizie | Regulile de varietate nu mai blocheaza; singura blocanta ramane tipul/activitatea retetei. | Se pot forta intentionat repetari, dar nu se pot salva retete de tip gresit. |
+| 20.10.2026 | Decizie | Cost simplu: `menus.cost_per_portion` si `daily_meals.actual_cost`, cu totaluri marcate partial cand lipsesc preturi. | Retetele fara ingrediente au totusi un cost; rapoartele nu mai arata zero gresit. |
 
 ## Verificari de lansare
 

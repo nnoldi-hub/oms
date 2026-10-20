@@ -11,6 +11,7 @@ use App\Models\SupplyItem;
 use App\Models\User;
 use App\Models\Week;
 use Carbon\CarbonImmutable;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -270,5 +271,120 @@ class CalendarSaptamanalTest extends TestCase
         $this->actingAs($coordinator)
             ->get(CalendarSaptamanal::getUrl(panel: 'admin'))
             ->assertDontSee('Mută săptămâna');
+    }
+
+    public function test_an_administrator_can_add_a_working_day_from_the_checkbox(): void
+    {
+        $congregation = Congregation::factory()->create();
+        $week = Week::factory()->for($congregation)->create(['start_date' => '2026-11-30']);
+        $administrator = User::factory()->create(['role' => 'admin']);
+
+        Livewire::actingAs($administrator)
+            ->test(CalendarSaptamanal::class)
+            ->set('weekId', $week->id)
+            ->call('toggleWorkingDay', '2026-11-30')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('daily_meals', [
+            'week_id' => $week->id,
+            'congregation_id' => $congregation->id,
+        ]);
+        $this->assertSame(1, DailyMeal::query()->whereDate('meal_date', '2026-11-30')->count());
+    }
+
+    public function test_removing_a_working_day_with_data_requires_confirmation_then_deletes_it(): void
+    {
+        $congregation = Congregation::factory()->create();
+        $week = Week::factory()->for($congregation)->create(['start_date' => '2026-11-30']);
+        $menu = Menu::factory()->create();
+        $congregation->menus()->attach($menu);
+        $dailyMeal = DailyMeal::factory()->for($week)->for($congregation)->for($menu)->create([
+            'meal_date' => '2026-11-30',
+            'estimated_people' => 30,
+        ]);
+        $administrator = User::factory()->create(['role' => 'admin']);
+
+        $component = Livewire::actingAs($administrator)
+            ->test(CalendarSaptamanal::class)
+            ->set('weekId', $week->id)
+            ->call('toggleWorkingDay', '2026-11-30');
+
+        $this->assertSame($dailyMeal->id, $component->instance()->pendingWorkingDayMealId);
+        $this->assertDatabaseHas('daily_meals', ['id' => $dailyMeal->id]);
+
+        $component->call('confirmDeleteWorkingDay')->assertHasNoErrors();
+
+        $this->assertDatabaseMissing('daily_meals', ['id' => $dailyMeal->id]);
+    }
+
+    public function test_creating_a_new_dish_from_the_card_adds_it_to_the_catalog_and_selects_it(): void
+    {
+        $congregation = Congregation::factory()->create();
+        $week = Week::factory()->for($congregation)->create(['start_date' => '2026-11-30']);
+        $dailyMeal = DailyMeal::factory()->for($week)->for($congregation)->create([
+            'meal_date' => '2026-11-30',
+            'menu_id' => null,
+        ]);
+        $administrator = User::factory()->create(['role' => 'admin']);
+
+        Livewire::actingAs($administrator)
+            ->test(CalendarSaptamanal::class)
+            ->set('weekId', $week->id)
+            ->call('openNewDish', $dailyMeal->id, 'main')
+            ->set('newDishName', 'Sarmale de casa')
+            ->call('createDish')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('menus', ['name' => 'Sarmale de casa', 'type' => 'main', 'is_active' => true]);
+        $this->assertSame(
+            Menu::query()->where('name', 'Sarmale de casa')->value('id'),
+            $dailyMeal->fresh()->menu_id,
+        );
+    }
+
+    public function test_an_administrator_can_mark_a_day_as_cooked_with_a_different_actual_dish_and_real_cost(): void
+    {
+        $congregation = Congregation::factory()->create();
+        $week = Week::factory()->for($congregation)->create(['start_date' => '2026-11-30']);
+        $planned = Menu::factory()->create(['type' => 'main']);
+        $actual = Menu::factory()->create(['type' => 'main', 'name' => 'Fel gatit de fapt']);
+        $congregation->menus()->attach([$planned->id, $actual->id]);
+        $dailyMeal = DailyMeal::factory()->for($week)->for($congregation)->for($planned)->create([
+            'meal_date' => '2026-11-30',
+        ]);
+        $administrator = User::factory()->create(['role' => 'admin']);
+
+        Livewire::actingAs($administrator)
+            ->test(CalendarSaptamanal::class)
+            ->set('weekId', $week->id)
+            ->set("cookedFlags.{$dailyMeal->id}", true)
+            ->set("actualMenus.{$dailyMeal->id}", $actual->id)
+            ->set("actualCosts.{$dailyMeal->id}", 128.5)
+            ->call('markCooked', $dailyMeal->id)
+            ->assertHasNoErrors();
+
+        $dailyMeal->refresh();
+
+        $this->assertTrue($dailyMeal->is_cooked);
+        $this->assertSame($actual->id, $dailyMeal->actual_menu_id);
+        $this->assertSame('128.50', $dailyMeal->actual_cost);
+    }
+
+    public function test_a_coordinator_cannot_add_a_working_day(): void
+    {
+        $congregation = Congregation::factory()->create();
+        $week = Week::factory()->for($congregation)->create(['start_date' => '2026-11-30']);
+        $coordinator = User::factory()->create(['role' => 'coordinator', 'congregation_id' => $congregation->id]);
+
+        try {
+            Livewire::actingAs($coordinator)
+                ->test(CalendarSaptamanal::class)
+                ->set('weekId', $week->id)
+                ->call('toggleWorkingDay', '2026-11-30');
+        } catch (AuthorizationException) {
+            // asteptat
+        }
+
+        $this->assertSame(0, DailyMeal::query()->count());
     }
 }

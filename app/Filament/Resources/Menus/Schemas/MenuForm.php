@@ -2,13 +2,13 @@
 
 namespace App\Filament\Resources\Menus\Schemas;
 
-use App\Models\Menu;
 use App\Models\Ingredient;
+use App\Models\Menu;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Schema;
 
@@ -53,8 +53,7 @@ class MenuForm
                             ->minValue(0.001)
                             ->required(),
                     ])
-                    ->helperText('Alege ingredientul din catalogul global. Unitatea si pretul sunt preluate automat de acolo.')
-                    ->required()
+                    ->helperText('Alege ingredientul din catalogul global. Unitatea si pretul sunt preluate automat de acolo. Poti lasa lista goala si folosi costul estimat per portie.')
                     ->columnSpanFull(),
                 CheckboxList::make('allergens')
                     ->label('Alergeni declarati')
@@ -67,6 +66,12 @@ class MenuForm
                     ->required()
                     ->numeric()
                     ->default(0)
+                    ->prefix('RON'),
+                TextInput::make('cost_per_portion')
+                    ->label('Cost estimat per portie')
+                    ->helperText('Optional. Folosit cand reteta nu are ingrediente cu preturi.')
+                    ->numeric()
+                    ->minValue(0)
                     ->prefix('RON'),
                 Toggle::make('is_active')
                     ->label('Meniu activ')

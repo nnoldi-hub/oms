@@ -83,7 +83,7 @@
         <section>
             <h2>Planificarea meselor</h2>
             <table>
-                <thead><tr><th>Data</th><th>Congregatie</th><th>Fel principal</th><th>Ciorba</th><th>Desert / gustare</th><th>Portii estimate</th></tr></thead>
+                <thead><tr><th>Data</th><th>Congregatie</th><th>Fel principal</th><th>Ciorba</th><th>Desert / gustare</th><th>Stare / fel gatit</th><th>Portii estimate</th></tr></thead>
                 <tbody>
                     @foreach ($week->dailyMeals as $dailyMeal)
                         <tr>
@@ -92,6 +92,7 @@
                             <td>{{ $dailyMeal->menu?->name ?? 'Neales' }}</td>
                             <td>{{ $dailyMeal->soupMenu?->name ?? '-' }}</td>
                             <td>{{ $dailyMeal->dessertMenu?->name ?? '-' }}</td>
+                            <td>{{ $dailyMeal->is_cooked ? 'Gatit' : 'Planificat' }}{{ $dailyMeal->actualMenu && $dailyMeal->actualMenu->id !== $dailyMeal->menu_id ? ': '.$dailyMeal->actualMenu->name : '' }}</td>
                             <td class="number">{{ $dailyMeal->estimated_people }}</td>
                         </tr>
                     @endforeach

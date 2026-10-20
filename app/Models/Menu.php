@@ -2,15 +2,16 @@
 
 namespace App\Models;
 
+use Database\Factories\MenuFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Validation\ValidationException;
 
 class Menu extends Model
 {
-    /** @use HasFactory<\Database\Factories\MenuFactory> */
+    /** @use HasFactory<MenuFactory> */
     use HasFactory;
 
     public const ALLERGENS = [
@@ -18,7 +19,7 @@ class Menu extends Model
         'Fructe cu coaja', 'Telina', 'Mustar', 'Susan', 'Sulfiti', 'Lupin', 'Moluste',
     ];
 
-    protected $fillable = ['name', 'type', 'instructions', 'ingredients', 'allergens', 'packaging_cost', 'is_active'];
+    protected $fillable = ['name', 'type', 'instructions', 'ingredients', 'allergens', 'packaging_cost', 'cost_per_portion', 'is_active'];
 
     protected function casts(): array
     {
@@ -26,6 +27,7 @@ class Menu extends Model
             'ingredients' => 'array',
             'allergens' => 'array',
             'packaging_cost' => 'decimal:2',
+            'cost_per_portion' => 'decimal:2',
             'is_active' => 'boolean',
         ];
     }

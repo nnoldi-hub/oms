@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Console\Commands\FillMenus;
 use App\Models\DailyMeal;
 use App\Models\Menu;
 use Carbon\CarbonImmutable;
@@ -138,6 +139,28 @@ class FillMenusCommandTest extends TestCase
         });
     }
 
+    public function test_fill_week_completes_only_empty_days_of_the_selected_week(): void
+    {
+        $this->seed(OmsScheduleSeeder::class);
+
+        $weekOneMonday = $this->mealOn('2026-11-30');
+        $weekOneTuesday = $this->mealOn('2026-12-01');
+        $weekTwoMonday = $this->mealOn('2026-12-07');
+
+        DailyMeal::query()->update(['menu_id' => null, 'soup_menu_id' => null]);
+
+        $keptMenuId = Menu::where('type', 'main')->orderBy('id')->value('id');
+        $weekTwoMonday->update(['menu_id' => $keptMenuId]);
+
+        $filled = (new FillMenus)->fillWeek($weekOneMonday->week);
+
+        $this->assertGreaterThan(0, $filled);
+        $this->assertNotNull($weekOneMonday->fresh()->menu_id);
+        $this->assertNotNull($weekOneTuesday->fresh()->menu_id);
+        $this->assertNull($weekTwoMonday->fresh()->soup_menu_id);
+        $this->assertSame($keptMenuId, $weekTwoMonday->fresh()->menu_id);
+    }
+
     private function mealOn(string $date): DailyMeal
     {
         $meal = DailyMeal::query()
@@ -149,4 +172,3 @@ class FillMenusCommandTest extends TestCase
         return $meal;
     }
 }
-

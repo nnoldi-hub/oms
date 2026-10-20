@@ -28,7 +28,7 @@ class DailyMealCostCalculatorTest extends TestCase
 
         $cost = app(DailyMealCostCalculator::class)->calculate($dailyMeal);
 
-        $this->assertSame(['total_cost' => 80.0, 'has_missing_prices' => false], $cost);
+        $this->assertSame(['total_cost' => 80.0, 'has_missing_prices' => false, 'is_partial' => false], $cost);
     }
 
     public function test_it_includes_an_optional_dessert_and_its_packaging_in_the_daily_cost(): void
@@ -47,6 +47,39 @@ class DailyMealCostCalculatorTest extends TestCase
 
         $cost = app(DailyMealCostCalculator::class)->calculate($dailyMeal);
 
-        $this->assertSame(['total_cost' => 114.0, 'has_missing_prices' => false], $cost);
+        $this->assertSame(['total_cost' => 114.0, 'has_missing_prices' => false, 'is_partial' => false], $cost);
+    }
+
+    public function test_it_uses_the_estimated_cost_per_portion_when_the_recipe_has_no_ingredients(): void
+    {
+        $mainMenu = new Menu(['ingredients' => [], 'packaging_cost' => 0, 'cost_per_portion' => 7.5]);
+        $dailyMeal = new DailyMeal(['estimated_people' => 20]);
+        $dailyMeal->setRelation('menu', $mainMenu);
+
+        $cost = app(DailyMealCostCalculator::class)->calculate($dailyMeal);
+
+        $this->assertSame(['total_cost' => 150.0, 'has_missing_prices' => false, 'is_partial' => false], $cost);
+    }
+
+    public function test_it_prefers_the_actual_cost_and_marks_it_complete(): void
+    {
+        $mainMenu = new Menu(['ingredients' => [], 'packaging_cost' => 0]);
+        $dailyMeal = new DailyMeal(['estimated_people' => 20, 'actual_cost' => 99.5]);
+        $dailyMeal->setRelation('menu', $mainMenu);
+
+        $cost = app(DailyMealCostCalculator::class)->calculate($dailyMeal);
+
+        $this->assertSame(['total_cost' => 99.5, 'has_missing_prices' => false, 'is_partial' => false], $cost);
+    }
+
+    public function test_it_marks_the_total_as_partial_when_a_recipe_has_no_prices(): void
+    {
+        $mainMenu = new Menu(['ingredients' => [], 'packaging_cost' => 0]);
+        $dailyMeal = new DailyMeal(['estimated_people' => 20]);
+        $dailyMeal->setRelation('menu', $mainMenu);
+
+        $cost = app(DailyMealCostCalculator::class)->calculate($dailyMeal);
+
+        $this->assertSame(['total_cost' => 0.0, 'has_missing_prices' => true, 'is_partial' => true], $cost);
     }
 }

@@ -53,17 +53,14 @@ Aceasta comanda adauga doar retetele lipsa, le aproba pentru congregatiile exist
 
 ## Programul meselor
 
-Rotatia depinde de **ordinea meselor din program**, nu de zilele calendaristice:
+Planificarea se face direct din panou, in pagina **Calendar saptamanal**:
 
-- fiecare saptamana are 5 mese consecutive (sambata si duminica sunt sarite automat; sambata poate fi activata ca zi de lucru);
-- programul poate incepe in orice zi lucratoare, inclusiv vineri;
-- felul principal urmeaza catalogul de 12 retete dupa indexul mesei (`(ordine de la 0) % 12`), unde ordinea numara mesele sortate dupa data si exclude zilele libere;
-- ciorba se pune pe **a 2-a si a 4-a masa din fiecare saptamana** (dupa pozitie), dintr-un catalog de 5 ciorbe; cele doua ciorbe dintr-o saptamana sunt diferite;
-- acelasi fel principal se repeta cel mai devreme dupa 10 zile calendaristice.
-
-Regulile care pot fi ignorate cu confirmare (repetarea unui fel principal prea devreme, aceeasi ciorba de doua ori, ciorba in afara pozitiei 2/4) apar ca avertisment la salvare, iar cele care nu pot fi incalcate (tip de reteta gresit, a treia ciorba intr-o saptamana) sunt blocate.
-
-In calendarul saptamanal, administratorul are trei actiuni rapide pe fiecare zi: **Mută ziua** (schimba data fara a schimba retetele, doar cu avertismente), **Mută săptămâna** (deplaseaza toate zilele saptamanii cu N zile) si **Zi liberă** (scoate ziua din rotatie si, optional, muta restul programului cu o zi).
+- **Zile lucratoare pe saptamana**: bifele de sub titlu creeaza si sterg zilele de masa. Bifarea adauga ziua; debifarea cere confirmare daca ziua are deja meniu, portii sau plan de aprovizionare (se sterg masa si planurile asociate, iar cheltuielile din fondul alimentar raman neschimbate). Saptamanile pot incepe din orice data.
+- **Meniuri pe cartonas**: pentru fiecare zi, felul principal, ciorba si desertul se aleg din dropdown-uri cu cautare, cu salvare rapida. Butonul **Fel nou** creeaza o reteta in catalog (nume + tip) si o selecteaza imediat.
+- **Costuri simple**: o reteta fara ingrediente poate avea un **cost estimat per portie** pe meniu (`cost_per_portion`), iar ziua poate avea un **cost real** (`actual_cost`) care are prioritate. Cand lipsesc preturi, totalul este marcat **partial**, niciodata zero gresit.
+- **Ce s-a gatit de fapt**: fiecare zi are bifa **S-a gatit** si, daca diferă, felul real gatit (`actual_menu_id`). Raportul saptamanal arata starea si felul gatit de fapt.
+- **Avertismente, nu blocaje**: repetarile prea dese (fel principal sub 10 zile), aceeasi ciorba in aceeasi saptamana, ciorba in afara pozitiei 2/4 si un ingredient dominant comun intre felul principal si ciorba apar ca avertismente pe cartonas. Doar tipul/activitatea retetei ramane blocant.
+- Actiuni rapide per zi: **Muta ziua**, **Zi libera** si, pe saptamana, **Muta saptamana**.
 
 Pentru o baza existenta care inca incepe sambata:
 
@@ -81,7 +78,7 @@ php artisan oms:fill-menus --dry-run
 php artisan oms:fill-menus
 ```
 
-Comanda afiseaza un tabel pe zile (data, fel principal, ciorba), respecta rotatia pe ordinea meselor, cele doua ciorbe pe a 2-a si a 4-a masa a saptamanii si semnaleaza repetarile prea dese.
+Comanda afiseaza un tabel pe zile (data, fel principal, ciorba), respecta rotatia pe ordinea meselor, cele doua ciorbe pe a 2-a si a 4-a masa a saptamanii si semnaleaza repetarile prea dese. Aceeasi logica este disponibila optional din butonul **Sugereaza meniul** pe o saptamana in calendar; completeaza doar zilele goale.
 
 ## Actualizare dupa GitHub
 

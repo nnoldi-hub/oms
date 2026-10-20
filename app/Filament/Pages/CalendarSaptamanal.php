@@ -2,15 +2,17 @@
 
 namespace App\Filament\Pages;
 
+use App\Console\Commands\FillMenus;
 use App\Models\DailyMeal;
+use App\Models\Menu;
 use App\Models\SupplyContribution;
 use App\Models\Week;
 use App\Services\DailyMealCostCalculator;
 use App\Services\MenuSchedulingValidator;
 use Carbon\CarbonImmutable;
 use Filament\Notifications\Notification;
-use Filament\Support\Icons\Heroicon;
 use Filament\Pages\Page;
+use Filament\Support\Icons\Heroicon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
@@ -51,6 +53,39 @@ class CalendarSaptamanal extends Page
     public ?int $freeDayMealId = null;
 
     public bool $freeDayShiftRest = false;
+
+    /** @var array<string, bool> data (Y-m-d) => bifat */
+    public array $workingDayDates = [];
+
+    /** @var array<int, int|null> */
+    public array $plannedMenus = [];
+
+    /** @var array<int, int|null> */
+    public array $plannedSoups = [];
+
+    /** @var array<int, int|null> */
+    public array $plannedDesserts = [];
+
+    /** @var array<int, bool> */
+    public array $cookedFlags = [];
+
+    /** @var array<int, int|null> */
+    public array $actualMenus = [];
+
+    /** @var array<int, string|null> */
+    public array $actualCosts = [];
+
+    public ?int $newDishMealId = null;
+
+    public ?string $newDishType = null;
+
+    public string $newDishName = '';
+
+    public ?int $suggestWeekId = null;
+
+    public ?int $pendingWorkingDayMealId = null;
+
+    public ?string $pendingWorkingDayDate = null;
 
     public function mount(): void
     {
@@ -336,6 +371,10 @@ class CalendarSaptamanal extends Page
         $this->moveWeekId = null;
         $this->freeDayMealId = null;
         $this->freeDayShiftRest = false;
+        $this->pendingWorkingDayMealId = null;
+        $this->pendingWorkingDayDate = null;
+        $this->suggestWeekId = null;
+        $this->closeNewDish();
     }
 
     private function calendarMeal(int $mealId): DailyMeal
@@ -379,10 +418,21 @@ class CalendarSaptamanal extends Page
         $notification->send();
     }
 
-    /** @return array<int, array{total_cost: float, has_missing_prices: bool}> */
-    public function getDailyCostsProperty(DailyMealCostCalculator $calculator): array    {
+    /** @return array<int, array{total_cost: float, has_missing_prices: bool, is_partial: bool}> */
+    public function getDailyCostsProperty(DailyMealCostCalculator $calculator): array
+    {
         return $this->selectedWeek?->dailyMeals
             ->mapWithKeys(fn (DailyMeal $dailyMeal): array => [$dailyMeal->id => $calculator->calculate($dailyMeal)])
+            ->all() ?? [];
+    }
+
+    /** @return array<int, array<int, string>> mealId => lista de avertismente */
+    public function getCardWarningsProperty(): array
+    {
+        $validator = app(MenuSchedulingValidator::class);
+
+        return $this->selectedWeek?->dailyMeals
+            ->mapWithKeys(fn (DailyMeal $dailyMeal): array => [$dailyMeal->id => $validator->warnings($dailyMeal)])
             ->all() ?? [];
     }
 
@@ -392,10 +442,253 @@ class CalendarSaptamanal extends Page
         $this->estimatedPeople = $dailyMeals->mapWithKeys(fn (DailyMeal $dailyMeal): array => [$dailyMeal->id => $dailyMeal->estimated_people])->all();
         $this->maximumBudget = $dailyMeals->mapWithKeys(fn (DailyMeal $dailyMeal): array => [$dailyMeal->id => $dailyMeal->maximum_budget])->all();
         $this->contributorCount = $dailyMeals->mapWithKeys(fn (DailyMeal $dailyMeal): array => [$dailyMeal->id => $dailyMeal->contributor_count])->all();
+        $this->plannedMenus = $dailyMeals->mapWithKeys(fn (DailyMeal $dailyMeal): array => [$dailyMeal->id => $dailyMeal->menu_id])->all();
+        $this->plannedSoups = $dailyMeals->mapWithKeys(fn (DailyMeal $dailyMeal): array => [$dailyMeal->id => $dailyMeal->soup_menu_id])->all();
+        $this->plannedDesserts = $dailyMeals->mapWithKeys(fn (DailyMeal $dailyMeal): array => [$dailyMeal->id => $dailyMeal->dessert_menu_id])->all();
+        $this->cookedFlags = $dailyMeals->mapWithKeys(fn (DailyMeal $dailyMeal): array => [$dailyMeal->id => (bool) $dailyMeal->is_cooked])->all();
+        $this->actualMenus = $dailyMeals->mapWithKeys(fn (DailyMeal $dailyMeal): array => [$dailyMeal->id => $dailyMeal->actual_menu_id])->all();
+        $this->actualCosts = $dailyMeals->mapWithKeys(fn (DailyMeal $dailyMeal): array => [$dailyMeal->id => $dailyMeal->actual_cost])->all();
+        $this->workingDayDates = $this->buildWorkingDayDates();
     }
 
     /**
-     * @param Collection<int, SupplyContribution> $contributions
+     * @return array<string, bool>
+     */
+    private function buildWorkingDayDates(): array
+    {
+        $week = $this->selectedWeek;
+
+        if ($week === null) {
+            return [];
+        }
+
+        $existing = $week->dailyMeals
+            ->mapWithKeys(fn (DailyMeal $dailyMeal): array => [$dailyMeal->meal_date->toDateString() => true])
+            ->all();
+
+        $dates = [];
+
+        for ($offset = 0; $offset < 7; $offset++) {
+            $date = $week->start_date->addDays($offset)->toDateString();
+            $dates[$date] = $existing[$date] ?? false;
+        }
+
+        return $dates;
+    }
+
+    /**
+     * @return array<string, Collection<int, Menu>>
+     */
+    public function getMenuOptionsProperty(): array
+    {
+        return [
+            'main' => Menu::query()->where('type', 'main')->where('is_active', true)->orderBy('name')->get(),
+            'soup' => Menu::query()->where('type', 'soup')->where('is_active', true)->orderBy('name')->get(),
+            'dessert' => Menu::query()->where('type', 'dessert')->where('is_active', true)->orderBy('name')->get(),
+        ];
+    }
+
+    /**
+     * @return array<string, Collection<int, Menu>>
+     */
+    public function getActualMenuOptionsProperty(): array
+    {
+        return [
+            'main' => Menu::query()->where('type', 'main')->where('is_active', true)->orderBy('name')->get(),
+            'soup' => Menu::query()->where('type', 'soup')->where('is_active', true)->orderBy('name')->get(),
+            'dessert' => Menu::query()->where('type', 'dessert')->where('is_active', true)->orderBy('name')->get(),
+        ];
+    }
+
+    public function savePlannedMenu(int $mealId, string $type): void
+    {
+        $meal = $this->calendarMeal($mealId);
+
+        [$property, $column, $typeName] = match ($type) {
+            'main' => ['plannedMenus', 'menu_id', 'main'],
+            'soup' => ['plannedSoups', 'soup_menu_id', 'soup'],
+            'dessert' => ['plannedDesserts', 'dessert_menu_id', 'dessert'],
+            default => [null, null, null],
+        };
+
+        abort_if($property === null, 422);
+
+        $value = $this->{$property}[$mealId] ?? null;
+
+        $meal->{$column} = $value === '' ? null : $value;
+
+        $warnings = app(MenuSchedulingValidator::class)->warnings($meal);
+        $meal->save();
+
+        $this->loadCalendarValues();
+        $this->notifyWarnings($warnings, 'Meniul a fost actualizat.');
+    }
+
+    public function markCooked(int $mealId): void
+    {
+        $this->validate([
+            "actualCosts.{$mealId}" => ['nullable', 'numeric', 'min:0', 'max:1000000'],
+        ]);
+
+        $meal = $this->calendarMeal($mealId);
+
+        $meal->is_cooked = (bool) ($this->cookedFlags[$mealId] ?? false);
+        $meal->actual_menu_id = filled($this->actualMenus[$mealId] ?? null) ? $this->actualMenus[$mealId] : null;
+        $meal->actual_cost = blank($this->actualCosts[$mealId] ?? null) ? null : $this->actualCosts[$mealId];
+        $meal->save();
+
+        $this->loadCalendarValues();
+
+        Notification::make()->title('Starea de gatit, felul real si costul au fost salvate.')->success()->send();
+    }
+
+    public function openNewDish(int $mealId, string $type): void
+    {
+        $this->calendarMeal($mealId);
+
+        $this->newDishMealId = $mealId;
+        $this->newDishType = $type;
+        $this->newDishName = '';
+    }
+
+    public function closeNewDish(): void
+    {
+        $this->newDishMealId = null;
+        $this->newDishType = null;
+        $this->newDishName = '';
+    }
+
+    public function createDish(): void
+    {
+        $this->validate([
+            'newDishName' => ['required', 'string', 'max:120'],
+            'newDishType' => ['required', 'in:main,soup,dessert'],
+        ]);
+
+        $menu = Menu::create([
+            'name' => $this->newDishName,
+            'type' => $this->newDishType,
+            'ingredients' => [],
+            'is_active' => true,
+        ]);
+
+        $mealId = (int) $this->newDishMealId;
+
+        match ($this->newDishType) {
+            'main' => $this->plannedMenus[$mealId] = $menu->id,
+            'soup' => $this->plannedSoups[$mealId] = $menu->id,
+            'dessert' => $this->plannedDesserts[$mealId] = $menu->id,
+        };
+
+        $this->savePlannedMenu($mealId, $this->newDishType);
+
+        $this->closeNewDish();
+
+        Notification::make()->title('Felul nou a fost creat si selectat.')->success()->send();
+    }
+
+    public function toggleWorkingDay(string $date): void
+    {
+        $week = $this->selectedWeek;
+        abort_if($week === null, 404);
+
+        $existing = $week->dailyMeals->firstWhere(fn (DailyMeal $meal): bool => $meal->meal_date->toDateString() === $date);
+
+        if ($existing !== null) {
+            $this->pendingWorkingDayMealId = $existing->id;
+            $this->pendingWorkingDayDate = $date;
+
+            return;
+        }
+
+        $this->createWorkingDay($date);
+    }
+
+    public function createWorkingDay(string $date): void
+    {
+        $week = $this->selectedWeek;
+        abort_if($week === null, 404);
+
+        Gate::authorize('create', DailyMeal::class);
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        $alreadyExists = $week->dailyMeals->contains(fn (DailyMeal $meal): bool => $meal->meal_date->toDateString() === $date);
+
+        if ($alreadyExists) {
+            Notification::make()->title('Ziua exista deja.')->warning()->send();
+
+            return;
+        }
+
+        DailyMeal::create([
+            'meal_date' => $date,
+            'week_id' => $week->id,
+            'congregation_id' => $week->congregation_id,
+            'estimated_people' => 0,
+            'status' => 'draft',
+        ]);
+
+        $this->closeSchedulingAction();
+        $this->loadCalendarValues();
+
+        Notification::make()->title('Ziua a fost adaugata in program.')->success()->send();
+    }
+
+    public function confirmDeleteWorkingDay(): void
+    {
+        $meal = DailyMeal::query()
+            ->whereKey((int) $this->pendingWorkingDayMealId)
+            ->where('week_id', $this->weekId)
+            ->firstOrFail();
+
+        Gate::authorize('delete', $meal);
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        DB::transaction(function () use ($meal): void {
+            $meal->supplyPlan?->consumptions()->delete();
+            $meal->supplyPlan?->delete();
+            $meal->volunteers()->delete();
+            $meal->workTeams()->delete();
+            $meal->delete();
+        });
+
+        $this->closeSchedulingAction();
+        $this->loadCalendarValues();
+
+        Notification::make()
+            ->title('Ziua a fost scoasa din program. Cheltuielile din fondul alimentar au ramas neschimbate.')
+            ->success()
+            ->send();
+    }
+
+    public function openSuggestWeek(int $weekId): void
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+        $this->suggestWeekId = $weekId;
+    }
+
+    public function suggestMenus(): void
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        $week = Week::query()->findOrFail((int) $this->suggestWeekId);
+
+        $command = new FillMenus;
+        $filled = $command->fillWeek($week);
+
+        $this->closeSchedulingAction();
+        $this->loadCalendarValues();
+
+        Notification::make()
+            ->title($filled > 0
+                ? "Sugestia a completat {$filled} zile goale."
+                : 'Nu exista zile goale de completat.')
+            ->success()
+            ->send();
+    }
+
+    /**
+     * @param  Collection<int, SupplyContribution>  $contributions
      * @return list<array{icon: string, label: string}>
      */
     private function buildSupplyIndicators(Collection $contributions): array

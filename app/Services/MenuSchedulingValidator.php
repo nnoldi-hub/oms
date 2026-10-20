@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\DailyMeal;
 use App\Models\Menu;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
 class MenuSchedulingValidator
@@ -33,7 +34,8 @@ class MenuSchedulingValidator
     }
 
     /**
-     * Reguli care blocheaza salvarea: tipul si activitatea retetei, maximum doua ciorbe pe saptamana.
+     * Singura regula blocanta: tipul si activitatea retetei (integritate de date).
+     * Regulile de varietate nu mai blocheaza salvarea, ci apar ca avertismente.
      *
      * @throws ValidationException
      */
@@ -42,12 +44,6 @@ class MenuSchedulingValidator
         $this->validateMenu($dailyMeal->menu_id, 'main', 'menu_id');
         $this->validateMenu($dailyMeal->soup_menu_id, 'soup', 'soup_menu_id');
         $this->validateMenu($dailyMeal->dessert_menu_id, 'dessert', 'dessert_menu_id');
-
-        if ($dailyMeal->week_id !== null && $dailyMeal->soup_menu_id !== null && $this->otherSoupsInWeek($dailyMeal)->count() + 1 > self::SOUP_LIMIT_PER_WEEK) {
-            throw ValidationException::withMessages([
-                'soup_menu_id' => 'O saptamana poate avea maximum '.self::SOUP_LIMIT_PER_WEEK.' ciorbe.',
-            ]);
-        }
     }
 
     /**
@@ -61,6 +57,7 @@ class MenuSchedulingValidator
 
         $warnings = array_merge($warnings, $this->mainRecipeWarnings($dailyMeal));
         $warnings = array_merge($warnings, $this->soupWarnings($dailyMeal));
+        $warnings = array_merge($warnings, $this->sharedIngredientWarnings($dailyMeal));
 
         return $warnings;
     }
@@ -104,6 +101,10 @@ class MenuSchedulingValidator
 
         $warnings = [];
 
+        if ($dailyMeal->week_id !== null && $this->otherSoupsInWeek($dailyMeal)->count() + 1 > self::SOUP_LIMIT_PER_WEEK) {
+            $warnings[] = 'O saptamana poate avea maximum '.self::SOUP_LIMIT_PER_WEEK.' ciorbe.';
+        }
+
         if (! $this->soupOnPositionSlot($dailyMeal)) {
             $warnings[] = 'Ciorba este recomandata la a doua si a patra masa a saptamanii.';
         }
@@ -131,8 +132,52 @@ class MenuSchedulingValidator
         return $warnings;
     }
 
-    /** @return \Illuminate\Support\Collection<int, DailyMeal> */
-    private function otherSoupsInWeek(DailyMeal $dailyMeal): \Illuminate\Support\Collection
+    /**
+     * Avertizeaza daca felul principal si ciorba aceleiasi zile folosesc acelasi ingredient dominant.
+     *
+     * @return array<int, string>
+     */
+    private function sharedIngredientWarnings(DailyMeal $dailyMeal): array
+    {
+        if ($dailyMeal->menu_id === null || $dailyMeal->soup_menu_id === null) {
+            return [];
+        }
+
+        $shared = array_values(array_intersect(
+            $this->ingredientNames($dailyMeal->menu),
+            $this->ingredientNames($dailyMeal->soupMenu),
+        ));
+
+        if ($shared === []) {
+            return [];
+        }
+
+        return [
+            sprintf(
+                'Felul principal si ciorba folosesc acelasi ingredient dominant (%s); se recomanda diversificarea.',
+                implode(', ', $shared),
+            ),
+        ];
+    }
+
+    /** @return array<int, string> */
+    private function ingredientNames(?Menu $menu): array
+    {
+        if ($menu === null) {
+            return [];
+        }
+
+        return collect($menu->ingredients ?? [])
+            ->pluck('name')
+            ->filter()
+            ->map(fn ($name): string => mb_strtolower(trim((string) $name)))
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /** @return Collection<int, DailyMeal> */
+    private function otherSoupsInWeek(DailyMeal $dailyMeal): Collection
     {
         return DailyMeal::query()
             ->where('week_id', $dailyMeal->week_id)
@@ -163,7 +208,7 @@ class MenuSchedulingValidator
             return true;
         }
 
-        return in_array($position % \App\Services\MealRotation::MEALS_PER_WEEK, \App\Services\MealRotation::SOUP_SLOTS_PER_WEEK, true);
+        return in_array($position % MealRotation::MEALS_PER_WEEK, MealRotation::SOUP_SLOTS_PER_WEEK, true);
     }
 
     private function validateMenu(?int $menuId, string $type, string $field): void

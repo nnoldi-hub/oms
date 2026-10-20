@@ -41,9 +41,81 @@ class FillMenus extends Command
             return self::FAILURE;
         }
 
+        $dryRun = (bool) $this->option('dry-run');
+        $result = $this->fillMeals($rotation, $meals, $mains, $soups, $dryRun);
+
+        $this->table(['Data', 'Zi', 'Fel principal', 'Ciorba'], $result['sequence']);
+
+        $this->info(sprintf(
+            'Fel principal completat: %d; ciorba completata: %d; zile libere sarite: %d.',
+            $result['main_filled'],
+            $result['soup_filled'],
+            $result['free_days'],
+        ));
+
+        foreach ($this->issues($meals, Week::query()->pluck('week_number', 'id'), $rotation) as $issue) {
+            $this->warn($issue);
+        }
+
+        if ($dryRun) {
+            $this->info('Mod de testare (--dry-run): nu s-a modificat nimic.');
+
+            return self::SUCCESS;
+        }
+
+        $this->info('Retetele lipsa au fost completate.');
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * Sugereaza meniul pentru zilele goale dintr-o singura saptamana. Folosit de butonul
+     * "Sugereaza meniul" din calendar; completeaza doar zilele fara fel principal.
+     */
+    public function fillWeek(Week $week): int
+    {
+        $rotation = app(MealRotation::class);
+
+        $mains = $this->activeRecipes('main');
+        $soups = $this->activeRecipes('soup');
+
+        if ($mains->isEmpty() || $soups->isEmpty()) {
+            return 0;
+        }
+
+        $meals = DailyMeal::query()
+            ->orderBy('meal_date')
+            ->orderBy('id')
+            ->get()
+            ->values();
+
+        $weekMeals = $meals->where('week_id', $week->id)->values();
+
+        if ($weekMeals->isEmpty()) {
+            return 0;
+        }
+
+        $result = $this->fillMeals($rotation, $meals, $mains, $soups, false, $week->id);
+
+        return $result['main_filled'] + $result['soup_filled'];
+    }
+
+    /**
+     * @param  Collection<int, DailyMeal>  $meals
+     * @param  Collection<int, Menu>  $mains
+     * @param  Collection<int, Menu>  $soups
+     * @return array{sequence: array<int, array<int, string|null>>, main_filled: int, soup_filled: int, free_days: int}
+     */
+    private function fillMeals(
+        MealRotation $rotation,
+        Collection $meals,
+        Collection $mains,
+        Collection $soups,
+        bool $dryRun,
+        ?int $onlyWeekId = null,
+    ): array {
         $weeks = Week::query()->pluck('week_number', 'id');
         $mainOrder = $rotation->mainOrder($meals);
-
         $usedMainDates = $this->usedMainDates($meals);
 
         $sequence = [];
@@ -54,7 +126,10 @@ class FillMenus extends Command
         foreach ($meals as $meal) {
             if ($meal->is_free_day) {
                 $freeDays++;
-                $sequence[] = [$meal->meal_date->toDateString(), $meal->meal_date->translatedFormat('D'), 'ZI LIBERA', '-'];
+
+                if ($onlyWeekId === null || $meal->week_id === $onlyWeekId) {
+                    $sequence[] = [$meal->meal_date->toDateString(), $meal->meal_date->translatedFormat('D'), 'ZI LIBERA', '-'];
+                }
 
                 continue;
             }
@@ -89,35 +164,21 @@ class FillMenus extends Command
                 ? '-'
                 : $soups->firstWhere('id', $meal->soup_menu_id)?->name;
 
-            $sequence[] = [$meal->meal_date->toDateString(), $meal->meal_date->translatedFormat('D'), $mainName ?? '-', $soupName ?? '-'];
+            if ($onlyWeekId === null || $meal->week_id === $onlyWeekId) {
+                $sequence[] = [$meal->meal_date->toDateString(), $meal->meal_date->translatedFormat('D'), $mainName ?? '-', $soupName ?? '-'];
+            }
 
-            if (! $this->option('dry-run') && ($mainChanged || $soupChanged)) {
+            if (! $dryRun && ($mainChanged || $soupChanged)) {
                 $meal->save();
             }
         }
 
-        $this->table(['Data', 'Zi', 'Fel principal', 'Ciorba'], $sequence);
-
-        $this->info(sprintf(
-            'Fel principal completat: %d; ciorba completata: %d; zile libere sarite: %d.',
-            $mainFilled,
-            $soupFilled,
-            $freeDays,
-        ));
-
-        foreach ($this->issues($meals, $weeks, $rotation) as $issue) {
-            $this->warn($issue);
-        }
-
-        if ($this->option('dry-run')) {
-            $this->info('Mod de testare (--dry-run): nu s-a modificat nimic.');
-
-            return self::SUCCESS;
-        }
-
-        $this->info('Retetele lipsa au fost completate.');
-
-        return self::SUCCESS;
+        return [
+            'sequence' => $sequence,
+            'main_filled' => $mainFilled,
+            'soup_filled' => $soupFilled,
+            'free_days' => $freeDays,
+        ];
     }
 
     /**
@@ -320,4 +381,3 @@ class FillMenus extends Command
         return $issues;
     }
 }
-
