@@ -31,6 +31,11 @@ class DailyMealResource extends Resource
 
     protected static ?string $pluralModelLabel = 'zile de masa';
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+
     public static function form(Schema $schema): Schema
     {
         return DailyMealForm::configure($schema);

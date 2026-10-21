@@ -4,9 +4,12 @@ namespace App\Filament\Pages;
 
 use App\Console\Commands\FillMenus;
 use App\Models\DailyMeal;
+use App\Models\FoodFundTransaction;
 use App\Models\Menu;
 use App\Models\SupplyContribution;
+use App\Models\Volunteer;
 use App\Models\Week;
+use App\Models\WorkTeam;
 use App\Services\DailyMealCostCalculator;
 use App\Services\MenuSchedulingValidator;
 use Carbon\CarbonImmutable;
@@ -87,6 +90,46 @@ class CalendarSaptamanal extends Page
 
     public ?string $pendingWorkingDayDate = null;
 
+    public bool $showCreateWeek = false;
+
+    public ?int $newWeekNumber = null;
+
+    public ?string $newWeekStartDate = null;
+
+    public ?int $newWeekCongregationId = null;
+
+    public ?int $pendingDeleteWeekId = null;
+
+    public ?int $peopleMealId = null;
+
+    public ?int $editingVolunteerId = null;
+
+    public string $volunteerName = '';
+
+    public string $volunteerPhone = '';
+
+    public string $volunteerRole = '';
+
+    public bool $volunteerHasAllergies = false;
+
+    public string $volunteerAllergyDetails = '';
+
+    public ?int $teamsMealId = null;
+
+    public ?int $editingTeamId = null;
+
+    public string $teamName = '';
+
+    public ?int $teamMemberCount = null;
+
+    public string $teamStartsAt = '';
+
+    public string $teamEndsAt = '';
+
+    public string $teamLocation = '';
+
+    public ?string $teamSupplyResponsible = '';
+
     public function mount(): void
     {
         $this->weekId = $this->weeks->first()?->id;
@@ -129,6 +172,8 @@ class CalendarSaptamanal extends Page
             'dailyMeals.menu',
             'dailyMeals.soupMenu',
             'dailyMeals.dessertMenu',
+            'dailyMeals.volunteers',
+            'dailyMeals.workTeams',
         ]);
     }
 
@@ -687,12 +732,446 @@ class CalendarSaptamanal extends Page
             ->send();
     }
 
+    public function openCreateWeek(): void
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        $this->showCreateWeek = true;
+        $this->newWeekNumber = (int) (Week::query()->max('week_number') ?? 0) + 1;
+        $this->newWeekStartDate = null;
+        $this->newWeekCongregationId = null;
+    }
+
+    public function closeCreateWeek(): void
+    {
+        $this->showCreateWeek = false;
+        $this->newWeekNumber = null;
+        $this->newWeekStartDate = null;
+        $this->newWeekCongregationId = null;
+        $this->resetErrorBag();
+    }
+
+    public function createWeek(): void
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        $this->validate([
+            'newWeekNumber' => ['required', 'integer', 'min:1', 'max:520'],
+            'newWeekStartDate' => ['required', 'date'],
+            'newWeekCongregationId' => ['required', 'integer', 'exists:congregations,id'],
+        ]);
+
+        $week = Week::create([
+            'week_number' => (int) $this->newWeekNumber,
+            'start_date' => CarbonImmutable::parse($this->newWeekStartDate)->toDateString(),
+            'congregation_id' => (int) $this->newWeekCongregationId,
+        ]);
+
+        $this->weekId = $week->id;
+        $this->closeCreateWeek();
+        $this->loadCalendarValues();
+
+        Notification::make()->title('Saptamana a fost creata.')->success()->send();
+    }
+
+    public function openDeleteWeek(int $weekId): void
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        $this->pendingDeleteWeekId = $weekId;
+    }
+
+    public function confirmDeleteWeek(): void
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        $week = Week::query()->findOrFail((int) $this->pendingDeleteWeekId);
+
+        Gate::authorize('delete', $week);
+
+        DB::transaction(function () use ($week): void {
+            foreach ($week->dailyMeals as $meal) {
+                $meal->supplyPlan?->consumptions()->delete();
+                $meal->supplyPlan?->delete();
+                $meal->volunteers()->delete();
+                $meal->workTeams()->delete();
+                $meal->delete();
+            }
+
+            $week->delete();
+        });
+
+        $this->pendingDeleteWeekId = null;
+        $this->weekId = $this->weeks->first()?->id;
+        $this->loadCalendarValues();
+
+        Notification::make()
+            ->title('Saptamana a fost stearsa impreuna cu zilele ei. Cheltuielile din fondul alimentar au ramas neschimbate.')
+            ->success()
+            ->send();
+    }
+
+    public function closeDeleteWeek(): void
+    {
+        $this->pendingDeleteWeekId = null;
+    }
+
+    /**
+     * @return array<int, array<int, \App\Models\Volunteer>>
+     */
+    public function getVolunteersByMealProperty(): array
+    {
+        return $this->selectedWeek?->dailyMeals
+            ->mapWithKeys(fn (DailyMeal $meal): array => [$meal->id => $meal->volunteers->all()])
+            ->all() ?? [];
+    }
+
+    /**
+     * @return array<int, array<int, \App\Models\WorkTeam>>
+     */
+    public function getTeamsByMealProperty(): array
+    {
+        return $this->selectedWeek?->dailyMeals
+            ->mapWithKeys(fn (DailyMeal $meal): array => [$meal->id => $meal->workTeams->all()])
+            ->all() ?? [];
+    }
+
+    /**
+     * @return array<int, array{income: float, expense: float, balance: float}>
+     */
+    public function getFoodFundByDateProperty(): array
+    {
+        $week = $this->selectedWeek;
+
+        if ($week === null) {
+            return [];
+        }
+
+        $summary = [];
+
+        FoodFundTransaction::query()
+            ->whereBetween('transaction_date', [
+                $week->start_date->toDateString(),
+                $week->start_date->copy()->addDays(6)->toDateString(),
+            ])
+            ->get()
+            ->groupBy(fn (FoodFundTransaction $transaction): string => $transaction->transaction_date->toDateString())
+            ->each(function ($transactions, string $date) use (&$summary): void {
+                $income = (float) $transactions->where('type', 'income')->sum('amount');
+                $expense = (float) $transactions->where('type', 'expense')->sum('amount');
+
+                $summary[$date] = [
+                    'income' => $income,
+                    'expense' => $expense,
+                    'balance' => $income - $expense,
+                ];
+            });
+
+        return $summary;
+    }
+
+    public function openPeople(int $mealId): void
+    {
+        $this->guardPeopleManagement();
+        $this->calendarMealForRole($mealId);
+
+        $this->peopleMealId = $mealId;
+        $this->resetVolunteerForm();
+    }
+
+    public function closePeople(): void
+    {
+        $this->peopleMealId = null;
+        $this->resetVolunteerForm();
+    }
+
+    public function editVolunteer(int $volunteerId): void
+    {
+        $this->guardPeopleManagement();
+
+        $volunteer = Volunteer::query()
+            ->whereKey($volunteerId)
+            ->where('daily_meal_id', $this->peopleMealId)
+            ->firstOrFail();
+
+        $this->editingVolunteerId = $volunteer->id;
+        $this->volunteerName = (string) $volunteer->name;
+        $this->volunteerPhone = (string) ($volunteer->phone ?? '');
+        $this->volunteerRole = (string) $volunteer->role;
+        $this->volunteerHasAllergies = (bool) $volunteer->has_allergies;
+        $this->volunteerAllergyDetails = (string) ($volunteer->allergy_details ?? '');
+    }
+
+    public function saveVolunteer(): void
+    {
+        $this->guardPeopleManagement();
+
+        $this->validate([
+            'volunteerName' => ['required', 'string', 'max:120'],
+            'volunteerPhone' => ['nullable', 'string', 'max:30'],
+            'volunteerRole' => ['required', 'string', 'max:60'],
+            'volunteerAllergyDetails' => ['nullable', 'string', 'max:500', 'required_if:volunteerHasAllergies,true'],
+        ]);
+
+        $meal = $this->calendarMealForRole((int) $this->peopleMealId);
+
+        $attributes = [
+            'name' => $this->volunteerName,
+            'phone' => $this->volunteerPhone ?: null,
+            'role' => $this->volunteerRole,
+            'has_allergies' => $this->volunteerHasAllergies,
+            'allergy_details' => $this->volunteerHasAllergies ? $this->volunteerAllergyDetails : null,
+        ];
+
+        if ($this->editingVolunteerId !== null) {
+            $meal->volunteers()->whereKey($this->editingVolunteerId)->update($attributes);
+        } else {
+            $meal->volunteers()->create($attributes);
+        }
+
+        $this->loadCalendarValues();
+        $this->resetVolunteerForm();
+
+        Notification::make()->title('Persoana a fost salvata.')->success()->send();
+    }
+
+    public function deleteVolunteer(int $volunteerId): void
+    {
+        $this->guardPeopleManagement();
+
+        Volunteer::query()
+            ->whereKey($volunteerId)
+            ->where('daily_meal_id', $this->peopleMealId)
+            ->delete();
+
+        if ($this->editingVolunteerId === $volunteerId) {
+            $this->resetVolunteerForm();
+        }
+
+        $this->loadCalendarValues();
+
+        Notification::make()->title('Persoana a fost stearsa.')->success()->send();
+    }
+
+    public function cancelVolunteerEdit(): void
+    {
+        $this->resetVolunteerForm();
+    }
+
+    public function notifyMessageCopied(): void
+    {
+        Notification::make()->title('Mesajul a fost copiat in clipboard.')->success()->send();
+    }
+
+    private function resetVolunteerForm(): void
+    {
+        $this->editingVolunteerId = null;
+        $this->volunteerName = '';
+        $this->volunteerPhone = '';
+        $this->volunteerRole = '';
+        $this->volunteerHasAllergies = false;
+        $this->volunteerAllergyDetails = '';
+        $this->resetErrorBag();
+    }
+
+    public function openTeams(int $mealId): void
+    {
+        $this->calendarMeal($mealId);
+
+        $this->teamsMealId = $mealId;
+        $this->resetTeamForm();
+    }
+
+    public function closeTeams(): void
+    {
+        $this->teamsMealId = null;
+        $this->resetTeamForm();
+    }
+
+    public function editTeam(int $teamId): void
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        $team = WorkTeam::query()
+            ->whereKey($teamId)
+            ->where('daily_meal_id', $this->teamsMealId)
+            ->firstOrFail();
+
+        $this->editingTeamId = $team->id;
+        $this->teamName = (string) $team->name;
+        $this->teamMemberCount = $team->member_count;
+        $this->teamStartsAt = $team->starts_at ? substr((string) $team->starts_at, 0, 5) : '';
+        $this->teamEndsAt = $team->ends_at ? substr((string) $team->ends_at, 0, 5) : '';
+        $this->teamLocation = (string) ($team->location ?? '');
+        $this->teamSupplyResponsible = (string) ($team->supply_responsible ?? '');
+    }
+
+    public function saveTeam(): void
+    {
+        $this->validate([
+            'teamName' => ['required', 'string', 'max:120'],
+            'teamMemberCount' => ['nullable', 'integer', 'min:0', 'max:5000'],
+            'teamStartsAt' => ['nullable', 'date_format:H:i'],
+            'teamEndsAt' => ['nullable', 'date_format:H:i'],
+            'teamLocation' => ['nullable', 'string', 'max:120'],
+            'teamSupplyResponsible' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $meal = $this->calendarMeal((int) $this->teamsMealId);
+
+        $attributes = [
+            'name' => $this->teamName,
+            'member_count' => $this->teamMemberCount,
+            'starts_at' => $this->teamStartsAt ?: null,
+            'ends_at' => $this->teamEndsAt ?: null,
+            'location' => $this->teamLocation ?: null,
+            'supply_responsible' => $this->teamSupplyResponsible ?: null,
+        ];
+
+        if ($this->editingTeamId !== null) {
+            $meal->workTeams()->whereKey($this->editingTeamId)->update($attributes);
+        } else {
+            $meal->workTeams()->create($attributes);
+        }
+
+        $this->loadCalendarValues();
+        $this->resetTeamForm();
+
+        Notification::make()->title('Echipa a fost salvata.')->success()->send();
+    }
+
+    public function deleteTeam(int $teamId): void
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        WorkTeam::query()
+            ->whereKey($teamId)
+            ->where('daily_meal_id', $this->teamsMealId)
+            ->delete();
+
+        if ($this->editingTeamId === $teamId) {
+            $this->resetTeamForm();
+        }
+
+        $this->loadCalendarValues();
+
+        Notification::make()->title('Echipa a fost stearsa.')->success()->send();
+    }
+
+    public function cancelTeamEdit(): void
+    {
+        $this->resetTeamForm();
+    }
+
+    private function resetTeamForm(): void
+    {
+        $this->editingTeamId = null;
+        $this->teamName = '';
+        $this->teamMemberCount = null;
+        $this->teamStartsAt = '';
+        $this->teamEndsAt = '';
+        $this->teamLocation = '';
+        $this->teamSupplyResponsible = '';
+        $this->resetErrorBag();
+    }
+
+    private function guardPeopleManagement(): void
+    {
+        abort_unless(auth()->user()?->isAdmin() || auth()->user()?->isCoordinator(), 403);
+    }
+
+    private function calendarMealForRole(int $mealId): DailyMeal
+    {
+        $meal = DailyMeal::query()
+            ->whereKey($mealId)
+            ->where('week_id', $this->weekId)
+            ->firstOrFail();
+
+        $user = auth()->user();
+
+        if ($user?->isCoordinator() && $user->congregation_id !== $meal->congregation_id) {
+            abort(403);
+        }
+
+        return $meal;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function getUncoveredRolesProperty(): array
+    {
+        $week = $this->selectedWeek;
+
+        if ($week === null) {
+            return [];
+        }
+
+        $requiredRoles = $week->dailyMeals
+            ->flatMap(fn (DailyMeal $meal): array => $meal->workTeams->map(
+                fn (WorkTeam $team): string => trim((string) $team->name),
+            )->filter()->all())
+            ->unique()
+            ->values();
+
+        $roles = [];
+
+        foreach ($week->dailyMeals as $meal) {
+            $filled = $meal->volunteers
+                ->map(fn (Volunteer $volunteer): string => trim((string) $volunteer->role))
+                ->filter()
+                ->all();
+
+            $missing = $requiredRoles
+                ->filter(fn (string $role): bool => ! in_array($role, $filled, true))
+                ->values();
+
+            if ($missing->isNotEmpty()) {
+                $roles[$meal->meal_date->toDateString()] = $missing->implode(', ');
+            }
+        }
+
+        return $roles;
+    }
+
+    public function getWhatsappMessagesProperty(): array
+    {
+        $meals = $this->selectedWeek?->dailyMeals;
+        $week = $this->selectedWeek;
+
+        if ($meals === null) {
+            return ['week' => '', 'days' => []];
+        }
+
+        $builder = app(\App\Services\DailyMessageBuilder::class);
+
+        $days = [];
+
+        foreach ($meals as $meal) {
+            $days[$meal->id] = $builder->dayMessage($meal);
+        }
+
+        $rangeLabel = $week->start_date->translatedFormat('j M').' - '.$week->start_date->copy()->addDays(4)->translatedFormat('j M');
+
+        return [
+            'week' => $builder->weekMessage($meals, $week->week_number, $rangeLabel),
+            'days' => $days,
+        ];
+    }
+
+    /**
+     * @return Collection<int, \App\Models\Congregation>
+     */
+    public function getCongregationOptionsProperty(): Collection
+    {
+        return \App\Models\Congregation::query()->orderBy('name')->get();
+    }
+
     /**
      * @param  Collection<int, SupplyContribution>  $contributions
      * @return list<array{icon: string, label: string}>
      */
-    private function buildSupplyIndicators(Collection $contributions): array
-    {
+    private function buildSupplyIndicators(Collection $contributions): array    {
         $indicators = [];
 
         foreach ([

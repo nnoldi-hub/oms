@@ -31,6 +31,11 @@ class WeekResource extends Resource
 
     protected static ?string $pluralModelLabel = 'saptamani';
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+
     public static function form(Schema $schema): Schema
     {
         return WeekForm::configure($schema);

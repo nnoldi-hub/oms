@@ -19,7 +19,7 @@ class TomorrowMealOverview extends StatsOverviewWidget
         $tomorrow = today()->addDay();
         $meal = DailyMeal::query()
             ->whereDate('meal_date', $tomorrow)
-            ->with(['menu', 'soupMenu', 'dessertMenu', 'congregation'])
+            ->with(['menu', 'soupMenu', 'dessertMenu', 'congregation', 'workTeams', 'volunteers'])
             ->first();
 
         if ($meal === null) {
@@ -55,12 +55,37 @@ class TomorrowMealOverview extends StatsOverviewWidget
             $shoppingSummary .= ' +'.(count($shoppingList) - 4).' altele';
         }
 
+        $teams = $meal->workTeams
+            ->map(fn ($team): string => $team->name
+                .($team->starts_at && $team->ends_at ? ' ('.substr((string) $team->starts_at, 0, 5).'-'.substr((string) $team->ends_at, 0, 5).')' : ''))
+            ->implode(', ');
+
+        $assignedRoles = $meal->volunteers
+            ->map(fn ($volunteer): string => trim((string) $volunteer->role))
+            ->filter()
+            ->unique()
+            ->all();
+
+        $uncoveredRoles = $meal->workTeams
+            ->map(fn ($team): string => trim((string) $team->name))
+            ->filter()
+            ->unique()
+            ->reject(fn (string $role): bool => in_array($role, $assignedRoles, true))
+            ->values();
+
         return [
             Stat::make('Maine', $recipes !== '' ? $recipes : 'Meniu neales')
                 ->description($tomorrow->copy()->locale('ro')->translatedFormat('l, j F Y').' - '.$meal->estimated_people.' persoane - '.($meal->congregation?->name ?? 'fara congregatie'))
                 ->descriptionIcon(Heroicon::OutlinedUserGroup)
                 ->color('primary')
                 ->icon(Heroicon::OutlinedCalendarDays),
+            Stat::make('Echipe si roluri', $teams !== '' ? $teams : 'Fara echipe programate')
+                ->description($uncoveredRoles->isEmpty()
+                    ? 'Toate rolurile au o persoana alocata'
+                    : 'Neacoperite: '.$uncoveredRoles->implode(', '))
+                ->descriptionIcon(Heroicon::OutlinedWrenchScrewdriver)
+                ->color($uncoveredRoles->isEmpty() ? 'success' : 'warning')
+                ->icon(Heroicon::OutlinedWrenchScrewdriver),
             Stat::make('Alergeni de verificat', $allergens === [] ? 'Niciunul' : implode(', ', $allergens))
                 ->description(in_array('De confirmat', $allergens, true) ? 'Reteta nu are lista de alergeni confirmata' : 'Verifica lista completa in fisa de pregatire')
                 ->descriptionIcon(Heroicon::OutlinedExclamationTriangle)

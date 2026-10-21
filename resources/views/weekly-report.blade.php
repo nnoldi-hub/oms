@@ -46,7 +46,7 @@
                     @foreach ($daySheets as $sheet)
                         <tr>
                             <td>{{ $sheet['meal']->meal_date->translatedFormat('D, j M') }}</td>
-                            <td>{{ $sheet['meal']->menu?->name ?? 'Neales' }}</td>
+                            <td>{{ $sheet['meal']->menu?->name ?? '— fără meniu —' }}</td>
                             <td class="number">{{ $sheet['cost']['has_missing_prices'] ? 'De configurat' : number_format($sheet['ingredients_cost'], 2, '.', ' ') . ' RON' }}</td>
                             <td class="number">{{ $sheet['cost']['has_missing_prices'] ? 'De configurat' : number_format($sheet['packaging_cost'], 2, '.', ' ') . ' RON' }}</td>
                             <td class="number">{{ $sheet['cost']['has_missing_prices'] ? 'Partial' : number_format($sheet['cost']['total_cost'], 2, '.', ' ') . ' RON' }}</td>
@@ -69,7 +69,7 @@
                         <tr>
                             <td>{{ $dailyMeal->meal_date->translatedFormat('D, j M') }}</td>
                             <td>{{ $dailyMeal->congregation?->name ?? '-' }}</td>
-                            <td>{{ $dailyMeal->menu?->name ?? 'Neales' }}</td>
+                            <td>{{ $dailyMeal->menu?->name ?? '— fără meniu —' }}</td>
                             <td>{{ $dailyMeal->soupMenu?->name ?? '-' }}</td>
                             <td>{{ $dailyMeal->dessertMenu?->name ?? '-' }}</td>
                             <td>{{ $dailyMeal->is_cooked ? 'Gatit' : 'Planificat' }}{{ $dailyMeal->actualMenu && $dailyMeal->actualMenu->id !== $dailyMeal->menu_id ? ': '.$dailyMeal->actualMenu->name : '' }}</td>

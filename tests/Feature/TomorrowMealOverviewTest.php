@@ -3,11 +3,14 @@
 namespace Tests\Feature;
 
 use App\Filament\Widgets\TomorrowMealOverview;
+use App\Filament\Widgets\TomorrowMessageWidget;
 use App\Models\Congregation;
 use App\Models\DailyMeal;
 use App\Models\Menu;
 use App\Models\User;
+use App\Models\Volunteer;
 use App\Models\Week;
+use App\Models\WorkTeam;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -85,6 +88,65 @@ class TomorrowMealOverviewTest extends TestCase
         Livewire::actingAs($administrator)
             ->test(TomorrowMealOverview::class)
             ->assertSee('Fara masa programata');
+
+        CarbonImmutable::setTestNow();
+    }
+
+    public function test_it_shows_tomorrows_teams_and_uncovered_roles(): void
+    {
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-11-30 08:00'));
+
+        $congregation = Congregation::factory()->create();
+        $week = Week::factory()->for($congregation)->create(['start_date' => '2026-11-30']);
+        $main = Menu::factory()->create(['name' => 'Meniu echipe', 'type' => 'main']);
+        $meal = DailyMeal::factory()->for($week)->for($congregation)->for($main)->create([
+            'meal_date' => '2026-12-01',
+            'estimated_people' => 20,
+            'status' => 'confirmed',
+        ]);
+        WorkTeam::create(['daily_meal_id' => $meal->id, 'name' => 'bucatar', 'starts_at' => '08:00', 'ends_at' => '12:00']);
+        WorkTeam::create(['daily_meal_id' => $meal->id, 'name' => 'aprovizionare']);
+        Volunteer::factory()->for($meal)->create(['role' => 'bucatar']);
+
+        Livewire::actingAs(User::factory()->create(['role' => 'admin']))
+            ->test(TomorrowMealOverview::class)
+            ->assertSee('Echipe si roluri')
+            ->assertSee('bucatar (08:00-12:00)')
+            ->assertSee('Neacoperite: aprovizionare');
+
+        CarbonImmutable::setTestNow();
+    }
+
+    public function test_the_dashboard_message_widget_shows_and_links_tomorrows_message(): void
+    {
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-11-30 08:00'));
+
+        $congregation = Congregation::factory()->create(['name' => 'Congregatia Mesaj']);
+        $week = Week::factory()->for($congregation)->create(['start_date' => '2026-11-30']);
+        $main = Menu::factory()->create(['name' => 'Ciorba de mesaj', 'type' => 'main']);
+        DailyMeal::factory()->for($week)->for($congregation)->for($main)->create([
+            'meal_date' => '2026-12-01',
+            'estimated_people' => 25,
+            'status' => 'confirmed',
+        ]);
+
+        Livewire::actingAs(User::factory()->create(['role' => 'admin']))
+            ->test(TomorrowMessageWidget::class)
+            ->assertSee('Mesajul de maine')
+            ->assertSee('Congregatia Mesaj')
+            ->assertSee('Ciorba de mesaj')
+            ->assertSee('wa.me/?text=', escape: false);
+
+        CarbonImmutable::setTestNow();
+    }
+
+    public function test_the_dashboard_message_widget_is_hidden_when_there_is_no_meal_tomorrow(): void
+    {
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-11-30 08:00'));
+
+        Livewire::actingAs(User::factory()->create(['role' => 'admin']))
+            ->test(TomorrowMessageWidget::class)
+            ->assertDontSee('Mesajul de maine');
 
         CarbonImmutable::setTestNow();
     }

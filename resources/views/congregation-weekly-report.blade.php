@@ -50,7 +50,7 @@
                         <tr>
                             <td>{{ $dailyMeal->meal_date->translatedFormat('D, j M') }}</td>
                             <td>
-                                <strong>{{ $dailyMeal->menu?->name ?? 'Neales' }}</strong><br>
+                                <strong>{{ $dailyMeal->menu?->name ?? '— fără meniu —' }}</strong><br>
                                 <small>Alergeni: {{ $dailyMeal->menu === null ? '-' : (is_array($dailyMeal->menu->allergens) ? ($dailyMeal->menu->allergens === [] ? 'Niciunul declarat' : implode(', ', $dailyMeal->menu->allergens)) : 'De confirmat') }}</small>
                             </td>
                             <td>

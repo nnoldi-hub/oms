@@ -5,6 +5,7 @@ namespace App\Providers\Filament;
 use App\Filament\Widgets\OmsStatsOverview;
 use App\Filament\Widgets\SupplyStatsOverview;
 use App\Filament\Widgets\TomorrowMealOverview;
+use App\Filament\Widgets\TomorrowMessageWidget;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -61,6 +62,7 @@ class AdminPanelProvider extends PanelProvider
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
                 TomorrowMealOverview::class,
+                TomorrowMessageWidget::class,
                 OmsStatsOverview::class,
                 SupplyStatsOverview::class,
             ])

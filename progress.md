@@ -316,6 +316,20 @@
 - Realizat: din navigatie au fost ascunse paginile care se bazau pe planurile de aprovizionare (Rapoarte aprovizionare, Consum real vs estimat, widget-ul de aprovizionare); datele raman in baza, iar **Costuri & buget**, cataloagele si fondul alimentar sunt vizibile.
 - Verificat: suita completa are 107 teste si 999 asertiuni verzi, inclusiv fisele pe zi, rotunjirea practica, mesajul reformulat si migrarea de separare.
 
+### 21.10.2026 - Calendarul devine centrul de planificare
+
+- Status: Finalizat
+- Realizat: paginile **Zile de masa** si **Saptamani** au fost scoase din navigatie (rutele raman functionale), iar calendarul saptamanal este singurul hub de planificare.
+- Realizat: din calendar se poate crea o saptamana noua (numar, data de start luni, congregatie principala) si se poate sterge o saptamana cu confirmare, impreuna cu zilele, planurile de aprovizionare si echipele ei; cheltuielile din fondul alimentar raman neschimbate. Ambele actiuni sunt rezervate administratorului (`WeekPolicy`).
+- Realizat: pe fiecare cartonas de zi se pot edita **inline persoanele/rolurile** (reutilizand modelul `Volunteer`, doar admin/coordonator pe ziua proprie) si **echipele de lucru** (reutilizand `WorkTeam`, admin), fara tabele noi.
+- Realizat: cartonasul arata numarul de persoane, echipele zilei, o avertizare pentru **rolurile neacoperite** (nume de echipa fara persoana alocata pe acea zi) si un sumar al **fondului alimentar** al zilei (incasari, cheltuieli, sold), calculat din `FoodFundTransaction`.
+- Realizat: sub grila zilelor apare un **sumar financiar saptamanal** (cost estimat total si cate zile au preturi lipsa).
+- Realizat: mesajele pentru WhatsApp (pe zi si pe saptamana) pot fi copiate in clipboard si trimise prin link `wa.me`, atat din calendar cat si de pe dashboard, printr-un widget nou (`TomorrowMessageWidget`). Textul este construit de un serviciu comun (`DailyMessageBuilder`), folosit si de calendar, si de dashboard.
+- Realizat: `TomorrowMealOverview` afiseaza si echipele de maine (nume + interval) si rolurile neacoperite.
+- Realizat: textul **Neales** a fost inlocuit cu **— fara meniu —** in raportul saptamanal, raportul pe congregatie si fisa publica a saptamanii.
+- Verificat: fisele publice nu afiseaza date personale sau alergii (teste existente pentru `PublicDailyMeal` si `PublicCongregationWeekSheet` trec; fara date personale in seedere).
+- Verificat: suita completa are 121 teste si 1039 asertiuni verzi.
+
 ## Decizii si blocaje
 
 | Data | Tip | Detaliu | Impact |
@@ -336,6 +350,8 @@
 | 21.10.2026 | Decizie | Portiile confirmate (`daily_meals.confirmed_people`) au prioritate peste cele estimate in toate calculele de cantitati si costuri. | Cantitatile si bugetul urmeaza realitatea din teren cand numarul e confirmat. |
 | 21.10.2026 | Decizie | Ingredientele combinate din retete sunt imparti egal pe componente, pastrand unitatea si pretul unitar al amestecului pentru partile noi. | Fiecare ingredient are pretul si unitatea lui; cantitatile totale nu se pierd. |
 | 21.10.2026 | Decizie | Paginile bazate pe planurile de aprovizionare sunt ascunse din navigatie, nu sterse. | Datele raman intacte pentru o conexiune viitoare la portiile reale. |
+| 21.10.2026 | Decizie | Persoanele, echipele si contributiile financiare se leaga de zilele din calendar reutilizand `Volunteer`, `WorkTeam` si `FoodFundTransaction`; nu se creeaza tabele noi. | Se evita dublarea datelor; modelul existent acopera rol, telefon, alergii, interval orar si tranzactii de fond. |
+| 21.10.2026 | Decizie | Calendarul saptamanal este singurul hub de planificare: **Zile de masa** si **Saptamani** sunt ascunse din navigatie, dar rutele raman functionale. | Utilizatorii lucreaza dintr-un singur loc; accesul direct la resurse rămâne pentru link-uri si teste. |
 
 ## Verificari de lansare
 

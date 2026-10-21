@@ -99,6 +99,9 @@
                         <option value="{{ $week->id }}">Saptamana {{ $week->week_number }}: {{ $week->start_date->format('d.m') }} - {{ $week->start_date->addDays(4)->format('d.m.Y') }}</option>
                     @endforeach
                 </select>
+                @if (auth()->user()?->isAdmin())
+                    <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="openCreateWeek" style="margin-top:6px;">Saptamana noua</button>
+                @endif
             </div>
         </div>
 
@@ -127,8 +130,15 @@
                     @if (auth()->user()?->isAdmin())
                         <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="openSuggestWeek({{ $this->selectedWeek->id }})">Sugereaza meniul</button>
                         <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="openMoveWeek({{ $this->selectedWeek->id }})">Mută săptămâna</button>
+                        <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="openDeleteWeek({{ $this->selectedWeek->id }})">Șterge săptămâna</button>
                     @endif
                     <a class="oms-calendar__report" href="{{ route('weekly-reports.show', $this->selectedWeek) }}" target="_blank">Raport saptamanal</a>
+                    <button
+                        class="oms-calendar__report oms-calendar__report--secondary"
+                        type="button"
+                        x-data
+                        x-on:click="navigator.clipboard.writeText(@js($this->whatsappMessages['week'] ?? '')); $wire.call('notifyMessageCopied')"
+                    >Copiaza planul saptamanii</button>
                     @foreach ($this->selectedWeek->dailyMeals->pluck('congregation')->filter()->unique('id') as $congregation)
                         <a class="oms-calendar__report oms-calendar__report--secondary" href="{{ route('congregation-weekly-reports.show', [$this->selectedWeek, $congregation]) }}" target="_blank">Fisa {{ $congregation->name }}</a>
                     @endforeach
@@ -250,6 +260,67 @@
                                 </div>
                             @endif
 
+                            @php($teams = $this->teamsByMeal[$dailyMeal->id] ?? [])
+                            @php($people = $this->volunteersByMeal[$dailyMeal->id] ?? [])
+                            @php($fund = $this->foodFundByDate[$dailyMeal->meal_date->toDateString()] ?? null)
+                            @php($uncovered = $this->uncoveredRoles[$dailyMeal->meal_date->toDateString()] ?? null)
+
+                            @if ($teams !== [])
+                                <div>
+                                    <p class="oms-card__label">Echipe</p>
+                                    <p class="oms-card__value">
+                                        @foreach ($teams as $team)
+                                            {{ $team->name }}@if ($team->starts_at && $team->ends_at) ({{ substr((string) $team->starts_at, 0, 5) }}-{{ substr((string) $team->ends_at, 0, 5) }})@endif{{ ! $loop->last ? ',' : '' }}
+                                        @endforeach
+                                    </p>
+                                </div>
+                            @endif
+
+                            @if ($people !== [])
+                                <div>
+                                    <p class="oms-card__label">Persoane ({{ count($people) }})</p>
+                                    <p class="oms-card__value">
+                                        @foreach ($people as $volunteer)
+                                            {{ $volunteer->name }} ({{ $volunteer->role }}){{ $volunteer->has_allergies ? ' ⚠' : '' }}{{ ! $loop->last ? ',' : '' }}
+                                        @endforeach
+                                    </p>
+                                </div>
+                            @endif
+
+                            @if ($uncovered !== null && $uncovered !== '')
+                                <div class="oms-card__warnings">
+                                    Roluri neacoperite: {{ $uncovered }}
+                                </div>
+                            @endif
+
+                            @if ($fund !== null)
+                                <div>
+                                    <p class="oms-card__label">Fond alimentar (ziua)</p>
+                                    <p class="oms-card__budget-result">
+                                        Incasari: {{ number_format($fund['income'], 2, '.', ' ') }} RON ·
+                                        Cheltuieli: {{ number_format($fund['expense'], 2, '.', ' ') }} RON ·
+                                        <strong>Sold: {{ number_format($fund['balance'], 2, '.', ' ') }} RON</strong>
+                                    </p>
+                                </div>
+                            @endif
+
+                            <div class="oms-card__actions">
+                                <button class="oms-card__action" type="button" wire:click="openPeople({{ $dailyMeal->id }})">Persoane ({{ count($people) }})</button>
+                                <button class="oms-card__action" type="button" wire:click="openTeams({{ $dailyMeal->id }})">Echipe ({{ count($teams) }})</button>
+                                <button
+                                    class="oms-card__action"
+                                    type="button"
+                                    x-data
+                                    x-on:click="navigator.clipboard.writeText(@js($this->whatsappMessages['days'][$dailyMeal->id] ?? '')); $wire.call('notifyMessageCopied')"
+                                >Copiaza mesajul</button>
+                                <a
+                                    class="oms-card__action"
+                                    href="https://wa.me/?text={{ rawurlencode($this->whatsappMessages['days'][$dailyMeal->id] ?? '') }}"
+                                    target="_blank"
+                                    rel="noopener"
+                                >WhatsApp</a>
+                            </div>
+
                             <a class="oms-card__print" href="{{ route('daily-meal-preparation-sheets.show', $dailyMeal) }}" target="_blank">Printeaza ziua</a>
                             @if (auth()->user()?->isAdmin())
                                 <div class="oms-card__actions">
@@ -260,6 +331,20 @@
                         </footer>
                     </article>
                 @endforeach
+            </div>
+
+            @php($weekTotal = collect($this->dailyCosts)->sum('total_cost'))
+            @php($weekMissing = collect($this->dailyCosts)->where('has_missing_prices', true)->count())
+            <div class="oms-card" style="margin-top:20px;min-height:0;">
+                <footer class="oms-card__footer">
+                    <p class="oms-card__label">Sumar financiar saptamanal</p>
+                    <p class="oms-card__budget-result">
+                        <strong>Cost estimat total:</strong> {{ number_format($weekTotal, 2, '.', ' ') }} RON
+                        @if ($weekMissing > 0)
+                            · {{ $weekMissing }} {{ $weekMissing === 1 ? 'zi are' : 'zile au' }} preturi lipsa (cost partial)
+                        @endif
+                    </p>
+                </footer>
             </div>
         @else
             <div class="oms-calendar__empty">Nu exista saptamani disponibile pentru acest cont.</div>
@@ -362,6 +447,167 @@
                     <div class="oms-modal__buttons">
                         <button class="oms-modal__cancel" type="button" wire:click="closeSchedulingAction">Renunta</button>
                         <button class="oms-modal__confirm" type="button" wire:click="markFreeDay">Marcheaza ziua libera</button>
+                    </div>
+                </div>
+            </div>
+        @endif
+        @if ($peopleMealId !== null)
+            <div class="oms-modal">
+                <div class="oms-modal__panel">
+                    <h2 class="oms-modal__title">Persoane si roluri</h2>
+                    <p class="oms-modal__hint">Adauga persoanele zilei cu responsabilitatea lor. Persoanele cu alergii sunt marcate cu ⚠.</p>
+
+                    <div>
+                        @foreach ($this->volunteersByMeal[$peopleMealId] ?? [] as $volunteer)
+                            <div class="oms-modal__radio" style="justify-content:space-between;">
+                                <span>{{ $volunteer->name }} ({{ $volunteer->role }}){{ $volunteer->has_allergies ? ' ⚠ '.$volunteer->allergy_details : '' }}</span>
+                                <span>
+                                    <button class="oms-card__action" type="button" wire:click="editVolunteer({{ $volunteer->id }})">Editeaza</button>
+                                    <button class="oms-card__action" type="button" wire:click="deleteVolunteer({{ $volunteer->id }})">Sterge</button>
+                                </span>
+                            </div>
+                        @endforeach
+                    </div>
+
+                    <div class="oms-modal__row">
+                        <label class="oms-modal__label" for="volunteer-name">Nume</label>
+                        <input class="oms-card__input" id="volunteer-name" type="text" wire:model="volunteerName" style="font-size:15px;font-weight:600;">
+                        @error('volunteerName')<p class="oms-card__error">{{ $message }}</p>@enderror
+                    </div>
+                    <div class="oms-modal__row">
+                        <label class="oms-modal__label" for="volunteer-role">Responsabilitate</label>
+                        <input class="oms-card__input" id="volunteer-role" type="text" wire:model="volunteerRole" placeholder="ex. bucatar, aprovizionare" style="font-size:15px;font-weight:600;">
+                        @error('volunteerRole')<p class="oms-card__error">{{ $message }}</p>@enderror
+                    </div>
+                    <div class="oms-modal__row">
+                        <label class="oms-modal__label" for="volunteer-phone">Telefon</label>
+                        <input class="oms-card__input" id="volunteer-phone" type="tel" wire:model="volunteerPhone" style="font-size:15px;font-weight:600;">
+                        @error('volunteerPhone')<p class="oms-card__error">{{ $message }}</p>@enderror
+                    </div>
+                    <label class="oms-modal__radio">
+                        <input type="checkbox" wire:model.live="volunteerHasAllergies">
+                        Are alergii
+                    </label>
+                    @if ($volunteerHasAllergies)
+                        <div class="oms-modal__row">
+                            <label class="oms-modal__label" for="volunteer-allergies">Detalii alergii</label>
+                            <input class="oms-card__input" id="volunteer-allergies" type="text" wire:model="volunteerAllergyDetails" style="font-size:15px;font-weight:600;">
+                            @error('volunteerAllergyDetails')<p class="oms-card__error">{{ $message }}</p>@enderror
+                        </div>
+                    @endif
+
+                    <div class="oms-modal__buttons">
+                        <button class="oms-modal__cancel" type="button" wire:click="closePeople">Inchide</button>
+                        @if ($editingVolunteerId !== null)
+                            <button class="oms-modal__cancel" type="button" wire:click="cancelVolunteerEdit">Anuleaza editarea</button>
+                        @endif
+                        <button class="oms-modal__confirm" type="button" wire:click="saveVolunteer">{{ $editingVolunteerId !== null ? 'Salveaza modificarile' : 'Adauga persoana' }}</button>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        @if ($teamsMealId !== null)
+            <div class="oms-modal">
+                <div class="oms-modal__panel">
+                    <h2 class="oms-modal__title">Echipe de lucru</h2>
+                    <p class="oms-modal__hint">Echipele zilei cu interval orar, locatie si responsabil de aprovizionare.</p>
+
+                    <div>
+                        @foreach ($this->teamsByMeal[$teamsMealId] ?? [] as $team)
+                            <div class="oms-modal__radio" style="justify-content:space-between;">
+                                <span>{{ $team->name }}@if ($team->starts_at && $team->ends_at) ({{ substr((string) $team->starts_at, 0, 5) }}-{{ substr((string) $team->ends_at, 0, 5) }})@endif{{ $team->location ? ' · '.$team->location : '' }}</span>
+                                <span>
+                                    <button class="oms-card__action" type="button" wire:click="editTeam({{ $team->id }})">Editeaza</button>
+                                    <button class="oms-card__action" type="button" wire:click="deleteTeam({{ $team->id }})">Sterge</button>
+                                </span>
+                            </div>
+                        @endforeach
+                    </div>
+
+                    <div class="oms-modal__row">
+                        <label class="oms-modal__label" for="team-name">Nume echipa</label>
+                        <input class="oms-card__input" id="team-name" type="text" wire:model="teamName" style="font-size:15px;font-weight:600;">
+                        @error('teamName')<p class="oms-card__error">{{ $message }}</p>@enderror
+                    </div>
+                    <div class="oms-modal__row">
+                        <label class="oms-modal__label" for="team-members">Numar membri</label>
+                        <input class="oms-card__input" id="team-members" type="number" min="0" wire:model="teamMemberCount" style="font-size:15px;font-weight:600;">
+                        @error('teamMemberCount')<p class="oms-card__error">{{ $message }}</p>@enderror
+                    </div>
+                    <div class="oms-modal__row">
+                        <label class="oms-modal__label" for="team-start">De la ora</label>
+                        <input class="oms-card__input" id="team-start" type="time" wire:model="teamStartsAt" style="font-size:15px;font-weight:600;">
+                        @error('teamStartsAt')<p class="oms-card__error">{{ $message }}</p>@enderror
+                    </div>
+                    <div class="oms-modal__row">
+                        <label class="oms-modal__label" for="team-end">Pana la ora</label>
+                        <input class="oms-card__input" id="team-end" type="time" wire:model="teamEndsAt" style="font-size:15px;font-weight:600;">
+                        @error('teamEndsAt')<p class="oms-card__error">{{ $message }}</p>@enderror
+                    </div>
+                    <div class="oms-modal__row">
+                        <label class="oms-modal__label" for="team-location">Locatie</label>
+                        <input class="oms-card__input" id="team-location" type="text" wire:model="teamLocation" style="font-size:15px;font-weight:600;">
+                        @error('teamLocation')<p class="oms-card__error">{{ $message }}</p>@enderror
+                    </div>
+                    <div class="oms-modal__row">
+                        <label class="oms-modal__label" for="team-supply">Responsabil aprovizionare</label>
+                        <input class="oms-card__input" id="team-supply" type="text" wire:model="teamSupplyResponsible" style="font-size:15px;font-weight:600;">
+                        @error('teamSupplyResponsible')<p class="oms-card__error">{{ $message }}</p>@enderror
+                    </div>
+
+                    <div class="oms-modal__buttons">
+                        <button class="oms-modal__cancel" type="button" wire:click="closeTeams">Inchide</button>
+                        @if ($editingTeamId !== null)
+                            <button class="oms-modal__cancel" type="button" wire:click="cancelTeamEdit">Anuleaza editarea</button>
+                        @endif
+                        <button class="oms-modal__confirm" type="button" wire:click="saveTeam">{{ $editingTeamId !== null ? 'Salveaza modificarile' : 'Adauga echipa' }}</button>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        @if ($showCreateWeek)
+            <div class="oms-modal">
+                <div class="oms-modal__panel">
+                    <h2 class="oms-modal__title">Saptamana noua</h2>
+                    <p class="oms-modal__hint">Creeaza o saptamana noua. Dupa creare, poti adauga zile prin bifarea zilelor lucratoare.</p>
+                    <div class="oms-modal__row">
+                        <label class="oms-modal__label" for="new-week-number">Numar saptamana</label>
+                        <input class="oms-card__input" id="new-week-number" type="number" min="1" max="520" wire:model="newWeekNumber" style="font-size:15px;font-weight:600;">
+                        @error('newWeekNumber')<p class="oms-card__error">{{ $message }}</p>@enderror
+                    </div>
+                    <div class="oms-modal__row">
+                        <label class="oms-modal__label" for="new-week-start">Data inceput (luni)</label>
+                        <input class="oms-card__input" id="new-week-start" type="date" wire:model="newWeekStartDate" style="font-size:15px;font-weight:600;">
+                        @error('newWeekStartDate')<p class="oms-card__error">{{ $message }}</p>@enderror
+                    </div>
+                    <div class="oms-modal__row">
+                        <label class="oms-modal__label" for="new-week-congregation">Congregatie principala</label>
+                        <select class="oms-card__select" id="new-week-congregation" wire:model="newWeekCongregationId">
+                            <option value="">- alege -</option>
+                            @foreach ($this->congregationOptions as $congregation)
+                                <option value="{{ $congregation->id }}">{{ $congregation->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('newWeekCongregationId')<p class="oms-card__error">{{ $message }}</p>@enderror
+                    </div>
+                    <div class="oms-modal__buttons">
+                        <button class="oms-modal__cancel" type="button" wire:click="closeCreateWeek">Renunta</button>
+                        <button class="oms-modal__confirm" type="button" wire:click="createWeek">Creeaza saptamana</button>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        @if ($pendingDeleteWeekId !== null)
+            <div class="oms-modal">
+                <div class="oms-modal__panel">
+                    <h2 class="oms-modal__title">Șterge săptămâna</h2>
+                    <p class="oms-modal__hint">Se sterg saptamana si toate zilele ei, cu planurile de aprovizionare si echipele asociate. Cheltuielile din fondul alimentar raman neschimbate. Actiunea nu poate fi anulata.</p>
+                    <div class="oms-modal__buttons">
+                        <button class="oms-modal__cancel" type="button" wire:click="closeDeleteWeek">Renunta</button>
+                        <button class="oms-modal__danger" type="button" wire:click="confirmDeleteWeek">Șterge săptămâna</button>
                     </div>
                 </div>
             </div>

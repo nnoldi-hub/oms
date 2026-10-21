@@ -5,11 +5,14 @@ namespace Tests\Feature;
 use App\Filament\Pages\CalendarSaptamanal;
 use App\Models\Congregation;
 use App\Models\DailyMeal;
+use App\Models\FoodFundTransaction;
 use App\Models\Menu;
 use App\Models\SupplyContribution;
 use App\Models\SupplyItem;
 use App\Models\User;
+use App\Models\Volunteer;
 use App\Models\Week;
+use App\Models\WorkTeam;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -386,5 +389,267 @@ class CalendarSaptamanalTest extends TestCase
         }
 
         $this->assertSame(0, DailyMeal::query()->count());
+    }
+
+    public function test_an_administrator_creates_a_new_week_from_the_calendar(): void
+    {
+        $congregation = Congregation::factory()->create();
+        $administrator = User::factory()->create(['role' => 'admin']);
+
+        Livewire::actingAs($administrator)
+            ->test(CalendarSaptamanal::class)
+            ->call('openCreateWeek')
+            ->set('newWeekNumber', 12)
+            ->set('newWeekStartDate', '2027-01-04')
+            ->set('newWeekCongregationId', $congregation->id)
+            ->call('createWeek')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('weeks', [
+            'week_number' => 12,
+            'congregation_id' => $congregation->id,
+        ]);
+        $this->assertSame(
+            '2027-01-04',
+            Week::query()->where('week_number', 12)->first()->start_date->toDateString(),
+        );
+    }
+
+    public function test_a_coordinator_cannot_create_a_week_from_the_calendar(): void
+    {
+        $congregation = Congregation::factory()->create();
+        $coordinator = User::factory()->create(['role' => 'coordinator', 'congregation_id' => $congregation->id]);
+
+        try {
+            Livewire::actingAs($coordinator)
+                ->test(CalendarSaptamanal::class)
+                ->call('openCreateWeek');
+        } catch (AuthorizationException) {
+            // asteptat
+        }
+
+        $this->assertSame(0, Week::query()->count());
+    }
+
+    public function test_an_administrator_deletes_a_week_with_its_meals_from_the_calendar(): void
+    {
+        $congregation = Congregation::factory()->create();
+        $week = Week::factory()->for($congregation)->create(['start_date' => '2026-11-30']);
+        $menu = Menu::factory()->create();
+        $congregation->menus()->attach($menu);
+        $dailyMeal = DailyMeal::factory()->for($week)->for($congregation)->for($menu)->create(['meal_date' => '2026-11-30']);
+        $administrator = User::factory()->create(['role' => 'admin']);
+
+        $component = Livewire::actingAs($administrator)
+            ->test(CalendarSaptamanal::class)
+            ->set('weekId', $week->id)
+            ->call('openDeleteWeek', $week->id);
+
+        $this->assertSame($week->id, $component->instance()->pendingDeleteWeekId);
+
+        $component->call('confirmDeleteWeek')->assertHasNoErrors();
+
+        $this->assertDatabaseMissing('weeks', ['id' => $week->id]);
+        $this->assertDatabaseMissing('daily_meals', ['id' => $dailyMeal->id]);
+    }
+
+    public function test_an_administrator_adds_a_person_with_a_role_to_a_day(): void
+    {
+        $congregation = Congregation::factory()->create();
+        $week = Week::factory()->for($congregation)->create(['start_date' => '2026-11-30']);
+        $dailyMeal = DailyMeal::factory()->for($week)->for($congregation)->create(['meal_date' => '2026-11-30']);
+        $administrator = User::factory()->create(['role' => 'admin']);
+
+        Livewire::actingAs($administrator)
+            ->test(CalendarSaptamanal::class)
+            ->set('weekId', $week->id)
+            ->call('openPeople', $dailyMeal->id)
+            ->set('volunteerName', 'Ion Popescu')
+            ->set('volunteerRole', 'bucatar')
+            ->set('volunteerPhone', '0722000111')
+            ->call('saveVolunteer')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('volunteers', [
+            'daily_meal_id' => $dailyMeal->id,
+            'name' => 'Ion Popescu',
+            'role' => 'bucatar',
+            'phone' => '0722000111',
+        ]);
+    }
+
+    public function test_a_coordinator_can_add_a_person_only_to_their_own_day(): void
+    {
+        $own = Congregation::factory()->create();
+        $other = Congregation::factory()->create();
+        $week = Week::factory()->for($own)->create(['start_date' => '2026-11-30']);
+        $ownMeal = DailyMeal::factory()->for($week)->for($own)->create(['meal_date' => '2026-11-30']);
+        $otherMeal = DailyMeal::factory()->for($week)->for($other)->create(['meal_date' => '2026-12-01']);
+        $coordinator = User::factory()->create(['role' => 'coordinator', 'congregation_id' => $own->id]);
+
+        Livewire::actingAs($coordinator)
+            ->test(CalendarSaptamanal::class)
+            ->set('weekId', $week->id)
+            ->call('openPeople', $ownMeal->id)
+            ->set('volunteerName', 'Ana Ionescu')
+            ->set('volunteerRole', 'ajutor')
+            ->call('saveVolunteer')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('volunteers', ['daily_meal_id' => $ownMeal->id, 'name' => 'Ana Ionescu']);
+
+        Livewire::actingAs($coordinator)
+            ->test(CalendarSaptamanal::class)
+            ->set('weekId', $week->id)
+            ->call('openPeople', $otherMeal->id)
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('volunteers', ['daily_meal_id' => $otherMeal->id]);
+    }
+
+    public function test_an_administrator_adds_a_work_team_to_a_day(): void
+    {
+        $congregation = Congregation::factory()->create();
+        $week = Week::factory()->for($congregation)->create(['start_date' => '2026-11-30']);
+        $dailyMeal = DailyMeal::factory()->for($week)->for($congregation)->create(['meal_date' => '2026-11-30']);
+        $administrator = User::factory()->create(['role' => 'admin']);
+
+        Livewire::actingAs($administrator)
+            ->test(CalendarSaptamanal::class)
+            ->set('weekId', $week->id)
+            ->call('openTeams', $dailyMeal->id)
+            ->set('teamName', 'Echipa bucatarie')
+            ->set('teamMemberCount', 6)
+            ->set('teamStartsAt', '08:00')
+            ->set('teamEndsAt', '12:00')
+            ->set('teamLocation', 'Cort')
+            ->call('saveTeam')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('work_teams', [
+            'daily_meal_id' => $dailyMeal->id,
+            'name' => 'Echipa bucatarie',
+            'member_count' => 6,
+            'location' => 'Cort',
+        ]);
+    }
+
+    public function test_the_day_card_summarizes_food_fund_transactions(): void
+    {
+        $congregation = Congregation::factory()->create();
+        $week = Week::factory()->for($congregation)->create(['start_date' => '2026-11-30']);
+        $dailyMeal = DailyMeal::factory()->for($week)->for($congregation)->create(['meal_date' => '2026-11-30']);
+        $administrator = User::factory()->create(['role' => 'admin']);
+
+        FoodFundTransaction::create([
+            'type' => 'income',
+            'transaction_date' => '2026-11-30',
+            'amount' => 500,
+            'category' => 'donation',
+            'description' => 'Donatie',
+        ]);
+        FoodFundTransaction::create([
+            'type' => 'expense',
+            'transaction_date' => '2026-11-30',
+            'amount' => 120,
+            'category' => 'ingredients',
+            'description' => 'Achizitie ingrediente',
+        ]);
+
+        $component = Livewire::actingAs($administrator)
+            ->test(CalendarSaptamanal::class)
+            ->set('weekId', $week->id);
+
+        $fund = $component->instance()->foodFundByDate;
+
+        $this->assertSame(500.0, $fund['2026-11-30']['income']);
+        $this->assertSame(120.0, $fund['2026-11-30']['expense']);
+        $this->assertSame(380.0, $fund['2026-11-30']['balance']);
+    }
+
+    public function test_the_calendar_flags_roles_without_an_assigned_person(): void
+    {
+        $congregation = Congregation::factory()->create();
+        $week = Week::factory()->for($congregation)->create(['start_date' => '2026-11-30']);
+        $dailyMeal = DailyMeal::factory()->for($week)->for($congregation)->create(['meal_date' => '2026-11-30']);
+        WorkTeam::create([
+            'daily_meal_id' => $dailyMeal->id,
+            'name' => 'bucatar',
+        ]);
+        Volunteer::factory()->for($dailyMeal)->create(['role' => 'aprovizionare']);
+        $administrator = User::factory()->create(['role' => 'admin']);
+
+        $component = Livewire::actingAs($administrator)
+            ->test(CalendarSaptamanal::class)
+            ->set('weekId', $week->id);
+
+        $uncovered = $component->instance()->uncoveredRoles;
+
+        $this->assertArrayHasKey('2026-11-30', $uncovered);
+        $this->assertStringContainsString('bucatar', $uncovered['2026-11-30']);
+    }
+
+    public function test_the_calendar_builds_whatsapp_messages_for_the_week_and_days(): void
+    {
+        $congregation = Congregation::factory()->create(['name' => 'Congregatia Sud']);
+        $week = Week::factory()->for($congregation)->create(['week_number' => 7, 'start_date' => '2026-11-30']);
+        $menu = Menu::factory()->create(['name' => 'Pilaf']);
+        $congregation->menus()->attach($menu);
+        $dailyMeal = DailyMeal::factory()->for($week)->for($congregation)->for($menu)->create([
+            'meal_date' => '2026-11-30',
+            'estimated_people' => 40,
+        ]);
+        $administrator = User::factory()->create(['role' => 'admin']);
+
+        $component = Livewire::actingAs($administrator)
+            ->test(CalendarSaptamanal::class)
+            ->set('weekId', $week->id);
+
+        $messages = $component->instance()->whatsappMessages;
+
+        $this->assertStringContainsString('Congregatia Sud', $messages['days'][$dailyMeal->id]);
+        $this->assertStringContainsString('Pilaf', $messages['days'][$dailyMeal->id]);
+        $this->assertStringContainsString('40', $messages['days'][$dailyMeal->id]);
+        $this->assertStringContainsString('Planul saptamanii 7', $messages['week']);
+    }
+
+    public function test_a_person_with_allergies_requires_details(): void
+    {
+        $congregation = Congregation::factory()->create();
+        $week = Week::factory()->for($congregation)->create(['start_date' => '2026-11-30']);
+        $dailyMeal = DailyMeal::factory()->for($week)->for($congregation)->create(['meal_date' => '2026-11-30']);
+        $administrator = User::factory()->create(['role' => 'admin']);
+
+        Livewire::actingAs($administrator)
+            ->test(CalendarSaptamanal::class)
+            ->set('weekId', $week->id)
+            ->call('openPeople', $dailyMeal->id)
+            ->set('volunteerName', 'Maria')
+            ->set('volunteerRole', 'bucatar')
+            ->set('volunteerHasAllergies', true)
+            ->set('volunteerAllergyDetails', '')
+            ->call('saveVolunteer')
+            ->assertHasErrors('volunteerAllergyDetails');
+    }
+
+    public function test_the_people_and_teams_modals_render_on_the_day_card(): void
+    {
+        $congregation = Congregation::factory()->create();
+        $week = Week::factory()->for($congregation)->create(['start_date' => '2026-11-30']);
+        $dailyMeal = DailyMeal::factory()->for($week)->for($congregation)->create(['meal_date' => '2026-11-30']);
+        Volunteer::factory()->for($dailyMeal)->create(['name' => 'Petru', 'role' => 'bucatar']);
+        WorkTeam::create(['daily_meal_id' => $dailyMeal->id, 'name' => 'Echipa 1']);
+        $administrator = User::factory()->create(['role' => 'admin']);
+
+        Livewire::actingAs($administrator)
+            ->test(CalendarSaptamanal::class)
+            ->set('weekId', $week->id)
+            ->call('openPeople', $dailyMeal->id)
+            ->assertSee('Persoane si roluri')
+            ->assertSee('Petru')
+            ->call('closePeople')
+            ->call('openTeams', $dailyMeal->id)
+            ->assertSee('Echipe de lucru')
+            ->assertSee('Echipa 1');
     }
 }
