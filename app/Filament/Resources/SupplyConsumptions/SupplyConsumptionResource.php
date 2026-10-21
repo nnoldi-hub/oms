@@ -23,6 +23,7 @@ class SupplyConsumptionResource extends Resource
     protected static string|\UnitEnum|null $navigationGroup = 'Aprovizionare';
     protected static ?string $modelLabel = 'consum';
     protected static ?string $pluralModelLabel = 'consumuri';
+    protected static bool $shouldRegisterNavigation = false;
 
     public static function canAccess(): bool
     {

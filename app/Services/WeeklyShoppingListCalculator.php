@@ -2,14 +2,16 @@
 
 namespace App\Services;
 
+use App\Models\DailyMeal;
 use App\Models\Week;
+use App\Support\PracticalQuantity;
 
 class WeeklyShoppingListCalculator
 {
     public function __construct(private MealRequirementCalculator $mealRequirementCalculator) {}
 
     /**
-    * @return array{ingredients: list<array{name: string, quantity: float, unit: string, estimated_unit_cost: ?float, estimated_cost: float, has_missing_price: bool}>, packaging: array{count: int, total_cost: float}, daily_costs: list<array{daily_meal_id: int, ingredients_cost: float, packaging_cost: float, total_cost: float, has_missing_prices: bool}>, totals: array{ingredients_cost: float, total_cost: float, has_missing_prices: bool}, incomplete_meals: int}
+     * @return array{ingredients: list<array{name: string, quantity: float, to_buy_quantity: float, unit: string, estimated_unit_cost: ?float, estimated_cost: float, has_missing_price: bool}>, packaging: array{count: int, total_cost: float}, daily_costs: list<array{daily_meal_id: int, ingredients_cost: float, packaging_cost: float, total_cost: float, has_missing_prices: bool}>, totals: array{ingredients_cost: float, total_cost: float, has_missing_prices: bool}, incomplete_meals: int}
      */
     public function calculate(Week $week): array
     {
@@ -21,7 +23,7 @@ class WeeklyShoppingListCalculator
         $incompleteMeals = 0;
 
         foreach ($week->dailyMeals as $dailyMeal) {
-            if ($dailyMeal->menu === null) {
+            if (! $this->isConfigured($dailyMeal)) {
                 $incompleteMeals++;
 
                 continue;
@@ -80,7 +82,14 @@ class WeeklyShoppingListCalculator
         }
 
         $ingredients = array_values(array_map(
-            fn (array $ingredient): array => [...$ingredient, 'quantity' => round($ingredient['quantity'], 3)],
+            fn (array $ingredient): array => [
+                ...$ingredient,
+                'quantity' => round($ingredient['quantity'], 3),
+                'to_buy_quantity' => PracticalQuantity::roundUp(
+                    round($ingredient['quantity'], 3),
+                    $ingredient['unit'],
+                ),
+            ],
             $ingredients,
         ));
 
@@ -100,6 +109,21 @@ class WeeklyShoppingListCalculator
             ],
             'incomplete_meals' => $incompleteMeals,
         ];
+    }
+
+    private function isConfigured(DailyMeal $dailyMeal): bool
+    {
+        if ($dailyMeal->menu === null) {
+            return false;
+        }
+
+        foreach ([$dailyMeal->menu, $dailyMeal->soupMenu, $dailyMeal->dessertMenu] as $menu) {
+            if ($menu !== null && (filled($menu->ingredients) || $menu->cost_per_portion !== null)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function addIngredient(array &$ingredients, array $ingredient): void

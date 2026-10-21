@@ -3,14 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\DailyMeal;
+use App\Services\DailyMealComponents;
 use App\Services\DailyMealCostCalculator;
-use App\Services\MealRequirementCalculator;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Gate;
 
 class DailyMealPreparationSheetController extends Controller
 {
-    public function __invoke(DailyMeal $dailyMeal, MealRequirementCalculator $calculator, DailyMealCostCalculator $costCalculator): View
+    public function __invoke(DailyMeal $dailyMeal, DailyMealComponents $components, DailyMealCostCalculator $costCalculator): View
     {
         Gate::authorize('view', $dailyMeal);
 
@@ -18,13 +18,7 @@ class DailyMealPreparationSheetController extends Controller
 
         return view('daily-meal-preparation-sheet', [
             'dailyMeal' => $dailyMeal,
-            'mainRequirements' => $dailyMeal->menu === null ? null : $calculator->calculate($dailyMeal),
-            'soupRequirements' => $dailyMeal->soupMenu === null ? null : $calculator->calculate(
-                (clone $dailyMeal)->setRelation('menu', $dailyMeal->soupMenu),
-            ),
-            'dessertRequirements' => $dailyMeal->dessertMenu === null ? null : $calculator->calculate(
-                (clone $dailyMeal)->setRelation('menu', $dailyMeal->dessertMenu),
-            ),
+            'components' => $components->for($dailyMeal),
             'dailyCost' => $costCalculator->calculate($dailyMeal),
         ]);
     }

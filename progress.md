@@ -14,7 +14,7 @@
 | M1 - Fundatie tehnica | In lucru | 75% | 30.08.2026 | Cont administrativ real si configurare MySQL Laragon. |
 | M2 - Acces si autorizare | Finalizat | 100% | 30.08.2026 | Verificare manuala a rolurilor pe conturile reale. |
 | M3 - Meniuri si alergii | In lucru | 98% | 20.10.2026 | Verificare manuala a fluxurilor Filament cu utilizatori reali. |
-| M4 - Calcul si publicare | In lucru | 95% | 20.10.2026 | Verificare manuala cu o zi publicata din panel. |
+| M4 - Calcul si publicare | In lucru | 96% | 21.10.2026 | Verificare manuala cu o zi publicata din panel. |
 | M5 - Seeding si calitate | Finalizat | 100% | 20.10.2026 | Introducerea conturilor reale si verificarea manuala a fluxurilor. |
 | M6 - Lansare si operare | Neinceput | 0% | - | Checklist productie si test operational final. |
 
@@ -304,6 +304,18 @@
 - Realizat: rotatia existenta a devenit butonul optional **Sugereaza meniul** pe saptamana, care completeaza doar zilele goale (`FillMenus::fillWeek`).
 - Verificat: suita completa are 97 teste si 952 asertiuni verzi.
 
+### 21.10.2026 - Raport saptamanal cu fisa pe zi si ingrediente separate
+
+- Status: Finalizat
+- Realizat: raportul saptamanal are, dupa rezumat, cate o sectiune tiparibila pe fiecare masa (page-break la printare) cu data, congregatia, portiile (confirmate daca exista, altfel estimate), felurile, alergenii declarati, lista de cumparaturi a zilei grupata pe componenta, ambalajele si costul pe portie; lista totala pe saptamana ramane la final. Calculul pe componente este comun cu fisa de pregatire (`DailyMealComponents`), ca sa nu se dubleze logica.
+- Realizat: `daily_meals.confirmed_people` (optional); cand este completat, toate calculele de cantitati, ambalaje si costuri folosesc portiile confirmate in locul estimarii (`DailyMeal::portions()`).
+- Realizat: lista saptamanii are coloana **De cumparat**, rotunjita in sus la unitatea practica (buc la intreg, l si g la 0,5 l / 100 g, kg la 0,5 kg).
+- Realizat: mesajul despre zilele neconfigurate spune acum **N zile au meniu fara ingrediente sau cost configurat**; zilele fara niciun meniu cu ingrediente sau cost nu intra in totaluri.
+- Realizat: ingredientele combinate din retete (ex. `Ceapa si boia`, `Zahar si ulei`, `Faina si oua`) sunt imparti in ingrediente separate, fiecare cu pretul si unitatea lui, printr-o migrare care pastreaza cantitatile; semințele au fost actualizate.
+- Realizat: rezumatul arata costul pe portie pentru fiecare zi si media saptamanii.
+- Realizat: din navigatie au fost ascunse paginile care se bazau pe planurile de aprovizionare (Rapoarte aprovizionare, Consum real vs estimat, widget-ul de aprovizionare); datele raman in baza, iar **Costuri & buget**, cataloagele si fondul alimentar sunt vizibile.
+- Verificat: suita completa are 107 teste si 999 asertiuni verzi, inclusiv fisele pe zi, rotunjirea practica, mesajul reformulat si migrarea de separare.
+
 ## Decizii si blocaje
 
 | Data | Tip | Detaliu | Impact |
@@ -321,6 +333,9 @@
 | 20.10.2026 | Decizie | Planificarea devine manuala: bife de zile lucratoare, dropdown-uri pe cartonas si **Fel nou**; rotatia ramane doar sugerare optionala. | Administratorul controleaza direct meniurile, fara sa depinda de regulile automate. |
 | 20.10.2026 | Decizie | Regulile de varietate nu mai blocheaza; singura blocanta ramane tipul/activitatea retetei. | Se pot forta intentionat repetari, dar nu se pot salva retete de tip gresit. |
 | 20.10.2026 | Decizie | Cost simplu: `menus.cost_per_portion` si `daily_meals.actual_cost`, cu totaluri marcate partial cand lipsesc preturi. | Retetele fara ingrediente au totusi un cost; rapoartele nu mai arata zero gresit. |
+| 21.10.2026 | Decizie | Portiile confirmate (`daily_meals.confirmed_people`) au prioritate peste cele estimate in toate calculele de cantitati si costuri. | Cantitatile si bugetul urmeaza realitatea din teren cand numarul e confirmat. |
+| 21.10.2026 | Decizie | Ingredientele combinate din retete sunt imparti egal pe componente, pastrand unitatea si pretul unitar al amestecului pentru partile noi. | Fiecare ingredient are pretul si unitatea lui; cantitatile totale nu se pierd. |
+| 21.10.2026 | Decizie | Paginile bazate pe planurile de aprovizionare sunt ascunse din navigatie, nu sterse. | Datele raman intacte pentru o conexiune viitoare la portiile reale. |
 
 ## Verificari de lansare
 

@@ -23,6 +23,8 @@ class RapoarteAprovizionare extends Page
 
     protected static ?int $navigationSort = 3;
 
+    protected static bool $shouldRegisterNavigation = false;
+
     public string $period = 'day';
 
     public string $reportType = 'supplies';

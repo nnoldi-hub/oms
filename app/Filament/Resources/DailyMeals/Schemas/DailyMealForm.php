@@ -61,6 +61,13 @@ class DailyMealForm
                     ->required()
                     ->numeric()
                     ->default(0),
+                TextInput::make('confirmed_people')
+                    ->label('Numar confirmat persoane')
+                    ->helperText('Completeaza cand numarul final e confirmat; rapoartele il afiseaza in locul estimarii.')
+                    ->disabled(fn (): bool => auth()->user()?->isCoordinator() ?? false)
+                    ->numeric()
+                    ->integer()
+                    ->minValue(0),
                 TextInput::make('maximum_budget')
                     ->label('Buget maxim (RON)')
                     ->disabled(fn (): bool => auth()->user()?->isConstructionTeam() ?? false)

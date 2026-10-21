@@ -25,6 +25,7 @@ class DailyMeal extends Model
         'soup_menu_id',
         'dessert_menu_id',
         'estimated_people',
+        'confirmed_people',
         'maximum_budget',
         'contributor_count',
         'notes',
@@ -40,6 +41,8 @@ class DailyMeal extends Model
     {
         return [
             'meal_date' => 'date',
+            'estimated_people' => 'integer',
+            'confirmed_people' => 'integer',
             'maximum_budget' => 'decimal:2',
             'actual_cost' => 'decimal:2',
             'is_free_day' => 'boolean',
@@ -84,6 +87,7 @@ class DailyMeal extends Model
                         'week_id',
                         'congregation_id',
                         'estimated_people',
+                        'confirmed_people',
                         'notes',
                         'public_token',
                         'status',
@@ -144,5 +148,13 @@ class DailyMeal extends Model
     public function workTeams(): HasMany
     {
         return $this->hasMany(WorkTeam::class);
+    }
+
+    /**
+     * Numarul de portii pe care se face calculul: confirmat daca exista, altfel estimat.
+     */
+    public function portions(): int
+    {
+        return max(0, (int) ($this->confirmed_people ?? $this->estimated_people));
     }
 }

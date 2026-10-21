@@ -37,21 +37,22 @@
         <header>
             <p class="kicker">Organizare masa pentru santier - fisa de pregatire</p>
             <h1>{{ $dailyMeal->meal_date->translatedFormat('l, j F Y') }}</h1>
-            <p class="meta"><strong>Congregatie:</strong> {{ $dailyMeal->congregation?->name ?? 'Nealocata' }}<br><strong>Portii de pregatit:</strong> {{ $dailyMeal->estimated_people }}</p>
+            <p class="meta"><strong>Congregatie:</strong> {{ $dailyMeal->congregation?->name ?? 'Nealocata' }}<br><strong>Portii de pregatit:</strong> {{ $dailyMeal->portions() }}</p>
             <button class="print" type="button" onclick="window.print()">Printeaza fisa zilei</button>
         </header>
 
-        @foreach ([['label' => 'Fel principal', 'menu' => $dailyMeal->menu, 'requirements' => $mainRequirements, 'class' => ''], ['label' => 'Ciorba suplimentara', 'menu' => $dailyMeal->soupMenu, 'requirements' => $soupRequirements, 'class' => 'recipe--soup'], ['label' => 'Desert / gustare', 'menu' => $dailyMeal->dessertMenu, 'requirements' => $dessertRequirements, 'class' => 'recipe--soup']] as $section)
+        @foreach (['main' => ['label' => 'Fel principal', 'class' => ''], 'soup' => ['label' => 'Ciorba suplimentara', 'class' => 'recipe--soup'], 'dessert' => ['label' => 'Desert / gustare', 'class' => 'recipe--soup']] as $componentKey => $meta)
+            @php($section = $components[$componentKey])
             @if ($section['menu'] && $section['requirements'])
                 <section>
-                    <h2>{{ $section['label'] }}</h2>
-                    <div class="recipe {{ $section['class'] }}">
+                    <h2>{{ $meta['label'] }}</h2>
+                    <div class="recipe {{ $meta['class'] }}">
                         <strong>{{ $section['menu']->name }}</strong>
                         <p><strong>Instructiuni:</strong> {{ $section['menu']->instructions ?: 'De stabilit de echipa de bucatarie.' }}</p>
                         <p><strong>Alergeni:</strong> {{ is_array($section['menu']->allergens) ? ($section['menu']->allergens === [] ? 'Niciunul declarat' : implode(', ', $section['menu']->allergens)) : 'De confirmat' }}</p>
                     </div>
                     <table>
-                        <thead><tr><th>Ingredient</th><th class="number">Cantitate pentru {{ $dailyMeal->estimated_people }} portii</th><th class="number">Cost estimat</th></tr></thead>
+                        <thead><tr><th>Ingredient</th><th class="number">Cantitate pentru {{ $dailyMeal->portions() }} portii</th><th class="number">Cost estimat</th></tr></thead>
                         <tbody>
                             @foreach ($section['requirements']['ingredients'] as $ingredient)
                                 <tr><td>{{ $ingredient['name'] }}</td><td class="number">{{ rtrim(rtrim(number_format($ingredient['quantity'], 3, '.', ''), '0'), '.') }} {{ $ingredient['unit'] }}</td><td class="number">{{ $ingredient['has_missing_price'] ? 'De configurat' : number_format($ingredient['estimated_cost'], 2, '.', ' ') . ' RON' }}</td></tr>
@@ -71,13 +72,13 @@
                     @if ($dailyCost['has_missing_prices'])
                         <p>Completeaza preturile ingredientelor pentru a calcula bugetul si contributia.</p>
                     @else
-                        @if ($dailyMeal->estimated_people > 0)
-                            <p><strong>Cost estimat total:</strong> {{ number_format($dailyCost['total_cost'], 2, '.', ' ') }} RON, {{ number_format($dailyCost['total_cost'] / $dailyMeal->estimated_people, 2, '.', ' ') }} RON/portie.</p>
+                        @if ($dailyMeal->portions() > 0)
+                            <p><strong>Cost estimat total:</strong> {{ number_format($dailyCost['total_cost'], 2, '.', ' ') }} RON, {{ number_format($dailyCost['total_cost'] / $dailyMeal->portions(), 2, '.', ' ') }} RON/portie.</p>
                         @else
                             <p><strong>Cost estimat total:</strong> {{ number_format($dailyCost['total_cost'], 2, '.', ' ') }} RON.</p>
                         @endif
-                        @if ($dailyMeal->maximum_budget !== null && $dailyMeal->estimated_people > 0 && $dailyCost['total_cost'] > 0)
-                            <p><strong>Buget maxim:</strong> {{ number_format($dailyMeal->maximum_budget, 2, '.', ' ') }} RON. <strong>Portii posibile:</strong> {{ (int) floor((float) $dailyMeal->maximum_budget / ($dailyCost['total_cost'] / $dailyMeal->estimated_people)) }}. <strong>Diferenta:</strong> {{ number_format((float) $dailyMeal->maximum_budget - $dailyCost['total_cost'], 2, '.', ' ') }} RON.</p>
+                        @if ($dailyMeal->maximum_budget !== null && $dailyMeal->portions() > 0 && $dailyCost['total_cost'] > 0)
+                            <p><strong>Buget maxim:</strong> {{ number_format($dailyMeal->maximum_budget, 2, '.', ' ') }} RON. <strong>Portii posibile:</strong> {{ (int) floor((float) $dailyMeal->maximum_budget / ($dailyCost['total_cost'] / $dailyMeal->portions())) }}. <strong>Diferenta:</strong> {{ number_format((float) $dailyMeal->maximum_budget - $dailyCost['total_cost'], 2, '.', ' ') }} RON.</p>
                         @endif
                         @if ($dailyMeal->contributor_count)
                             <p><strong>Contributie recomandata:</strong> {{ number_format($dailyCost['total_cost'] / $dailyMeal->contributor_count, 2, '.', ' ') }} RON pentru fiecare dintre cele {{ $dailyMeal->contributor_count }} persoane.</p>

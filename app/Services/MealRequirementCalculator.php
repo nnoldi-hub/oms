@@ -31,7 +31,7 @@ class MealRequirementCalculator
             $name = $catalogIngredient?->name ?? trim((string) Arr::get($recipeIngredient, 'name'));
             $unit = $catalogIngredient?->unit ?? (string) Arr::get($recipeIngredient, 'unit');
             $key = mb_strtolower($name).'|'.$unit;
-            $quantity = $dailyMeal->estimated_people * (float) Arr::get($recipeIngredient, 'quantity_per_person');
+            $quantity = $dailyMeal->portions() * (float) Arr::get($recipeIngredient, 'quantity_per_person');
             $unitCost = $catalogIngredient?->unit_price ?? Arr::get($recipeIngredient, 'estimated_unit_cost');
             $hasPrice = is_numeric($unitCost) && (float) $unitCost >= 0;
 
@@ -72,12 +72,12 @@ class MealRequirementCalculator
         ));
 
         $ingredientsCost = round(array_sum(array_column($ingredients, 'estimated_cost')), 2);
-        $packagingCost = round($dailyMeal->estimated_people * (float) $menu->packaging_cost, 2);
+        $packagingCost = round($dailyMeal->portions() * (float) $menu->packaging_cost, 2);
 
         return [
             'ingredients' => $ingredients,
             'packaging' => [
-                'count' => $dailyMeal->estimated_people,
+                'count' => $dailyMeal->portions(),
                 'unit_cost' => (float) $menu->packaging_cost,
                 'total_cost' => $packagingCost,
             ],

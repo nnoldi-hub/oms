@@ -27,7 +27,7 @@ class DailyMealCostCalculator
             ];
         }
 
-        $portions = max(0, (int) $dailyMeal->estimated_people);
+        $portions = $dailyMeal->portions();
         $totalCost = 0.0;
         $hasMissingPrices = false;
 

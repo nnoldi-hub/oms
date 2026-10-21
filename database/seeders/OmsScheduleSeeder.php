@@ -33,7 +33,8 @@ class OmsScheduleSeeder extends Seeder
                 'instructions' => 'Se serveste calda, cu mamaliguta si muraturi.',
                 'ingredients' => [
                     ['name' => 'Pulpe de pui dezosate', 'quantity_per_person' => 0.15, 'unit' => 'kg'],
-                    ['name' => 'Ceapa si morcovi', 'quantity_per_person' => 0.05, 'unit' => 'kg'],
+                    ['name' => 'Ceapa', 'quantity_per_person' => 0.025, 'unit' => 'kg'],
+                    ['name' => 'Morcovi', 'quantity_per_person' => 0.025, 'unit' => 'kg'],
                     ['name' => 'Malai', 'quantity_per_person' => 0.08, 'unit' => 'kg'],
                     ['name' => 'Muraturi', 'quantity_per_person' => 0.1, 'unit' => 'kg'],
                 ],
@@ -87,7 +88,8 @@ class OmsScheduleSeeder extends Seeder
                 'ingredients' => [
                     ['name' => 'Carne tocata', 'quantity_per_person' => 0.12, 'unit' => 'kg'],
                     ['name' => 'Cartofi', 'quantity_per_person' => 0.3, 'unit' => 'kg'],
-                    ['name' => 'Lapte si unt', 'quantity_per_person' => 0.04, 'unit' => 'kg'],
+                    ['name' => 'Lapte', 'quantity_per_person' => 0.02, 'unit' => 'kg'],
+                    ['name' => 'Unt', 'quantity_per_person' => 0.02, 'unit' => 'kg'],
                     ['name' => 'Sos de rosii', 'quantity_per_person' => 0.06, 'unit' => 'kg'],
                 ],
                 'packaging_cost' => 1.2,
@@ -98,7 +100,8 @@ class OmsScheduleSeeder extends Seeder
                 'ingredients' => [
                     ['name' => 'Cartofi', 'quantity_per_person' => 0.3, 'unit' => 'kg'],
                     ['name' => 'Costita afumata', 'quantity_per_person' => 0.08, 'unit' => 'kg'],
-                    ['name' => 'Ceapa si boia', 'quantity_per_person' => 0.03, 'unit' => 'kg'],
+                    ['name' => 'Ceapa', 'quantity_per_person' => 0.015, 'unit' => 'kg'],
+                    ['name' => 'Boia', 'quantity_per_person' => 0.015, 'unit' => 'kg'],
                     ['name' => 'Sfecla rosie murata', 'quantity_per_person' => 0.1, 'unit' => 'kg'],
                 ],
                 'packaging_cost' => 1.15,
@@ -108,7 +111,8 @@ class OmsScheduleSeeder extends Seeder
                 'instructions' => 'Pastreaza sosul si orezul calde pana la ambalare.',
                 'ingredients' => [
                     ['name' => 'Pulpe de pui', 'quantity_per_person' => 0.15, 'unit' => 'kg'],
-                    ['name' => 'Sos de rosii si usturoi', 'quantity_per_person' => 0.07, 'unit' => 'kg'],
+                    ['name' => 'Sos de rosii', 'quantity_per_person' => 0.035, 'unit' => 'kg'],
+                    ['name' => 'Usturoi', 'quantity_per_person' => 0.035, 'unit' => 'kg'],
                     ['name' => 'Orez', 'quantity_per_person' => 0.08, 'unit' => 'kg'],
                 ],
                 'packaging_cost' => 1.15,
@@ -139,7 +143,8 @@ class OmsScheduleSeeder extends Seeder
                 'instructions' => 'Galustele se pregatesc proaspete; serveste imediat.',
                 'ingredients' => [
                     ['name' => 'Carne de pui', 'quantity_per_person' => 0.15, 'unit' => 'kg'],
-                    ['name' => 'Faina si oua', 'quantity_per_person' => 0.06, 'unit' => 'kg'],
+                    ['name' => 'Faina', 'quantity_per_person' => 0.03, 'unit' => 'kg'],
+                    ['name' => 'Oua', 'quantity_per_person' => 0.03, 'unit' => 'kg'],
                     ['name' => 'Smantana de gatit', 'quantity_per_person' => 0.03, 'unit' => 'kg'],
                 ],
                 'packaging_cost' => 1.15,
@@ -200,7 +205,8 @@ class OmsScheduleSeeder extends Seeder
                 'ingredients' => [
                     ['name' => 'Carne de pui', 'quantity_per_person' => 0.08, 'unit' => 'kg'],
                     ['name' => 'Legume pentru supa', 'quantity_per_person' => 0.15, 'unit' => 'kg'],
-                    ['name' => 'Faina si oua', 'quantity_per_person' => 0.04, 'unit' => 'kg'],
+                    ['name' => 'Faina', 'quantity_per_person' => 0.02, 'unit' => 'kg'],
+                    ['name' => 'Oua', 'quantity_per_person' => 0.02, 'unit' => 'kg'],
                 ],
             ],
             [
