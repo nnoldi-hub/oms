@@ -3,11 +3,23 @@
 namespace App\Services;
 
 use App\Models\DailyMeal;
-use App\Models\WorkTeam;
 use Illuminate\Support\Collection;
 
 class DailyMessageBuilder
 {
+    /**
+     * Rolurile necesare pe o zi de masa. O persoana alocata pe unul dintre ele
+     * il marcheaza ca acoperit; cele fara nicio persoana apar ca neacoperite.
+     *
+     * @var array<int, string>
+     */
+    public const ROLES = [
+        'Aprovizionare si transport',
+        'Gatit',
+        'Impachetare si servire',
+        'Donatii',
+    ];
+
     public function dayMessage(DailyMeal $meal): string
     {
         $dishes = collect([$meal->menu?->name, $meal->soupMenu?->name, $meal->dessertMenu?->name])
@@ -22,7 +34,7 @@ class DailyMessageBuilder
         ];
 
         $teams = $meal->workTeams
-            ->map(fn (WorkTeam $team): string => $team->name
+            ->map(fn ($team): string => $team->name
                 .($team->starts_at && $team->ends_at ? ' ('.substr((string) $team->starts_at, 0, 5).'-'.substr((string) $team->ends_at, 0, 5).')' : ''))
             ->implode(', ');
 
@@ -57,15 +69,12 @@ class DailyMessageBuilder
     public function uncoveredRoles(DailyMeal $meal): string
     {
         $assignedRoles = $meal->volunteers
-            ->map(fn ($volunteer): string => trim((string) $volunteer->role))
+            ->map(fn ($volunteer): string => mb_strtolower(trim((string) $volunteer->role)))
             ->filter()
             ->all();
 
-        return $meal->workTeams
-            ->map(fn (WorkTeam $team): string => trim((string) $team->name))
-            ->filter()
-            ->unique()
-            ->reject(fn (string $role): bool => in_array($role, $assignedRoles, true))
+        return collect(self::ROLES)
+            ->reject(fn (string $role): bool => in_array(mb_strtolower($role), $assignedRoles, true))
             ->values()
             ->implode(', ');
     }

@@ -476,7 +476,15 @@
                     </div>
                     <div class="oms-modal__row">
                         <label class="oms-modal__label" for="volunteer-role">Responsabilitate</label>
-                        <input class="oms-card__input" id="volunteer-role" type="text" wire:model="volunteerRole" placeholder="ex. bucatar, aprovizionare" style="font-size:15px;font-weight:600;">
+                        <select class="oms-card__select" id="volunteer-role" wire:model="volunteerRole">
+                            <option value="">- alege rol -</option>
+                            @foreach ($this->roleOptions as $role)
+                                <option value="{{ $role }}">{{ $role }}</option>
+                            @endforeach
+                            @if ($volunteerRole !== '' && ! in_array($volunteerRole, $this->roleOptions, true))
+                                <option value="{{ $volunteerRole }}">{{ $volunteerRole }}</option>
+                            @endif
+                        </select>
                         @error('volunteerRole')<p class="oms-card__error">{{ $message }}</p>@enderror
                     </div>
                     <div class="oms-modal__row">

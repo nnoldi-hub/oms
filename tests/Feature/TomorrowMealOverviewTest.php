@@ -104,15 +104,38 @@ class TomorrowMealOverviewTest extends TestCase
             'estimated_people' => 20,
             'status' => 'confirmed',
         ]);
-        WorkTeam::create(['daily_meal_id' => $meal->id, 'name' => 'bucatar', 'starts_at' => '08:00', 'ends_at' => '12:00']);
-        WorkTeam::create(['daily_meal_id' => $meal->id, 'name' => 'aprovizionare']);
-        Volunteer::factory()->for($meal)->create(['role' => 'bucatar']);
+        WorkTeam::create(['daily_meal_id' => $meal->id, 'name' => 'Echipa masa pranz', 'starts_at' => '08:00', 'ends_at' => '12:00']);
+        Volunteer::factory()->for($meal)->create(['role' => 'Gatit']);
+        Volunteer::factory()->for($meal)->create(['role' => 'Aprovizionare si transport']);
+        Volunteer::factory()->for($meal)->create(['role' => 'Impachetare si servire']);
+        Volunteer::factory()->for($meal)->create(['role' => 'Donatii']);
 
         Livewire::actingAs(User::factory()->create(['role' => 'admin']))
             ->test(TomorrowMealOverview::class)
             ->assertSee('Echipe si roluri')
-            ->assertSee('bucatar (08:00-12:00)')
-            ->assertSee('Neacoperite: aprovizionare');
+            ->assertSee('Echipa masa pranz (08:00-12:00)')
+            ->assertSee('Toate rolurile au o persoana alocata');
+
+        CarbonImmutable::setTestNow();
+    }
+
+    public function test_it_flags_uncovered_roles_when_some_are_missing(): void
+    {
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-11-30 08:00'));
+
+        $congregation = Congregation::factory()->create();
+        $week = Week::factory()->for($congregation)->create(['start_date' => '2026-11-30']);
+        $main = Menu::factory()->create(['name' => 'Meniu echipe', 'type' => 'main']);
+        $meal = DailyMeal::factory()->for($week)->for($congregation)->for($main)->create([
+            'meal_date' => '2026-12-01',
+            'estimated_people' => 20,
+            'status' => 'confirmed',
+        ]);
+        Volunteer::factory()->for($meal)->create(['role' => 'Gatit']);
+
+        Livewire::actingAs(User::factory()->create(['role' => 'admin']))
+            ->test(TomorrowMealOverview::class)
+            ->assertSee('Neacoperite: Aprovizionare si transport, Impachetare si servire, Donatii');
 
         CarbonImmutable::setTestNow();
     }

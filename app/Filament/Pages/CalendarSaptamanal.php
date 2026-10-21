@@ -1107,31 +1107,26 @@ class CalendarSaptamanal extends Page
             return [];
         }
 
-        $requiredRoles = $week->dailyMeals
-            ->flatMap(fn (DailyMeal $meal): array => $meal->workTeams->map(
-                fn (WorkTeam $team): string => trim((string) $team->name),
-            )->filter()->all())
-            ->unique()
-            ->values();
-
+        $builder = app(\App\Services\DailyMessageBuilder::class);
         $roles = [];
 
         foreach ($week->dailyMeals as $meal) {
-            $filled = $meal->volunteers
-                ->map(fn (Volunteer $volunteer): string => trim((string) $volunteer->role))
-                ->filter()
-                ->all();
+            $missing = $builder->uncoveredRoles($meal);
 
-            $missing = $requiredRoles
-                ->filter(fn (string $role): bool => ! in_array($role, $filled, true))
-                ->values();
-
-            if ($missing->isNotEmpty()) {
-                $roles[$meal->meal_date->toDateString()] = $missing->implode(', ');
+            if ($missing !== '') {
+                $roles[$meal->meal_date->toDateString()] = $missing;
             }
         }
 
         return $roles;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function getRoleOptionsProperty(): array
+    {
+        return \App\Services\DailyMessageBuilder::ROLES;
     }
 
     public function getWhatsappMessagesProperty(): array

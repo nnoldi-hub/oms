@@ -60,18 +60,7 @@ class TomorrowMealOverview extends StatsOverviewWidget
                 .($team->starts_at && $team->ends_at ? ' ('.substr((string) $team->starts_at, 0, 5).'-'.substr((string) $team->ends_at, 0, 5).')' : ''))
             ->implode(', ');
 
-        $assignedRoles = $meal->volunteers
-            ->map(fn ($volunteer): string => trim((string) $volunteer->role))
-            ->filter()
-            ->unique()
-            ->all();
-
-        $uncoveredRoles = $meal->workTeams
-            ->map(fn ($team): string => trim((string) $team->name))
-            ->filter()
-            ->unique()
-            ->reject(fn (string $role): bool => in_array($role, $assignedRoles, true))
-            ->values();
+        $uncoveredRoles = app(\App\Services\DailyMessageBuilder::class)->uncoveredRoles($meal);
 
         return [
             Stat::make('Maine', $recipes !== '' ? $recipes : 'Meniu neales')
@@ -80,11 +69,11 @@ class TomorrowMealOverview extends StatsOverviewWidget
                 ->color('primary')
                 ->icon(Heroicon::OutlinedCalendarDays),
             Stat::make('Echipe si roluri', $teams !== '' ? $teams : 'Fara echipe programate')
-                ->description($uncoveredRoles->isEmpty()
+                ->description($uncoveredRoles === ''
                     ? 'Toate rolurile au o persoana alocata'
-                    : 'Neacoperite: '.$uncoveredRoles->implode(', '))
+                    : 'Neacoperite: '.$uncoveredRoles)
                 ->descriptionIcon(Heroicon::OutlinedWrenchScrewdriver)
-                ->color($uncoveredRoles->isEmpty() ? 'success' : 'warning')
+                ->color($uncoveredRoles === '' ? 'success' : 'warning')
                 ->icon(Heroicon::OutlinedWrenchScrewdriver),
             Stat::make('Alergeni de verificat', $allergens === [] ? 'Niciunul' : implode(', ', $allergens))
                 ->description(in_array('De confirmat', $allergens, true) ? 'Reteta nu are lista de alergeni confirmata' : 'Verifica lista completa in fisa de pregatire')

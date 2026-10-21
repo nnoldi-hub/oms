@@ -572,11 +572,8 @@ class CalendarSaptamanalTest extends TestCase
         $congregation = Congregation::factory()->create();
         $week = Week::factory()->for($congregation)->create(['start_date' => '2026-11-30']);
         $dailyMeal = DailyMeal::factory()->for($week)->for($congregation)->create(['meal_date' => '2026-11-30']);
-        WorkTeam::create([
-            'daily_meal_id' => $dailyMeal->id,
-            'name' => 'bucatar',
-        ]);
-        Volunteer::factory()->for($dailyMeal)->create(['role' => 'aprovizionare']);
+        Volunteer::factory()->for($dailyMeal)->create(['role' => 'Gatit']);
+        Volunteer::factory()->for($dailyMeal)->create(['role' => 'Aprovizionare si transport']);
         $administrator = User::factory()->create(['role' => 'admin']);
 
         $component = Livewire::actingAs($administrator)
@@ -586,7 +583,28 @@ class CalendarSaptamanalTest extends TestCase
         $uncovered = $component->instance()->uncoveredRoles;
 
         $this->assertArrayHasKey('2026-11-30', $uncovered);
-        $this->assertStringContainsString('bucatar', $uncovered['2026-11-30']);
+        $this->assertStringContainsString('Impachetare si servire', $uncovered['2026-11-30']);
+        $this->assertStringContainsString('Donatii', $uncovered['2026-11-30']);
+        $this->assertStringNotContainsString('Gatit', $uncovered['2026-11-30']);
+    }
+
+    public function test_the_calendar_reports_no_uncovered_roles_when_all_are_assigned(): void
+    {
+        $congregation = Congregation::factory()->create();
+        $week = Week::factory()->for($congregation)->create(['start_date' => '2026-11-30']);
+        $dailyMeal = DailyMeal::factory()->for($week)->for($congregation)->create(['meal_date' => '2026-11-30']);
+
+        foreach (\App\Services\DailyMessageBuilder::ROLES as $role) {
+            Volunteer::factory()->for($dailyMeal)->create(['role' => $role]);
+        }
+
+        $administrator = User::factory()->create(['role' => 'admin']);
+
+        $component = Livewire::actingAs($administrator)
+            ->test(CalendarSaptamanal::class)
+            ->set('weekId', $week->id);
+
+        $this->assertArrayNotHasKey('2026-11-30', $component->instance()->uncoveredRoles);
     }
 
     public function test_the_calendar_builds_whatsapp_messages_for_the_week_and_days(): void
