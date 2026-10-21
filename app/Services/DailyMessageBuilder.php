@@ -8,8 +8,7 @@ use Illuminate\Support\Collection;
 class DailyMessageBuilder
 {
     /**
-     * Rolurile necesare pe o zi de masa. O persoana alocata pe unul dintre ele
-     * il marcheaza ca acoperit; cele fara nicio persoana apar ca neacoperite.
+     * Toate rolurile posibile.
      *
      * @var array<int, string>
      */
@@ -20,17 +19,23 @@ class DailyMessageBuilder
         'Donatii',
     ];
 
+    /**
+     * Rolurile care intra in calculul "roluri neacoperite" (Donatii este optional).
+     *
+     * @var array<int, string>
+     */
+    public const REQUIRED_ROLES = [
+        'Aprovizionare si transport',
+        'Gatit',
+        'Impachetare si servire',
+    ];
+
     public function dayMessage(DailyMeal $meal): string
     {
-        $dishes = collect([$meal->menu?->name, $meal->soupMenu?->name, $meal->dessertMenu?->name])
-            ->filter()
-            ->implode(' | ');
+        $meal->loadMissing(['menu', 'soupMenu', 'dessertMenu', 'congregation', 'workTeams', 'volunteers']);
 
         $lines = [
-            'Masa din '.$meal->meal_date->translatedFormat('l, j F Y'),
-            'Congregatie: '.($meal->congregation?->name ?? 'nealocata'),
-            'Meniu: '.($dishes !== '' ? $dishes : '— fara meniu —'),
-            'Portii: '.$meal->portions(),
+            $meal->meal_date->translatedFormat('D, d M Y').' – '.($meal->congregation?->name ?? 'nealocata').' – '.($meal->menu?->name ?? '— fara meniu —').'… – '.($meal->soupMenu?->name ?? '-').' – '.($meal->dessertMenu?->name ?? '-').' – '.$meal->portions().' portii',
         ];
 
         $teams = $meal->workTeams
@@ -39,7 +44,24 @@ class DailyMessageBuilder
             ->implode(', ');
 
         if ($teams !== '') {
-            $lines[] = 'Echipe: '.$teams;
+            $lines[] = 'Echipa: '.$teams;
+        }
+
+        foreach (self::ROLES as $role) {
+            $people = $meal->volunteers
+                ->filter(function ($volunteer) use ($role): bool {
+                    if (is_array($volunteer->roles) && in_array($role, $volunteer->roles, true)) {
+                        return true;
+                    }
+
+                    return mb_strtolower((string) $volunteer->role) === mb_strtolower($role);
+                })
+                ->map(fn ($volunteer): string => $volunteer->name.($volunteer->phone ? ' ('.$volunteer->phone.')' : ''))
+                ->implode(', ');
+
+            if ($people !== '') {
+                $lines[] = $role.': '.$people;
+            }
         }
 
         $uncovered = $this->uncoveredRoles($meal);
@@ -56,24 +78,37 @@ class DailyMessageBuilder
      */
     public function weekMessage(Collection $meals, int $weekNumber, string $rangeLabel): string
     {
+        $builder = $this;
+
         $lines = ['Planul saptamanii '.$weekNumber.' ('.$rangeLabel.')'];
 
         foreach ($meals as $meal) {
-            $dish = $meal->menu?->name ?? '— fara meniu —';
-            $lines[] = $meal->meal_date->translatedFormat('D, j M').': '.$dish.' - '.$meal->portions().' portii';
+            $meal->loadMissing(['menu', 'soupMenu', 'dessertMenu', 'congregation', 'workTeams', 'volunteers']);
+            $lines[] = '';
+            $lines[] = $builder->dayMessage($meal);
         }
 
-        return implode("\n", $lines);
+        return ltrim(implode("\n", $lines));
     }
 
     public function uncoveredRoles(DailyMeal $meal): string
     {
+        $meal->loadMissing('volunteers');
+
         $assignedRoles = $meal->volunteers
-            ->map(fn ($volunteer): string => mb_strtolower(trim((string) $volunteer->role)))
+            ->flatMap(fn ($volunteer): array => is_array($volunteer->roles) ? $volunteer->roles : [])
+            ->map(fn ($role): string => mb_strtolower(trim((string) $role)))
             ->filter()
             ->all();
 
-        return collect(self::ROLES)
+        if ($assignedRoles === []) {
+            $assignedRoles = $meal->volunteers
+                ->map(fn ($volunteer): string => mb_strtolower(trim((string) $volunteer->role)))
+                ->filter()
+                ->all();
+        }
+
+        return collect(self::REQUIRED_ROLES)
             ->reject(fn (string $role): bool => in_array(mb_strtolower($role), $assignedRoles, true))
             ->values()
             ->implode(', ');

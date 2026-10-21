@@ -159,7 +159,7 @@
                                 <p class="oms-card__day">{{ $dailyMeal->meal_date->translatedFormat('l') }}</p>
                                 <p class="oms-card__date">{{ $dailyMeal->meal_date->format('d.m.Y') }}</p>
                             </div>
-                            <span class="oms-card__ordinal">Ziua {{ $loop->iteration }}</span>
+                            <span class="oms-card__ordinal">Ziua {{ $this->workingDayPosition($dailyMeal->id) }}</span>
                         </header>
                         @if (!empty($this->supplyIndicators[$dailyMeal->meal_date->toDateString()] ?? []))
                             <div class="oms-card__supply-indicators" aria-label="Resurse de aprovizionare">
@@ -209,6 +209,13 @@
                                     </ul>
                                 </div>
                             @endif
+
+                            @if (isset($this->upcomingWarnings[$dailyMeal->id]))
+                                <div class="oms-card__warnings oms-card__warnings--urgent">
+                                    <strong>Atentie in urmatoarele 3 zile:</strong>
+                                    roluri neacoperite - {{ $this->upcomingWarnings[$dailyMeal->id] }}.
+                                </div>
+                            @endif
                         </div>
                         <footer class="oms-card__footer">
                             <p class="oms-card__label">Portii estimate</p>
@@ -224,20 +231,35 @@
                                 <p class="oms-card__count">{{ $dailyMeal->estimated_people }}</p>
                             @endif
                             <div class="oms-card__budget">
-                                <p class="oms-card__label">Buget si contributie</p>
+                                <p class="oms-card__label">Buget estimat, cost si contributii</p>
                                 @if (auth()->user()?->isAdmin() || auth()->user()?->isCoordinator())
                                     <div class="oms-card__budget-grid">
-                                        <input class="oms-card__budget-input" type="number" min="0" step="0.01" wire:model.live.debounce.300ms="maximumBudget.{{ $dailyMeal->id }}" aria-label="Buget maxim in RON">
-                                        <input class="oms-card__budget-input" type="number" min="1" step="1" wire:model.live.debounce.300ms="contributorCount.{{ $dailyMeal->id }}" aria-label="Persoane care contribuie">
-                                        <button class="oms-card__budget-save" type="button" title="Salveaza bugetul" aria-label="Salveaza bugetul" wire:click="saveBudget({{ $dailyMeal->id }})">✓</button>
+                                        <input class="oms-card__budget-input" type="number" min="0" step="0.01" wire:model.live.debounce.300ms="maximumBudget.{{ $dailyMeal->id }}" aria-label="Buget estimat maxim in RON" placeholder="Buget estimat (RON)">
+                                        <input class="oms-card__budget-input" type="number" min="1" step="1" wire:model.live.debounce.300ms="contributorCount.{{ $dailyMeal->id }}" aria-label="Numar de persoane care contribuie" placeholder="Contributori">
+                                        <button class="oms-card__budget-save" type="button" title="Salveaza bugetul estimat" aria-label="Salveaza bugetul estimat" wire:click="saveBudget({{ $dailyMeal->id }})">✓</button>
                                     </div>
                                 @endif
+                                @if ($dailyMeal->maximum_budget !== null)
+                                    <p class="oms-card__budget-result"><strong>Buget estimat:</strong> {{ number_format((float) $dailyMeal->maximum_budget, 2, '.', ' ') }} RON.</p>
+                                @endif
                                 @if ($dailyCost['is_partial'])
-                                    <p class="oms-card__budget-result"><strong>Cost partial:</strong> {{ number_format($dailyCost['total_cost'], 2, '.', ' ') }} RON pana acum. Completeaza preturile sau introdu costul estimat per portie.</p>
+                                    <p class="oms-card__budget-result"><strong>Cost estimat (partial):</strong> {{ number_format($dailyCost['total_cost'], 2, '.', ' ') }} RON pana acum. Completeaza preturile sau introduce costul estimat per portie.</p>
                                 @else
                                     <p class="oms-card__budget-result"><strong>Cost estimat:</strong> {{ number_format($dailyCost['total_cost'], 2, '.', ' ') }} RON{{ $costPerPortion === null ? '' : ' (' . number_format($costPerPortion, 2, '.', ' ') . ' RON/portie)' }}.</p>
-                                    @if ($maximumPortions !== null)<p class="oms-card__budget-result"><strong>In buget:</strong> aproximativ {{ $maximumPortions }} portii. Diferenta: {{ number_format($budgetDifference, 2, '.', ' ') }} RON.</p>@endif
-                                    @if ($contribution !== null)<p class="oms-card__budget-result"><strong>Contributie:</strong> {{ number_format($contribution, 2, '.', ' ') }} RON/persoana.</p>@endif
+                                    @if ($maximumPortions !== null)<p class="oms-card__budget-result"><strong>In bugetul estimat:</strong> aproximativ {{ $maximumPortions }} portii. Diferenta: {{ number_format($budgetDifference, 2, '.', ' ') }} RON.</p>@endif
+                                    @if ($contribution !== null)<p class="oms-card__budget-result"><strong>Contributie estimata:</strong> {{ number_format($contribution, 2, '.', ' ') }} RON/persoana.</p>@endif
+                                @endif
+                                @if ($dailyMeal->actual_cost !== null)
+                                    <p class="oms-card__budget-result"><strong>Cost real:</strong> {{ number_format((float) $dailyMeal->actual_cost, 2, '.', ' ') }} RON.</p>
+                                @endif
+                                @php($dayContributions = $this->dailyContributions[$dailyMeal->id] ?? ['paid' => 0.0, 'promised' => 0.0, 'total' => 0.0])
+                                @if ($dayContributions['total'] > 0)
+                                    <p class="oms-card__budget-result">
+                                        <strong>Contributii primite:</strong> {{ number_format($dayContributions['paid'], 2, '.', ' ') }} RON
+                                        @if ($dayContributions['promised'] > 0)
+                                            · <strong>Contributii promise:</strong> {{ number_format($dayContributions['promised'], 2, '.', ' ') }} RON
+                                        @endif
+                                    </p>
                                 @endif
                             </div>
 
@@ -281,7 +303,7 @@
                                     <p class="oms-card__label">Persoane ({{ count($people) }})</p>
                                     <p class="oms-card__value">
                                         @foreach ($people as $volunteer)
-                                            {{ $volunteer->name }} ({{ $volunteer->role }}){{ $volunteer->has_allergies ? ' ⚠' : '' }}{{ ! $loop->last ? ',' : '' }}
+                                            {{ $volunteer->name }} ({{ is_array($volunteer->roles) && $volunteer->roles !== [] ? implode(', ', $volunteer->roles) : ($volunteer->role ?? '-') }}){{ $volunteer->has_allergies ? ' ⚠' : '' }}{{ ! $loop->last ? ',' : '' }}
                                         @endforeach
                                     </p>
                                 </div>
@@ -454,13 +476,13 @@
         @if ($peopleMealId !== null)
             <div class="oms-modal">
                 <div class="oms-modal__panel">
-                    <h2 class="oms-modal__title">Persoane si roluri</h2>
-                    <p class="oms-modal__hint">Adauga persoanele zilei cu responsabilitatea lor. Persoanele cu alergii sunt marcate cu ⚠.</p>
+                    <h2 class="oms-modal__title">Persoane, roluri si contributii</h2>
+                    <p class="oms-modal__hint">Adauga persoanele zilei cu rolurile lor. O persoana poate avea mai multe roluri sau doar o contributie. Persoanele cu alergii sunt marcate cu ⚠.</p>
 
                     <div>
                         @foreach ($this->volunteersByMeal[$peopleMealId] ?? [] as $volunteer)
                             <div class="oms-modal__radio" style="justify-content:space-between;">
-                                <span>{{ $volunteer->name }} ({{ $volunteer->role }}){{ $volunteer->has_allergies ? ' ⚠ '.$volunteer->allergy_details : '' }}</span>
+                                <span>{{ $volunteer->name }} ({{ is_array($volunteer->roles) && $volunteer->roles !== [] ? implode(', ', $volunteer->roles) : ($volunteer->role ?? '-') }}){{ $volunteer->phone ? ' · '.$volunteer->phone : '' }}{{ $volunteer->has_allergies ? ' ⚠ '.$volunteer->allergy_details : '' }}</span>
                                 <span>
                                     <button class="oms-card__action" type="button" wire:click="editVolunteer({{ $volunteer->id }})">Editeaza</button>
                                     <button class="oms-card__action" type="button" wire:click="deleteVolunteer({{ $volunteer->id }})">Sterge</button>
@@ -475,23 +497,22 @@
                         @error('volunteerName')<p class="oms-card__error">{{ $message }}</p>@enderror
                     </div>
                     <div class="oms-modal__row">
-                        <label class="oms-modal__label" for="volunteer-role">Responsabilitate</label>
-                        <select class="oms-card__select" id="volunteer-role" wire:model="volunteerRole">
-                            <option value="">- alege rol -</option>
-                            @foreach ($this->roleOptions as $role)
-                                <option value="{{ $role }}">{{ $role }}</option>
-                            @endforeach
-                            @if ($volunteerRole !== '' && ! in_array($volunteerRole, $this->roleOptions, true))
-                                <option value="{{ $volunteerRole }}">{{ $volunteerRole }}</option>
-                            @endif
-                        </select>
-                        @error('volunteerRole')<p class="oms-card__error">{{ $message }}</p>@enderror
-                    </div>
-                    <div class="oms-modal__row">
                         <label class="oms-modal__label" for="volunteer-phone">Telefon</label>
                         <input class="oms-card__input" id="volunteer-phone" type="tel" wire:model="volunteerPhone" style="font-size:15px;font-weight:600;">
                         @error('volunteerPhone')<p class="oms-card__error">{{ $message }}</p>@enderror
                     </div>
+
+                    <div class="oms-modal__row">
+                        <span class="oms-modal__label">Roluri (pot fi mai multe)</span>
+                        @foreach ($this->roleOptions as $role)
+                            <label class="oms-modal__radio">
+                                <input type="checkbox" value="{{ $role }}" wire:model="volunteerRoles.{{ $role }}">
+                                {{ $role }}
+                            </label>
+                        @endforeach
+                        @error('volunteerRoles')<p class="oms-card__error">{{ $message }}</p>@enderror
+                    </div>
+
                     <label class="oms-modal__radio">
                         <input type="checkbox" wire:model.live="volunteerHasAllergies">
                         Are alergii
@@ -503,6 +524,32 @@
                             @error('volunteerAllergyDetails')<p class="oms-card__error">{{ $message }}</p>@enderror
                         </div>
                     @endif
+
+                    <div class="oms-modal__row">
+                        <span class="oms-modal__label">Contributie (optional)</span>
+                        <input class="oms-card__input" type="number" min="0" step="0.01" wire:model="contributionAmount" placeholder="Suma in RON" style="font-size:15px;font-weight:600;">
+                        @error('contributionAmount')<p class="oms-card__error">{{ $message }}</p>@enderror
+                        <select class="oms-card__select" wire:model="contributionStatus">
+                            <option value="promis">Promis</option>
+                            <option value="paid">Platit</option>
+                        </select>
+                        <input class="oms-card__input" type="text" wire:model="contributionNote" placeholder="Nota contributie" style="font-size:15px;font-weight:600;">
+                    </div>
+
+                    <div class="oms-modal__row">
+                        <span class="oms-modal__label">Aplică pe alte zile</span>
+                        @foreach ($this->applyToDayOptions as $mealId => $label)
+                            <label class="oms-modal__radio">
+                                <input type="checkbox" value="{{ $mealId }}" wire:model="applyToDays.{{ $mealId }}">
+                                {{ $label }}
+                            </label>
+                        @endforeach
+                    </div>
+
+                    <label class="oms-modal__radio">
+                        <input type="checkbox" wire:model="applyContribution">
+                        Copiază și contribuția pe zilele selectate
+                    </label>
 
                     <div class="oms-modal__buttons">
                         <button class="oms-modal__cancel" type="button" wire:click="closePeople">Inchide</button>
@@ -520,6 +567,10 @@
                 <div class="oms-modal__panel">
                     <h2 class="oms-modal__title">Echipe de lucru</h2>
                     <p class="oms-modal__hint">Echipele zilei cu interval orar, locatie si responsabil de aprovizionare.</p>
+
+                    <div class="oms-modal__row">
+                        <button class="oms-card__action" type="button" wire:click="copyFromPreviousDay">Copiază din ziua anterioară</button>
+                    </div>
 
                     <div>
                         @foreach ($this->teamsByMeal[$teamsMealId] ?? [] as $team)

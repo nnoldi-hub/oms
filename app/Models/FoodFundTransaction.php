@@ -17,6 +17,8 @@ class FoodFundTransaction extends Model
         'reference',
         'description',
         'recorded_by',
+        'daily_meal_id',
+        'volunteer_contribution_status',
     ];
 
     protected function casts(): array
@@ -30,6 +32,11 @@ class FoodFundTransaction extends Model
     public function recordedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'recorded_by');
+    }
+
+    public function dailyMeal(): BelongsTo
+    {
+        return $this->belongsTo(DailyMeal::class);
     }
 
     public function scopeIncome($query)

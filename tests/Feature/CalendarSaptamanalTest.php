@@ -584,7 +584,7 @@ class CalendarSaptamanalTest extends TestCase
 
         $this->assertArrayHasKey('2026-11-30', $uncovered);
         $this->assertStringContainsString('Impachetare si servire', $uncovered['2026-11-30']);
-        $this->assertStringContainsString('Donatii', $uncovered['2026-11-30']);
+        $this->assertStringNotContainsString('Donatii', $uncovered['2026-11-30']);
         $this->assertStringNotContainsString('Gatit', $uncovered['2026-11-30']);
     }
 
@@ -594,7 +594,7 @@ class CalendarSaptamanalTest extends TestCase
         $week = Week::factory()->for($congregation)->create(['start_date' => '2026-11-30']);
         $dailyMeal = DailyMeal::factory()->for($week)->for($congregation)->create(['meal_date' => '2026-11-30']);
 
-        foreach (\App\Services\DailyMessageBuilder::ROLES as $role) {
+        foreach (\App\Services\DailyMessageBuilder::REQUIRED_ROLES as $role) {
             Volunteer::factory()->for($dailyMeal)->create(['role' => $role]);
         }
 
@@ -643,7 +643,7 @@ class CalendarSaptamanalTest extends TestCase
             ->set('weekId', $week->id)
             ->call('openPeople', $dailyMeal->id)
             ->set('volunteerName', 'Maria')
-            ->set('volunteerRole', 'bucatar')
+            ->set('volunteerRoles', ['bucatar' => true])
             ->set('volunteerHasAllergies', true)
             ->set('volunteerAllergyDetails', '')
             ->call('saveVolunteer')
@@ -663,7 +663,7 @@ class CalendarSaptamanalTest extends TestCase
             ->test(CalendarSaptamanal::class)
             ->set('weekId', $week->id)
             ->call('openPeople', $dailyMeal->id)
-            ->assertSee('Persoane si roluri')
+            ->assertSee('Persoane, roluri si contributii')
             ->assertSee('Petru')
             ->call('closePeople')
             ->call('openTeams', $dailyMeal->id)

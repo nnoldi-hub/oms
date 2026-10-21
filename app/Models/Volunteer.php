@@ -12,11 +12,11 @@ class Volunteer extends Model
     /** @use HasFactory<\Database\Factories\VolunteerFactory> */
     use HasFactory;
 
-    protected $fillable = ['daily_meal_id', 'name', 'phone', 'role', 'has_allergies', 'allergy_details'];
+    protected $fillable = ['daily_meal_id', 'name', 'phone', 'role', 'roles', 'has_allergies', 'allergy_details'];
 
     protected function casts(): array
     {
-        return ['has_allergies' => 'boolean'];
+        return ['has_allergies' => 'boolean', 'roles' => 'array'];
     }
 
     protected static function booted(): void
@@ -26,6 +26,12 @@ class Volunteer extends Model
                 throw ValidationException::withMessages([
                     'allergy_details' => 'Detaliile alergiei sunt obligatorii.',
                 ]);
+            }
+
+            $roles = $volunteer->roles;
+
+            if (is_array($roles) && $roles !== []) {
+                $volunteer->role = $roles[0];
             }
         });
     }

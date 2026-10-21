@@ -11,6 +11,7 @@ use App\Models\Volunteer;
 use App\Models\Week;
 use App\Models\WorkTeam;
 use App\Services\DailyMealCostCalculator;
+use App\Services\DailyMessageBuilder;
 use App\Services\MenuSchedulingValidator;
 use Carbon\CarbonImmutable;
 use Filament\Notifications\Notification;
@@ -108,12 +109,24 @@ class CalendarSaptamanal extends Page
 
     public string $volunteerPhone = '';
 
-    public string $volunteerRole = '';
+    /** @var array<string, bool> */
+    public array $volunteerRoles = [];
 
     public bool $volunteerHasAllergies = false;
 
     public string $volunteerAllergyDetails = '';
 
+    public ?string $contributionAmount = null;
+
+    public string $contributionStatus = 'promis';
+
+    public string $contributionNote = '';
+
+    /** @var array<string, bool> */
+    public array $applyToDays = [];
+
+    /** @var bool */
+    public bool $applyContribution = false;
     public ?int $teamsMealId = null;
 
     public ?int $editingTeamId = null;
@@ -481,6 +494,61 @@ class CalendarSaptamanal extends Page
             ->all() ?? [];
     }
 
+    /**
+     * Numarul zilei de lucru (Ziua 1, Ziua 2, ...), calculat pe zilele bifate,
+     * ordonate crescator dupa data.
+     */
+    public function workingDayPosition(int $mealId): int
+    {
+        $week = $this->selectedWeek;
+
+        if ($week === null) {
+            return 0;
+        }
+
+        $meals = $week->dailyMeals->sortBy('meal_date')->values();
+
+        $position = $meals->search(fn (DailyMeal $meal): bool => $meal->id === $mealId);
+
+        return $position === false ? 0 : $position + 1;
+    }
+
+    /**
+     * Avertismente pentru zilele urmatoare (maxim 3 zile): lipsa rolurilor obligatorii.
+     *
+     * @return array<int, string> mealId => roluri neacoperite
+     */
+    public function getUpcomingWarningsProperty(): array
+    {
+        $week = $this->selectedWeek;
+
+        if ($week === null) {
+            return [];
+        }
+
+        $builder = app(DailyMessageBuilder::class);
+        $today = today();
+        $warnings = [];
+
+        foreach ($week->dailyMeals as $meal) {
+            if ($meal->meal_date->lt($today)) {
+                continue;
+            }
+
+            if ($meal->meal_date->diffInDays($today) > 3) {
+                continue;
+            }
+
+            $missing = $builder->uncoveredRoles($meal);
+
+            if ($missing !== '') {
+                $warnings[$meal->id] = $missing;
+            }
+        }
+
+        return $warnings;
+    }
+
     private function loadCalendarValues(): void
     {
         $dailyMeals = $this->selectedWeek?->dailyMeals ?? collect();
@@ -694,6 +762,7 @@ class CalendarSaptamanal extends Page
             $meal->supplyPlan?->delete();
             $meal->volunteers()->delete();
             $meal->workTeams()->delete();
+            FoodFundTransaction::query()->where('daily_meal_id', $meal->id)->delete();
             $meal->delete();
         });
 
@@ -811,9 +880,69 @@ class CalendarSaptamanal extends Page
             ->send();
     }
 
-    public function closeDeleteWeek(): void
+    /**
+     * @return array<int, string> mealId => eticheta zilei
+     */
+    public function getApplyToDayOptionsProperty(): array
     {
-        $this->pendingDeleteWeekId = null;
+        $week = $this->selectedWeek;
+
+        if ($week === null) {
+            return [];
+        }
+
+        $options = [];
+
+        foreach ($week->dailyMeals->sortBy('meal_date') as $meal) {
+            $options[$meal->id] = 'Ziua '.$this->workingDayPosition($meal->id).' · '.$meal->meal_date->translatedFormat('D, d M').' ('.($meal->congregation?->name ?? 'nealocata').')';
+        }
+
+        return $options;
+    }
+
+    public function copyFromPreviousDay(): void
+    {
+        $this->guardPeopleManagement();
+
+        $week = $this->selectedWeek;
+
+        if ($week === null) {
+            return;
+        }
+
+        $target = $week->dailyMeals->firstWhere('id', $this->peopleMealId);
+
+        if ($target === null) {
+            return;
+        }
+
+        $previous = $week->dailyMeals
+            ->filter(fn ($meal): bool => $meal->meal_date->lt($target->meal_date))
+            ->sortByDesc('meal_date')
+            ->first();
+
+        if ($previous === null || $previous->workTeams->isEmpty()) {
+            Notification::make()->title('Nu exista echipa pe ziua anterioara.')->warning()->send();
+
+            return;
+        }
+
+        $previous->workTeams->each(function ($team): void {
+            $attributes = [
+                'name' => $team->name,
+                'member_count' => $team->member_count,
+                'starts_at' => $team->starts_at,
+                'ends_at' => $team->ends_at,
+                'location' => $team->location,
+                'supply_responsible' => $team->supply_responsible,
+            ];
+
+            WorkTeam::create(array_merge($attributes, ['daily_meal_id' => (int) $this->peopleMealId]));
+        });
+
+        $this->loadCalendarValues();
+
+        Notification::make()->title('Echipa a fost copiata din ziua anterioara.')->success()->send();
     }
 
     /**
@@ -837,7 +966,7 @@ class CalendarSaptamanal extends Page
     }
 
     /**
-     * @return array<int, array{income: float, expense: float, balance: float}>
+     * @return array<int, array{income: float, expense: float, balance: float, contributions_paid: float, contributions_promised: float}>
      */
     public function getFoodFundByDateProperty(): array
     {
@@ -859,15 +988,55 @@ class CalendarSaptamanal extends Page
             ->each(function ($transactions, string $date) use (&$summary): void {
                 $income = (float) $transactions->where('type', 'income')->sum('amount');
                 $expense = (float) $transactions->where('type', 'expense')->sum('amount');
+                $paid = (float) $transactions->where('volunteer_contribution_status', 'paid')->sum('amount');
+                $promised = (float) $transactions->where('volunteer_contribution_status', 'promised')->sum('amount');
 
                 $summary[$date] = [
                     'income' => $income,
                     'expense' => $expense,
                     'balance' => $income - $expense,
+                    'contributions_paid' => $paid,
+                    'contributions_promised' => $promised,
                 ];
             });
 
         return $summary;
+    }
+
+    /**
+     * Contributiile voluntarilor per zi de masa.
+     *
+     * @return array<int, array{paid: float, promised: float, total: float}>
+     */
+    public function getDailyContributionsProperty(): array
+    {
+        $week = $this->selectedWeek;
+
+        if ($week === null) {
+            return [];
+        }
+
+        $contributions = [];
+
+        foreach ($week->dailyMeals as $meal) {
+            $paid = (float) FoodFundTransaction::query()
+                ->where('daily_meal_id', $meal->id)
+                ->where('volunteer_contribution_status', 'paid')
+                ->sum('amount');
+
+            $promised = (float) FoodFundTransaction::query()
+                ->where('daily_meal_id', $meal->id)
+                ->where('volunteer_contribution_status', 'promised')
+                ->sum('amount');
+
+            $contributions[$meal->id] = [
+                'paid' => $paid,
+                'promised' => $promised,
+                'total' => $paid + $promised,
+            ];
+        }
+
+        return $contributions;
     }
 
     public function openPeople(int $mealId): void
@@ -877,6 +1046,7 @@ class CalendarSaptamanal extends Page
 
         $this->peopleMealId = $mealId;
         $this->resetVolunteerForm();
+        $this->applyToDays = [$mealId => true];
     }
 
     public function closePeople(): void
@@ -897,42 +1067,119 @@ class CalendarSaptamanal extends Page
         $this->editingVolunteerId = $volunteer->id;
         $this->volunteerName = (string) $volunteer->name;
         $this->volunteerPhone = (string) ($volunteer->phone ?? '');
-        $this->volunteerRole = (string) $volunteer->role;
+        $this->volunteerRoles = [];
+        $roles = is_array($volunteer->roles) ? $volunteer->roles : (array) ($volunteer->role ? [$volunteer->role] : []);
+        foreach ($roles as $role) {
+            $this->volunteerRoles[(string) $role] = true;
+        }
         $this->volunteerHasAllergies = (bool) $volunteer->has_allergies;
         $this->volunteerAllergyDetails = (string) ($volunteer->allergy_details ?? '');
+
+        $existingContribution = FoodFundTransaction::query()
+            ->where('daily_meal_id', $this->peopleMealId)
+            ->where('counterparty', $this->volunteerName)
+            ->orderByDesc('id')
+            ->first();
+
+        $this->contributionAmount = $existingContribution ? (string) $existingContribution->amount : null;
+        $this->contributionStatus = $existingContribution?->volunteer_contribution_status ?: 'promis';
+        $this->contributionNote = $existingContribution?->description ?: '';
+        $this->applyToDays = [$this->peopleMealId => true];
     }
 
     public function saveVolunteer(): void
     {
         $this->guardPeopleManagement();
 
+        $selectedRoles = collect($this->volunteerRoles)
+            ->filter(fn ($checked) => $checked)
+            ->keys()
+            ->values()
+            ->all();
+
         $this->validate([
             'volunteerName' => ['required', 'string', 'max:120'],
             'volunteerPhone' => ['nullable', 'string', 'max:30'],
-            'volunteerRole' => ['required', 'string', 'max:60'],
             'volunteerAllergyDetails' => ['nullable', 'string', 'max:500', 'required_if:volunteerHasAllergies,true'],
+            'contributionAmount' => ['nullable', 'numeric', 'min:0'],
         ]);
 
-        $meal = $this->calendarMealForRole((int) $this->peopleMealId);
+        if ($selectedRoles === [] && blank($this->contributionAmount)) {
+            $this->addError('volunteerRoles', 'Selecteaza cel putin un rol sau adauga o contributie.');
 
-        $attributes = [
+            return;
+        }
+
+        $dayMealIds = collect($this->applyToDays)
+            ->filter(fn ($checked) => $checked)
+            ->keys()
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if ($dayMealIds === []) {
+            $dayMealIds = [(int) $this->peopleMealId];
+        }
+
+        $baseAttributes = [
             'name' => $this->volunteerName,
             'phone' => $this->volunteerPhone ?: null,
-            'role' => $this->volunteerRole,
+            'roles' => $selectedRoles,
+            'role' => $selectedRoles[0] ?? null,
             'has_allergies' => $this->volunteerHasAllergies,
             'allergy_details' => $this->volunteerHasAllergies ? $this->volunteerAllergyDetails : null,
         ];
 
-        if ($this->editingVolunteerId !== null) {
-            $meal->volunteers()->whereKey($this->editingVolunteerId)->update($attributes);
-        } else {
-            $meal->volunteers()->create($attributes);
+        foreach ($dayMealIds as $dayMealId) {
+            $meal = DailyMeal::query()->whereKey($dayMealId)->where('week_id', $this->weekId)->firstOrFail();
+            $this->calendarMealForRole($meal->id);
+
+            if ($this->editingVolunteerId !== null && $dayMealId === (int) $this->peopleMealId) {
+                $meal->volunteers()->whereKey($this->editingVolunteerId)->update($baseAttributes);
+            } elseif ($this->editingVolunteerId !== null && $dayMealId !== (int) $this->peopleMealId) {
+                // cand se aplica pe alte zile, cream o intrare noua pe acea zi
+                $meal->volunteers()->create(array_merge($baseAttributes, ['daily_meal_id' => $meal->id]));
+            } else {
+                $meal->volunteers()->create(array_merge($baseAttributes, ['daily_meal_id' => $meal->id]));
+            }
+
+            if (filled($this->contributionAmount)) {
+                $existing = FoodFundTransaction::query()
+                    ->where('daily_meal_id', $meal->id)
+                    ->where('counterparty', $this->volunteerName)
+                    ->first();
+
+                $attrs = [
+                    'type' => 'income',
+                    'transaction_date' => $meal->meal_date,
+                    'amount' => $this->contributionAmount,
+                    'category' => 'volunteer_contribution',
+                    'counterparty' => $this->volunteerName,
+                    'description' => $this->contributionNote !== '' ? $this->contributionNote : 'Contributie voluntar',
+                    'recorded_by' => auth()->id(),
+                    'daily_meal_id' => $meal->id,
+                    'volunteer_contribution_status' => $this->contributionStatus,
+                ];
+
+                if ($existing && $this->applyContribution) {
+                    $existing->update($attrs);
+                } elseif ($existing && ! $this->applyContribution && $meal->id === (int) $this->peopleMealId) {
+                    // nu duplica pe ziua curenta daca exista deja
+                } elseif (! $existing || $this->applyContribution) {
+                    if (! $existing) {
+                        FoodFundTransaction::create($attrs);
+                    } elseif ($this->applyContribution) {
+                        $existing->update($attrs);
+                    }
+                } elseif ($meal->id !== (int) $this->peopleMealId && ! $existing) {
+                    FoodFundTransaction::create($attrs);
+                }
+            }
         }
 
         $this->loadCalendarValues();
         $this->resetVolunteerForm();
 
-        Notification::make()->title('Persoana a fost salvata.')->success()->send();
+        Notification::make()->title('Persoana si/sau contributia au fost salvate.')->success()->send();
     }
 
     public function deleteVolunteer(int $volunteerId): void
@@ -946,6 +1193,9 @@ class CalendarSaptamanal extends Page
 
         if ($this->editingVolunteerId === $volunteerId) {
             $this->resetVolunteerForm();
+            if ($this->peopleMealId !== null) {
+                $this->applyToDays = [$this->peopleMealId => true];
+            }
         }
 
         $this->loadCalendarValues();
@@ -955,7 +1205,9 @@ class CalendarSaptamanal extends Page
 
     public function cancelVolunteerEdit(): void
     {
+        $this->guardPeopleManagement();
         $this->resetVolunteerForm();
+        $this->applyToDays = [$this->peopleMealId => true];
     }
 
     public function notifyMessageCopied(): void
@@ -968,9 +1220,14 @@ class CalendarSaptamanal extends Page
         $this->editingVolunteerId = null;
         $this->volunteerName = '';
         $this->volunteerPhone = '';
-        $this->volunteerRole = '';
+        $this->volunteerRoles = [];
         $this->volunteerHasAllergies = false;
         $this->volunteerAllergyDetails = '';
+        $this->contributionAmount = null;
+        $this->contributionStatus = 'promis';
+        $this->contributionNote = '';
+        $this->applyToDays = [];
+        $this->applyContribution = false;
         $this->resetErrorBag();
     }
 

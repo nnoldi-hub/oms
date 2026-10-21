@@ -135,7 +135,7 @@ class TomorrowMealOverviewTest extends TestCase
 
         Livewire::actingAs(User::factory()->create(['role' => 'admin']))
             ->test(TomorrowMealOverview::class)
-            ->assertSee('Neacoperite: Aprovizionare si transport, Impachetare si servire, Donatii');
+            ->assertSee('Neacoperite: Aprovizionare si transport, Impachetare si servire');
 
         CarbonImmutable::setTestNow();
     }
