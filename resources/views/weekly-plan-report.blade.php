@@ -48,7 +48,7 @@
         .day__dessert strong { color: #4338ca; }
         .day__number { text-align: right; }
         .day__number .hint { color: #66756e; display: block; font-size: 6.8pt; }
-        .day__partial { color: #b45309; display: block; font-size: 6.8pt; font-weight: bold; }
+        .day__partial { color: #b45309; display: inline; font-size: 6.8pt; font-weight: bold; margin-left: 3px; }
         .day__roles { background: #fbfdfc; font-size: 7.6pt; }
         .day__roles .role { margin-right: 10px; }
         .role__name { color: #047857; font-weight: bold; }
@@ -89,14 +89,14 @@
                 <span class="summary__value">{{ $report['totals']['portions'] }}</span>
             </td>
             <td>
-                <span class="caption">Cost estimat săptămâna</span>
+                <span class="caption">{{ $report['totals']['has_missing_prices'] ? 'Cost estimat (parțial)' : 'Cost estimat săptămâna' }}</span>
                 <span class="summary__value">{{ number_format($report['totals']['cost'], 2, '.', ' ') }} RON</span>
                 @if ($report['totals']['has_missing_prices'])
                     <span class="summary__note">parțial — lipsesc date de cost</span>
                 @endif
             </td>
             <td>
-                <span class="caption">Cost / porție</span>
+                <span class="caption">Cost / porție{{ $report['totals']['has_missing_prices'] ? ' (parțial)' : '' }}</span>
                 <span class="summary__value">{{ $report['totals']['cost_per_portion'] === null ? '—' : number_format($report['totals']['cost_per_portion'], 2, '.', ' ').' RON' }}</span>
             </td>
         </tr>
@@ -193,9 +193,9 @@
             @endif
             @if ($report['allergens'] !== [])
                 <td style="width: 48%">
-                    <p class="footer__title">Alergeni declarați pe zi</p>
+                    <p class="footer__title">Alergeni pe zi</p>
                     @foreach ($report['allergens'] as $day)
-                        <p><strong>{{ $day['label'] }}:</strong> {{ implode(', ', $day['allergens']) }}</p>
+                        <p><strong>{{ $day['label'] }}:</strong> {{ $day['text'] }}</p>
                     @endforeach
                 </td>
             @endif

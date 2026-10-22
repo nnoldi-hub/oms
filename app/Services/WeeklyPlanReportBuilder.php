@@ -158,8 +158,11 @@ class WeeklyPlanReportBuilder
     /**
      * Alergenii declarati pe zile.
      *
+     * Toate zilele apar in lista, iar zilele fara alergeni declarati sunt marcate
+     * ca "nedeclarat - de verificat".
+     *
      * @param  array<int, array<string, mixed>>  $days
-     * @return list<array{label: string, allergens: list<string>}>
+     * @return list<array{label: string, allergens: list<string>, text: string}>
      */
     private function allergens(array $days): array
     {
@@ -167,8 +170,8 @@ class WeeklyPlanReportBuilder
             ->map(fn (array $day): array => [
                 'label' => $day['short_label'],
                 'allergens' => $day['allergens'],
+                'text' => $day['allergens'] === [] ? 'nedeclarat – de verificat' : implode(', ', $day['allergens']),
             ])
-            ->filter(fn (array $day): bool => $day['allergens'] !== [])
             ->values()
             ->all();
     }
@@ -211,10 +214,14 @@ class WeeklyPlanReportBuilder
         )));
     }
 
+    /**
+     * Perioada raportului: de la prima la ultima masa programata, nu saptamana calendaristica.
+     */
     private function range(Week $week): string
     {
-        $start = $week->start_date;
-        $end = $week->dailyMeals->last()?->meal_date ?? $start->copy()->addDays(4);
+        $meals = $week->dailyMeals->sortBy(fn (DailyMeal $meal): int => $meal->meal_date->getTimestamp());
+        $start = $meals->first()?->meal_date ?? $week->start_date;
+        $end = $meals->last()?->meal_date ?? $start;
 
         return $start->translatedFormat('j F Y').' – '.$end->translatedFormat('j F Y');
     }

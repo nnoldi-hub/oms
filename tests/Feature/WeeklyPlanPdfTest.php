@@ -128,6 +128,71 @@ class WeeklyPlanPdfTest extends TestCase
             ->assertDontSee('Descarcă PDF planul săptămânii');
     }
 
+    public function test_the_days_with_unconfigured_costs_are_marked_as_partial(): void
+    {
+        $week = $this->weekWithMeals();
+        $menuWithoutPrice = Menu::factory()->create([
+            'name' => 'Mâncare fără preț',
+            'ingredients' => [['name' => 'Pastai', 'quantity_per_person' => 0.2, 'unit' => 'kg']],
+            'allergens' => [],
+            'packaging_cost' => 0,
+        ]);
+        $meal = DailyMeal::query()->where('week_id', $week->id)->orderBy('meal_date')->firstOrFail();
+        $meal->menu_id = $menuWithoutPrice->id;
+        $meal->saveQuietly();
+
+        $html = $this->renderReport($week);
+
+        $this->assertStringContainsString('<span class="day__partial">parțial</span>', $html);
+        $this->assertStringContainsString('Cost estimat (parțial)', $html);
+        $this->assertStringContainsString('parțial — lipsesc date de cost', $html);
+    }
+
+    public function test_the_allergens_section_lists_every_day(): void
+    {
+        $week = $this->weekWithMeals();
+        $menuWithoutAllergens = Menu::factory()->create([
+            'name' => 'Prânz fără alergeni',
+            'ingredients' => [['name' => 'Orez', 'quantity_per_person' => 0.2, 'unit' => 'kg', 'estimated_unit_cost' => 5]],
+            'allergens' => [],
+            'packaging_cost' => 0,
+        ]);
+        $meal = DailyMeal::query()->where('week_id', $week->id)->orderBy('meal_date')->skip(2)->firstOrFail();
+        $meal->menu_id = $menuWithoutAllergens->id;
+        $meal->soup_menu_id = null;
+        $meal->dessert_menu_id = null;
+        $meal->saveQuietly();
+
+        $report = app(WeeklyPlanReportBuilder::class)->build($week);
+
+        $this->assertCount(5, $report['allergens']);
+        $this->assertSame('Telina', $report['allergens'][0]['text']);
+        $this->assertSame('nedeclarat – de verificat', $report['allergens'][2]['text']);
+
+        $html = $this->renderReport($week);
+
+        $this->assertStringContainsString('Alergeni pe zi', $html);
+        $this->assertStringContainsString('Telina', $html);
+        $this->assertStringContainsString('nedeclarat – de verificat', $html);
+    }
+
+    public function test_the_period_covers_the_first_and_the_last_scheduled_meal(): void
+    {
+        $week = Week::factory()->create(['week_number' => 51, 'start_date' => '2026-12-07']);
+        $menu = Menu::factory()->create([
+            'ingredients' => [['name' => 'Cartofi', 'quantity_per_person' => 0.2, 'unit' => 'kg', 'estimated_unit_cost' => 5]],
+            'packaging_cost' => 1,
+        ]);
+
+        DailyMeal::factory()->for($week)->for($menu)->create(['meal_date' => '2026-12-09', 'estimated_people' => 10]);
+        DailyMeal::factory()->for($week)->for($menu)->create(['meal_date' => '2026-12-11', 'estimated_people' => 10]);
+
+        $report = app(WeeklyPlanReportBuilder::class)->build($week);
+
+        $this->assertSame('9 decembrie 2026 – 11 decembrie 2026', $report['range']);
+        $this->assertStringContainsString('9 decembrie 2026 – 11 decembrie 2026', $this->renderReport($week));
+    }
+
     private function weekWithMeals(int $days = 5): Week
     {
         $congregation = Congregation::factory()->create([
