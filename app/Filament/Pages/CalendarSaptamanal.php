@@ -129,6 +129,10 @@ class CalendarSaptamanal extends Page
     public bool $applyContribution = false;
     public ?int $teamsMealId = null;
 
+    public bool $includePhones = true;
+
+    public bool $showPlanPdf = false;
+
     public ?int $editingTeamId = null;
 
     public string $teamName = '';
@@ -1213,6 +1217,28 @@ class CalendarSaptamanal extends Page
     public function notifyMessageCopied(): void
     {
         Notification::make()->title('Mesajul a fost copiat in clipboard.')->success()->send();
+    }
+
+    public function openPlanPdf(): void
+    {
+        abort_unless($this->canDownloadPlanPdf, 403);
+
+        $this->showPlanPdf = true;
+    }
+
+    public function closePlanPdf(): void
+    {
+        $this->showPlanPdf = false;
+    }
+
+    /**
+     * Doar administratorul si coordonatorii pot descarca planul saptamanii in PDF.
+     */
+    public function getCanDownloadPlanPdfProperty(): bool
+    {
+        $week = $this->selectedWeek;
+
+        return $week !== null && Gate::allows('downloadPlan', $week);
     }
 
     private function resetVolunteerForm(): void

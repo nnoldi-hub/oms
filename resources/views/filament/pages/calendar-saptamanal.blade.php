@@ -69,6 +69,7 @@
         .oms-modal__radio { align-items: center; display: flex; gap: 8px; font-size: 14px; }
         .oms-modal__buttons { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; }
         .oms-modal__confirm { background: var(--green); border: 0; border-radius: 6px; color: #fff; cursor: pointer; font: inherit; font-weight: 700; padding: 9px 15px; }
+        .oms-modal__confirm--link { display: inline-block; text-decoration: none; }
         .oms-modal__cancel { background: #fff; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); cursor: pointer; font: inherit; font-weight: 700; padding: 9px 15px; }
         .oms-modal__danger { background: #be123c; border: 0; border-radius: 6px; color: #fff; cursor: pointer; font: inherit; font-weight: 700; padding: 9px 15px; }
         .oms-card__budget { border-top: 1px solid var(--line); display: grid; gap: 9px; margin-top: 14px; padding-top: 14px; }
@@ -139,6 +140,9 @@
                         x-data
                         x-on:click="navigator.clipboard.writeText(@js($this->whatsappMessages['week'] ?? '')); $wire.call('notifyMessageCopied')"
                     >Copiaza planul saptamanii</button>
+                    @if ($this->canDownloadPlanPdf)
+                        <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="openPlanPdf">Descarcă PDF planul săptămânii</button>
+                    @endif
                     @foreach ($this->selectedWeek->dailyMeals->pluck('congregation')->filter()->unique('id') as $congregation)
                         <a class="oms-calendar__report oms-calendar__report--secondary" href="{{ route('congregation-weekly-reports.show', [$this->selectedWeek, $congregation]) }}" target="_blank">Fisa {{ $congregation->name }}</a>
                     @endforeach
@@ -667,6 +671,29 @@
                     <div class="oms-modal__buttons">
                         <button class="oms-modal__cancel" type="button" wire:click="closeDeleteWeek">Renunta</button>
                         <button class="oms-modal__danger" type="button" wire:click="confirmDeleteWeek">Șterge săptămâna</button>
+                    </div>
+                </div>
+            </div>
+        @endif
+        @if ($showPlanPdf)
+            <div class="oms-modal">
+                <div class="oms-modal__panel">
+                    <h2 class="oms-modal__title">Descarcă PDF planul săptămânii</h2>
+                    <p class="oms-modal__hint">Raportul conține zilele, felurile, porțiile, rolurile și persoanele de contact pentru săptămâna {{ $this->selectedWeek?->week_number }}. Documentul este privat și nu include contribuțiile persoanelor.</p>
+                    <div class="oms-modal__row">
+                        <label class="oms-modal__radio">
+                            <input type="checkbox" wire:model.live="includePhones">
+                            Include telefoane
+                        </label>
+                    </div>
+                    <div class="oms-modal__buttons">
+                        <button class="oms-modal__cancel" type="button" wire:click="closePlanPdf">Renunta</button>
+                        <a
+                            class="oms-modal__confirm oms-modal__confirm--link"
+                            href="{{ route('weekly-plan-pdfs.show', ['week' => $this->selectedWeek, 'include_phones' => $this->includePhones ? 1 : 0]) }}"
+                            target="_blank"
+                            rel="noopener"
+                        >Descarca</a>
                     </div>
                 </div>
             </div>

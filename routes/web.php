@@ -5,6 +5,7 @@ use App\Http\Controllers\PublicCongregationWeekSheetController;
 use App\Http\Controllers\CongregationWeeklyReportController;
 use App\Http\Controllers\DailyMealPreparationSheetController;
 use App\Http\Controllers\MenuCostReportController;
+use App\Http\Controllers\WeeklyPlanPdfController;
 use App\Http\Controllers\WeeklyReportController;
 use Illuminate\Support\Facades\Route;
 
@@ -25,6 +26,9 @@ Route::middleware('auth')->get('/rapoarte/saptamani/{week}', WeeklyReportControl
 
 Route::middleware('auth')->get('/rapoarte/saptamani/{week}/congregatii/{congregation}', CongregationWeeklyReportController::class)
     ->name('congregation-weekly-reports.show');
+
+Route::middleware('auth')->get('/rapoarte/saptamani/{week}/plan-pdf', WeeklyPlanPdfController::class)
+    ->name('weekly-plan-pdfs.show');
 
 Route::middleware('auth')->get('/rapoarte/zile/{dailyMeal}/pregatire', DailyMealPreparationSheetController::class)
     ->name('daily-meal-preparation-sheets.show');
