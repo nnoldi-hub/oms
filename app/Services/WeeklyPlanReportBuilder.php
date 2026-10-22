@@ -88,6 +88,7 @@ class WeeklyPlanReportBuilder
             'roles' => $this->roles($meal, $includePhones),
             'uncovered_roles' => $isFreeDay ? [] : $this->uncoveredRoles($meal),
             'allergens' => $this->dayAllergens($components),
+            'allergens_status' => $this->dayAllergensStatus($components),
         ];
     }
 
@@ -158,8 +159,9 @@ class WeeklyPlanReportBuilder
     /**
      * Alergenii declarati pe zile.
      *
-     * Toate zilele apar in lista, iar zilele fara alergeni declarati sunt marcate
-     * ca "nedeclarat - de verificat".
+     * Toate zilele apar in lista: zilele cu alergeni declarati afiseaza lista,
+     * zilele in care toate meniurile sunt marcate explicit "fara alergeni" afiseaza
+     * "fara alergeni (declarat)", iar celelalte sunt marcate "nedeclarat - de verificat".
      *
      * @param  array<int, array<string, mixed>>  $days
      * @return list<array{label: string, allergens: list<string>, text: string}>
@@ -170,10 +172,63 @@ class WeeklyPlanReportBuilder
             ->map(fn (array $day): array => [
                 'label' => $day['short_label'],
                 'allergens' => $day['allergens'],
-                'text' => $day['allergens'] === [] ? 'nedeclarat – de verificat' : implode(', ', $day['allergens']),
+                'text' => $this->allergensText($day['allergens_status'] ?? 'nedeclarat', $day['allergens']),
             ])
             ->values()
             ->all();
+    }
+
+    /**
+     * @param  list<string>  $allergens
+     */
+    private function allergensText(string $status, array $allergens): string
+    {
+        if ($status === 'fara_alergeni') {
+            return 'fara alergeni (declarat)';
+        }
+
+        if ($status === 'declarate') {
+            return implode(', ', $allergens);
+        }
+
+        return 'nedeclarat – de verificat';
+    }
+
+    /**
+     * Starea allergenilor pentru o zi: "declarate", "fara_alergeni" sau "nedeclarat".
+     *
+     * @param  Collection<string, array<string, mixed>>  $components
+     */
+    private function dayAllergensStatus($components): string
+    {
+        $statuses = $components
+            ->map(fn (array $component): string => $this->menuAllergensStatus($component['menu'] ?? null))
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($statuses->isEmpty() || $statuses->contains('nedeclarat')) {
+            return 'nedeclarat';
+        }
+
+        return $statuses->every(fn (string $status): bool => $status === 'fara_alergeni')
+            ? 'fara_alergeni'
+            : 'declarate';
+    }
+
+    private function menuAllergensStatus(?Menu $menu): string
+    {
+        if (! $menu instanceof Menu) {
+            return '';
+        }
+
+        $allergens = is_array($menu->allergens) ? $menu->allergens : [];
+
+        if ($allergens !== []) {
+            return 'declarate';
+        }
+
+        return $menu->declaresNoAllergens() ? 'fara_alergeni' : 'nedeclarat';
     }
 
     /**

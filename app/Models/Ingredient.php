@@ -12,10 +12,23 @@ class Ingredient extends Model
 
     public const UNITS = ['kg', 'g', 'l', 'buc'];
 
-    protected $fillable = ['name', 'unit', 'unit_price', 'is_active'];
+    protected $fillable = ['name', 'unit', 'unit_price', 'package_quantity', 'has_no_allergens', 'is_active'];
 
     protected function casts(): array
     {
-        return ['unit_price' => 'decimal:2', 'is_active' => 'boolean'];
+        return [
+            'unit_price' => 'decimal:2',
+            'package_quantity' => 'decimal:3',
+            'has_no_allergens' => 'boolean',
+            'is_active' => 'boolean',
+        ];
+    }
+
+    /**
+     * Cantitatea cumparata intr-un pachet, exprimata in unitatea ingredientului.
+     */
+    public function packageQuantity(): ?float
+    {
+        return $this->package_quantity === null ? null : (float) $this->package_quantity;
     }
 }

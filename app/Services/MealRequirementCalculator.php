@@ -10,7 +10,7 @@ use InvalidArgumentException;
 class MealRequirementCalculator
 {
     /**
-     * @return array{ingredients: list<array{name: string, quantity: float, unit: string, estimated_unit_cost: ?float, estimated_cost: float, has_missing_price: bool, needs_configuration: bool}>, packaging: array{count: int, unit_cost: float, total_cost: float}, totals: array{ingredients_cost: float, total_cost: float, has_missing_prices: bool}}
+     * @return array{ingredients: list<array{name: string, quantity: float, unit: string, estimated_unit_cost: ?float, estimated_cost: float, has_missing_price: bool, needs_configuration: bool, package_quantity: ?float}>, packaging: array{count: int, unit_cost: float, total_cost: float}, totals: array{ingredients_cost: float, total_cost: float, has_missing_prices: bool}}
      */
     public function calculate(DailyMeal $dailyMeal): array
     {
@@ -45,6 +45,7 @@ class MealRequirementCalculator
                     'unpriced_quantity' => 0.0,
                     'configured_unit_cost' => $hasPrice ? (float) $unitCost : null,
                     'needs_configuration' => false,
+                    'package_quantity' => $catalogIngredient?->packageQuantity(),
                 ];
             }
 
@@ -70,6 +71,7 @@ class MealRequirementCalculator
                     'estimated_cost' => round($requirement['estimated_cost'], 2),
                     'has_missing_price' => $hasMissingPrice,
                     'needs_configuration' => $requirement['needs_configuration'],
+                    'package_quantity' => $requirement['package_quantity'],
                 ];
             },
             $requirements,

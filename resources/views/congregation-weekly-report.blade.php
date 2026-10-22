@@ -50,13 +50,13 @@
                         <tr>
                             <td>{{ $dailyMeal->meal_date->translatedFormat('D, j M') }}</td>
                             <td>
-                                <strong>{{ $dailyMeal->menu?->name ?? 'â€” fÄƒrÄƒ meniu â€”' }}</strong><br>
-                                <small>Alergeni: {{ $dailyMeal->menu === null ? '-' : (is_array($dailyMeal->menu->allergens) ? ($dailyMeal->menu->allergens === [] ? 'Nedeclarat – de verificat' : implode(', ', $dailyMeal->menu->allergens)) : 'Nedeclarat – de verificat') }}</small>
+                                <strong>{{ $dailyMeal->menu?->name ?? '— fără meniu —' }}</strong><br>
+                                <small>Alergeni: {{ $dailyMeal->menu === null ? '-' : $dailyMeal->menu->allergensLabel() }}</small>
                             </td>
                             <td>
                                 @if ($dailyMeal->soupMenu)
                                     <strong>{{ $dailyMeal->soupMenu->name }}</strong><br>
-                                    <small>Alergeni: {{ is_array($dailyMeal->soupMenu->allergens) ? ($dailyMeal->soupMenu->allergens === [] ? 'Nedeclarat – de verificat' : implode(', ', $dailyMeal->soupMenu->allergens)) : 'Nedeclarat – de verificat' }}</small>
+                                    <small>Alergeni: {{ $dailyMeal->soupMenu->allergensLabel() }}</small>
                                 @else
                                     -
                                 @endif
@@ -64,7 +64,7 @@
                             <td>
                                 @if ($dailyMeal->dessertMenu)
                                     <strong>{{ $dailyMeal->dessertMenu->name }}</strong><br>
-                                    <small>Alergeni: {{ is_array($dailyMeal->dessertMenu->allergens) ? ($dailyMeal->dessertMenu->allergens === [] ? 'Nedeclarat – de verificat' : implode(', ', $dailyMeal->dessertMenu->allergens)) : 'Nedeclarat – de verificat' }}</small>
+                                    <small>Alergeni: {{ $dailyMeal->dessertMenu->allergensLabel() }}</small>
                                 @else
                                     -
                                 @endif

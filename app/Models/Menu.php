@@ -98,6 +98,44 @@ class Menu extends Model
         return $this->hasMany(DailyMeal::class);
     }
 
+    /**
+     * Textul cu allergenii meniului, folosit in toate rapoartele.
+     *
+     * "Fara alergeni (declarat)" apare doar daca toate ingredientele meniului sunt
+     * marcate explicit in catalog ca fiind fara alergeni.
+     */
+    public function allergensLabel(): string
+    {
+        $allergens = is_array($this->allergens) ? $this->allergens : [];
+
+        if ($allergens !== []) {
+            return implode(', ', $allergens);
+        }
+
+        return $this->declaresNoAllergens() ? 'Fara alergeni (declarat)' : 'Nedeclarat – de verificat';
+    }
+
+    /**
+     * Toate ingredientele meniului sunt marcate in catalog ca fiind fara alergeni.
+     */
+    public function declaresNoAllergens(): bool
+    {
+        $ingredientIds = collect($this->ingredients ?? [])
+            ->pluck('ingredient_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($ingredientIds->isEmpty()) {
+            return false;
+        }
+
+        return Ingredient::query()
+            ->whereIn('id', $ingredientIds)
+            ->where('has_no_allergens', false)
+            ->doesntExist();
+    }
+
     public function soupDailyMeals(): HasMany
     {
         return $this->hasMany(DailyMeal::class, 'soup_menu_id');

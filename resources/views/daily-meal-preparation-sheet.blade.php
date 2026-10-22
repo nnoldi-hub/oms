@@ -81,10 +81,7 @@
             @endphp
             @if ($section['menu'] && $section['requirements'])
                 @php
-                    $allergens = $section['menu']->allergens;
-                    $allergenText = is_array($allergens) && $allergens !== []
-                        ? implode(', ', $allergens)
-                        : 'Nedeclarat – de verificat';
+                    $allergenText = $section['menu']->allergensLabel();
                     $packaging = $section['requirements']['packaging'];
                     $hasPackaging = $componentKey !== 'soup' && (float) $packaging['total_cost'] > 0;
                 @endphp

@@ -40,6 +40,7 @@ class WeeklyReportTest extends TestCase
             'estimated_cost' => 22.5,
             'has_missing_price' => false,
             'needs_configuration' => false,
+            'package_quantity' => null,
             'to_buy_quantity' => 4.5,
         ]], $report['ingredients']);
         $this->assertSame(['count' => 45, 'total_cost' => 67.5], $report['packaging']);
@@ -121,7 +122,7 @@ class WeeklyReportTest extends TestCase
 
         $this->assertSame(20.0, collect($report['ingredients'])->firstWhere('name', 'Oua')['to_buy_quantity']);
         $this->assertSame(0.5, collect($report['ingredients'])->firstWhere('name', 'Ulei')['to_buy_quantity']);
-        $this->assertSame(1.0, collect($report['ingredients'])->firstWhere('name', 'Cartofi')['to_buy_quantity']);
+        $this->assertSame(0.6, collect($report['ingredients'])->firstWhere('name', 'Cartofi')['to_buy_quantity']);
     }
 
     public function test_weekly_report_counts_days_whose_menu_has_no_ingredients_or_cost(): void

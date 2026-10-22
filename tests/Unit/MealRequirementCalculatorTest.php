@@ -25,8 +25,8 @@ class MealRequirementCalculatorTest extends TestCase
         $requirements = app(MealRequirementCalculator::class)->calculate($dailyMeal);
 
         $this->assertSame([
-            ['name' => 'Pui', 'quantity' => 10.0, 'unit' => 'kg', 'estimated_unit_cost' => 20.0, 'estimated_cost' => 200.0, 'has_missing_price' => false, 'needs_configuration' => false],
-            ['name' => 'Orez', 'quantity' => 4.0, 'unit' => 'kg', 'estimated_unit_cost' => 5.0, 'estimated_cost' => 20.0, 'has_missing_price' => false, 'needs_configuration' => false],
+            ['name' => 'Pui', 'quantity' => 10.0, 'unit' => 'kg', 'estimated_unit_cost' => 20.0, 'estimated_cost' => 200.0, 'has_missing_price' => false, 'needs_configuration' => false, 'package_quantity' => null],
+['name' => 'Orez', 'quantity' => 4.0, 'unit' => 'kg', 'estimated_unit_cost' => 5.0, 'estimated_cost' => 20.0, 'has_missing_price' => false, 'needs_configuration' => false, 'package_quantity' => null],
         ], $requirements['ingredients']);
         $this->assertSame(['count' => 50, 'unit_cost' => 1.25, 'total_cost' => 62.5], $requirements['packaging']);
         $this->assertSame(['ingredients_cost' => 220.0, 'total_cost' => 282.5, 'has_missing_prices' => false], $requirements['totals']);

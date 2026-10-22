@@ -47,6 +47,7 @@ class DailyShoppingListCalculator
                 'to_buy_quantity' => PracticalQuantity::roundUp(
                     round($ingredient['quantity'], 3),
                     $ingredient['unit'],
+                    $ingredient['package_quantity'] ?? null,
                 ),
             ],
             $ingredients,
@@ -96,5 +97,7 @@ class DailyShoppingListCalculator
         $ingredients[$key]['has_missing_price'] = $ingredients[$key]['has_missing_price'] || $ingredient['has_missing_price'];
         $ingredients[$key]['needs_configuration'] = ($ingredients[$key]['needs_configuration'] ?? false)
             || ($ingredient['needs_configuration'] ?? false);
+        $ingredients[$key]['package_quantity'] = $ingredients[$key]['package_quantity']
+            ?? ($ingredient['package_quantity'] ?? null);
     }
 }

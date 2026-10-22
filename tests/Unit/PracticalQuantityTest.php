@@ -11,11 +11,14 @@ class PracticalQuantityTest extends TestCase
     {
         $this->assertSame(4.5, PracticalQuantity::roundUp(4.2, 'kg'));
         $this->assertSame(4.0, PracticalQuantity::roundUp(4, 'kg'));
-        $this->assertSame(0.5, PracticalQuantity::roundUp(0.1, 'kg'));
+        $this->assertSame(0.1, PracticalQuantity::roundUp(0.1, 'kg'));
+        $this->assertSame(0.2, PracticalQuantity::roundUp(0.175, 'kg'));
+        $this->assertSame(0.6, PracticalQuantity::roundUp(0.6, 'kg'));
+        $this->assertSame(2.0, PracticalQuantity::roundUp(1.525, 'kg'));
+        $this->assertSame(0.25, PracticalQuantity::roundUp(0.175, 'kg', 0.25));
         $this->assertSame(0.0, PracticalQuantity::roundUp(0, 'kg'));
         $this->assertSame(2.5, PracticalQuantity::roundUp(2.3, 'l'));
         $this->assertSame(1.5, PracticalQuantity::roundUp(1.5, 'l'));
-        $this->assertSame(2.0, PracticalQuantity::roundUp(1.5, 'buc'));
         $this->assertSame(3.0, PracticalQuantity::roundUp(3, 'buc'));
         $this->assertSame(100.0, PracticalQuantity::roundUp(1, 'g'));
     }

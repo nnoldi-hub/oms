@@ -95,7 +95,7 @@
 
                 @foreach ($sheet['components'] as $component)
                     <h3>{{ $component['label'] }}: {{ $component['menu']->name }}</h3>
-                    <p class="day-meta"><strong>Alergeni declarați:</strong> {{ is_array($component['menu']->allergens) ? ($component['menu']->allergens === [] ? 'Nedeclarat – de verificat' : implode(', ', $component['menu']->allergens)) : 'Nedeclarat – de verificat' }}</p>
+                    <p class="day-meta"><strong>Alergeni declarați:</strong> {{ $component['menu']->allergensLabel() }}</p>
                     <table>
                         <thead><tr><th>Ingredient</th><th class="number">Cantitate</th><th class="number">Cost estimat</th></tr></thead>
                         <tbody>

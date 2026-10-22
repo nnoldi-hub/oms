@@ -464,17 +464,17 @@ class CalendarSaptamanalTest extends TestCase
             ->test(CalendarSaptamanal::class)
             ->set('weekId', $week->id)
             ->call('openPeople', $dailyMeal->id)
-            ->set('volunteerName', 'Ion Popescu')
-            ->set('volunteerRole', 'bucatar')
-            ->set('volunteerPhone', '0722000111')
+            ->set('volunteerName', 'Persoana Test 1')
+            ->set('volunteerRoles', ['Gatit' => true])
+            ->set('volunteerPhone', '0700000000')
             ->call('saveVolunteer')
             ->assertHasNoErrors();
 
         $this->assertDatabaseHas('volunteers', [
             'daily_meal_id' => $dailyMeal->id,
-            'name' => 'Ion Popescu',
-            'role' => 'bucatar',
-            'phone' => '0722000111',
+            'name' => 'Persoana Test 1',
+            'role' => 'Gatit',
+            'phone' => '0700000000',
         ]);
     }
 
@@ -491,12 +491,12 @@ class CalendarSaptamanalTest extends TestCase
             ->test(CalendarSaptamanal::class)
             ->set('weekId', $week->id)
             ->call('openPeople', $ownMeal->id)
-            ->set('volunteerName', 'Ana Ionescu')
-            ->set('volunteerRole', 'ajutor')
+            ->set('volunteerName', 'Persoana Test 2')
+            ->set('volunteerRoles', ['Aprovizionare si transport' => true])
             ->call('saveVolunteer')
             ->assertHasNoErrors();
 
-        $this->assertDatabaseHas('volunteers', ['daily_meal_id' => $ownMeal->id, 'name' => 'Ana Ionescu']);
+        $this->assertDatabaseHas('volunteers', ['daily_meal_id' => $ownMeal->id, 'name' => 'Persoana Test 2']);
 
         Livewire::actingAs($coordinator)
             ->test(CalendarSaptamanal::class)

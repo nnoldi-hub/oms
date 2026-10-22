@@ -9,9 +9,7 @@ use App\Http\Controllers\WeeklyPlanPdfController;
 use App\Http\Controllers\WeeklyReportController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+Route::redirect('/', '/admin'); 
 
 Route::middleware('throttle:60,1')->group(function (): void {
     Route::get('/mese/{dailyMeal:public_token}', PublicDailyMealController::class)
