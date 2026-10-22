@@ -46,7 +46,7 @@ class WeeklyDaySheets
                 'key' => $key,
                 'label' => match ($key) {
                     'main' => 'Fel principal',
-                    'soup' => 'Ciorba',
+                    'soup' => 'Ciorbă',
                     'dessert' => 'Desert / gustare',
                 },
             ])

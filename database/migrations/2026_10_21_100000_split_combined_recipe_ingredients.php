@@ -15,7 +15,7 @@ return new class extends Migration
             $split = [];
 
             foreach ($ingredients as $ingredient) {
-                $parts = CombinedIngredients::partsFor((string) ($ingredient['name'] ?? ''));
+                $parts = CombinedIngredients::splitFor($ingredient);
 
                 if ($parts === null) {
                     $split[] = $ingredient;
@@ -24,30 +24,21 @@ return new class extends Migration
                 }
 
                 $changed = true;
-                $quantity = (float) ($ingredient['quantity_per_person'] ?? 0);
                 $unit = (string) ($ingredient['unit'] ?? 'kg');
-                $combinedIngredient = isset($ingredient['ingredient_id'])
-                    ? Ingredient::query()->find($ingredient['ingredient_id'])
-                    : null;
-                $estimatedUnitCost = $ingredient['estimated_unit_cost'] ?? $combinedIngredient?->unit_price;
 
                 foreach ($parts as $part) {
-                    $entry = [
-                        'name' => $part,
-                        'quantity_per_person' => round($quantity / count($parts), 4),
-                        'unit' => $unit,
-                    ];
-
+                    $entry = $part;
                     $catalogIngredient = Ingredient::query()
-                        ->where('name', $part)
+                        ->where('name', $part['name'])
                         ->where('unit', $unit)
                         ->first();
 
                     if ($catalogIngredient !== null) {
                         $entry['ingredient_id'] = $catalogIngredient->id;
-                    } elseif ($estimatedUnitCost !== null) {
-                        $entry['estimated_unit_cost'] = (float) $estimatedUnitCost;
                     }
+
+                    // Pretul amestecului nu se mosteneste: fiecare componenta ramane de configurat.
+                    unset($entry['estimated_unit_cost']);
 
                     $split[] = $entry;
                 }

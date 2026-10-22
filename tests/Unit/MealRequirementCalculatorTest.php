@@ -25,8 +25,8 @@ class MealRequirementCalculatorTest extends TestCase
         $requirements = app(MealRequirementCalculator::class)->calculate($dailyMeal);
 
         $this->assertSame([
-            ['name' => 'Pui', 'quantity' => 10.0, 'unit' => 'kg', 'estimated_unit_cost' => 20.0, 'estimated_cost' => 200.0, 'has_missing_price' => false],
-            ['name' => 'Orez', 'quantity' => 4.0, 'unit' => 'kg', 'estimated_unit_cost' => 5.0, 'estimated_cost' => 20.0, 'has_missing_price' => false],
+            ['name' => 'Pui', 'quantity' => 10.0, 'unit' => 'kg', 'estimated_unit_cost' => 20.0, 'estimated_cost' => 200.0, 'has_missing_price' => false, 'needs_configuration' => false],
+            ['name' => 'Orez', 'quantity' => 4.0, 'unit' => 'kg', 'estimated_unit_cost' => 5.0, 'estimated_cost' => 20.0, 'has_missing_price' => false, 'needs_configuration' => false],
         ], $requirements['ingredients']);
         $this->assertSame(['count' => 50, 'unit_cost' => 1.25, 'total_cost' => 62.5], $requirements['packaging']);
         $this->assertSame(['ingredients_cost' => 220.0, 'total_cost' => 282.5, 'has_missing_prices' => false], $requirements['totals']);
@@ -45,6 +45,28 @@ class MealRequirementCalculatorTest extends TestCase
 
         $this->assertTrue($requirements['ingredients'][0]['has_missing_price']);
         $this->assertSame(['ingredients_cost' => 0.0, 'total_cost' => 10.0, 'has_missing_prices' => true], $requirements['totals']);
+    }
+
+    public function test_it_marks_split_components_as_needing_configuration(): void
+    {
+        $menu = new Menu([
+            'ingredients' => [[
+                'name' => 'Faina',
+                'quantity_per_person' => 0,
+                'unit' => 'kg',
+                'needs_configuration' => true,
+            ]],
+            'packaging_cost' => 0,
+        ]);
+        $dailyMeal = new DailyMeal(['estimated_people' => 10]);
+        $dailyMeal->setRelation('menu', $menu);
+
+        $requirements = app(MealRequirementCalculator::class)->calculate($dailyMeal);
+
+        $this->assertTrue($requirements['ingredients'][0]['needs_configuration']);
+        $this->assertTrue($requirements['ingredients'][0]['has_missing_price']);
+        $this->assertNull($requirements['ingredients'][0]['estimated_unit_cost']);
+        $this->assertTrue($requirements['totals']['has_missing_prices']);
     }
 
     public function test_it_calculates_a_zero_portion_meal_without_dividing_by_zero(): void

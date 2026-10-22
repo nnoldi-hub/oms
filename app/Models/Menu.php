@@ -43,6 +43,13 @@ class Menu extends Model
 
             foreach ($recipeIngredients as &$ingredient) {
                 $catalogIngredient = $catalogIngredients->get($ingredient['ingredient_id'] ?? null);
+                $needsConfiguration = (bool) ($ingredient['needs_configuration'] ?? false);
+
+                if ($needsConfiguration) {
+                    // Componenta unui amestec: cantitatea si pretul raman de configurat,
+                    // deci nu mostenim pretul amestecului.
+                    unset($ingredient['estimated_unit_cost']);
+                }
 
                 if ($catalogIngredient !== null) {
                     $ingredient['name'] = $catalogIngredient->name;
@@ -61,8 +68,10 @@ class Menu extends Model
 
                 if (
                     blank($ingredient['name'] ?? null)
-                    || ! is_numeric($ingredient['quantity_per_person'] ?? null)
-                    || (float) $ingredient['quantity_per_person'] <= 0
+                    || (! $needsConfiguration && (
+                        ! is_numeric($ingredient['quantity_per_person'] ?? null)
+                        || (float) $ingredient['quantity_per_person'] <= 0
+                    ))
                     || ! in_array($ingredient['unit'] ?? null, ['kg', 'g', 'l', 'buc'], true)
                     || (array_key_exists('estimated_unit_cost', $ingredient)
                         && $ingredient['estimated_unit_cost'] !== null

@@ -95,14 +95,14 @@
 
                 @foreach ($sheet['components'] as $component)
                     <h3>{{ $component['label'] }}: {{ $component['menu']->name }}</h3>
-                    <p class="day-meta"><strong>Alergeni declarati:</strong> {{ is_array($component['menu']->allergens) ? ($component['menu']->allergens === [] ? 'Niciunul' : implode(', ', $component['menu']->allergens)) : 'De confirmat' }}</p>
+                    <p class="day-meta"><strong>Alergeni declarați:</strong> {{ is_array($component['menu']->allergens) ? ($component['menu']->allergens === [] ? 'Nedeclarat – de verificat' : implode(', ', $component['menu']->allergens)) : 'Nedeclarat – de verificat' }}</p>
                     <table>
                         <thead><tr><th>Ingredient</th><th class="number">Cantitate</th><th class="number">Cost estimat</th></tr></thead>
                         <tbody>
                             @foreach ($component['requirements']['ingredients'] as $ingredient)
                                 <tr>
                                     <td>{{ $ingredient['name'] }}</td>
-                                    <td class="number">{{ rtrim(rtrim(number_format($ingredient['quantity'], 3, '.', ''), '0'), '.') }} {{ $ingredient['unit'] }}</td>
+                                    <td class="number">{{ $ingredient['needs_configuration'] ? 'De configurat' : rtrim(rtrim(number_format($ingredient['quantity'], 3, '.', ''), '0'), '.') . ' ' . $ingredient['unit'] }}</td>
                                     <td class="number">{{ $ingredient['has_missing_price'] ? 'De configurat' : number_format($ingredient['estimated_cost'], 2, '.', ' ') . ' RON' }}</td>
                                 </tr>
                             @endforeach
@@ -135,8 +135,8 @@
                     @forelse ($shoppingList['ingredients'] as $ingredient)
                         <tr>
                             <td>{{ $ingredient['name'] }}</td>
-                            <td class="number">{{ rtrim(rtrim(number_format($ingredient['quantity'], 3, '.', ''), '0'), '.') }} {{ $ingredient['unit'] }}</td>
-                            <td class="number">{{ \App\Support\PracticalQuantity::format($ingredient['to_buy_quantity'], $ingredient['unit']) }}</td>
+                            <td class="number">{{ $ingredient['needs_configuration'] ? 'De configurat' : rtrim(rtrim(number_format($ingredient['quantity'], 3, '.', ''), '0'), '.') . ' ' . $ingredient['unit'] }}</td>
+                            <td class="number">{{ $ingredient['needs_configuration'] ? 'De configurat' : \App\Support\PracticalQuantity::format($ingredient['to_buy_quantity'], $ingredient['unit']) }}</td>
                             <td class="number">{{ $ingredient['has_missing_price'] ? 'De configurat' : number_format($ingredient['estimated_unit_cost'], 2, '.', ' ') . ' RON/' . $ingredient['unit'] }}</td>
                             <td class="number">{{ $ingredient['has_missing_price'] ? '-' : number_format($ingredient['estimated_cost'], 2, '.', ' ') . ' RON' }}</td>
                         </tr>
@@ -145,7 +145,11 @@
                     @endforelse
                 </tbody>
             </table>
-            <p><strong>Ambalaje:</strong> {{ $shoppingList['packaging']['count'] }} caserole. <strong>Cost ambalaje:</strong> {{ number_format($shoppingList['packaging']['total_cost'], 2, '.', ' ') }} RON.</p>
+            @if ($shoppingList['packaging']['total_cost'] > 0)
+                <p><strong>Ambalaje:</strong> {{ $shoppingList['packaging']['count'] }} caserole. <strong>Cost ambalaje:</strong> {{ number_format($shoppingList['packaging']['total_cost'], 2, '.', ' ') }} RON.</p>
+            @else
+                <p><strong>Ambalaje:</strong> fără ambalaj.</p>
+            @endif
             <p><strong>Cost ingrediente configurat:</strong> {{ number_format($shoppingList['totals']['ingredients_cost'], 2, '.', ' ') }} RON. <strong>Total estimat configurat:</strong> {{ number_format($shoppingList['totals']['total_cost'], 2, '.', ' ') }} RON.</p>
             @if ($shoppingList['totals']['has_missing_prices'])
                 <p class="notice">Unele ingrediente nu au pret estimat. Totalul afisat este partial pana la completarea preturilor din meniuri.</p>

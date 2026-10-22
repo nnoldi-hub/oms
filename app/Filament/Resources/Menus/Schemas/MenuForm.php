@@ -10,6 +10,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Forms\Get;
 use Filament\Schemas\Schema;
 
 class MenuForm
@@ -50,8 +51,12 @@ class MenuForm
                         TextInput::make('quantity_per_person')
                             ->label('Cantitate per persoana')
                             ->numeric()
-                            ->minValue(0.001)
-                            ->required(),
+                            ->minValue(0)
+                            ->required(fn (Get $get): bool => ! $get('needs_configuration'))
+                            ->helperText('Lasati cantitatea la 0 si bifatati "De configurat" daca valoarea exacta se stabileste ulterior.'),
+                        Toggle::make('needs_configuration')
+                            ->label('De configurat')
+                            ->helperText('Cantitatea si pretul componentei se stabilesc manual.'),
                     ])
                     ->helperText('Alege ingredientul din catalogul global. Unitatea si pretul sunt preluate automat de acolo. Poti lasa lista goala si folosi costul estimat per portie.')
                     ->columnSpanFull(),

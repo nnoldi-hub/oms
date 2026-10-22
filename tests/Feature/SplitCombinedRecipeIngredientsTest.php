@@ -11,7 +11,7 @@ class SplitCombinedRecipeIngredientsTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_it_splits_combined_ingredients_into_separate_ones_without_losing_quantities(): void
+    public function test_it_splits_combined_ingredients_into_separate_ones_marked_for_configuration(): void
     {
         $menu = Menu::factory()->create([
             'name' => 'Cartofi cu ceapa si boia',
@@ -30,17 +30,18 @@ class SplitCombinedRecipeIngredientsTest extends TestCase
             collect($menu->ingredients)->pluck('name')->all(),
         );
 
-        $split = collect($menu->ingredients)->whereBetween('quantity_per_person', [0.014, 0.016]);
-        $this->assertSame(0.03, round((float) $split->sum('quantity_per_person'), 4));
+        $split = collect($menu->ingredients)->whereIn('name', ['Ceapa', 'Boia']);
+        $this->assertSame(0.0, (float) $split->sum('quantity_per_person'));
+        $this->assertTrue($split->every(fn (array $ingredient): bool => ($ingredient['needs_configuration'] ?? false) === true));
         $this->assertTrue($split->every(fn (array $ingredient): bool => isset($ingredient['ingredient_id'])));
+        $this->assertTrue($split->every(fn (array $ingredient): bool => ! array_key_exists('estimated_unit_cost', $ingredient)));
 
-        $this->assertSame(
-            10.0,
-            (float) Ingredient::query()->where('name', 'Ceapa')->where('unit', 'kg')->firstOrFail()->unit_price,
+        // Pretul amestecului nu se copiaza pe componente.
+        $this->assertNull(
+            Ingredient::query()->where('name', 'Ceapa')->where('unit', 'kg')->firstOrFail()->unit_price,
         );
-        $this->assertSame(
-            10.0,
-            (float) Ingredient::query()->where('name', 'Boia')->where('unit', 'kg')->firstOrFail()->unit_price,
+        $this->assertNull(
+            Ingredient::query()->where('name', 'Boia')->where('unit', 'kg')->firstOrFail()->unit_price,
         );
     }
 
@@ -60,15 +61,16 @@ class SplitCombinedRecipeIngredientsTest extends TestCase
 
         $fainaEntry = collect($menu->ingredients)->firstWhere('name', 'Faina');
         $this->assertSame($faina->id, $fainaEntry['ingredient_id']);
-        $this->assertSame(0.035, (float) $fainaEntry['quantity_per_person']);
+        $this->assertSame(0.0, (float) $fainaEntry['quantity_per_person']);
+        $this->assertTrue($fainaEntry['needs_configuration']);
+        $this->assertSame(4.0, (float) $faina->fresh()->unit_price);
 
         $cacaoEntry = collect($menu->ingredients)->firstWhere('name', 'Cacao');
-        $this->assertSame(
-            15.0,
-            (float) Ingredient::query()->where('name', 'Cacao')->where('unit', 'kg')->firstOrFail()->unit_price,
+        $this->assertSame(0.0, (float) $cacaoEntry['quantity_per_person']);
+        $this->assertTrue($cacaoEntry['needs_configuration']);
+        $this->assertNull(
+            Ingredient::query()->where('name', 'Cacao')->where('unit', 'kg')->firstOrFail()->unit_price,
         );
-        $this->assertSame(0.035, (float) $cacaoEntry['quantity_per_person']);
-        $this->assertSame(0.07, round((float) collect($menu->ingredients)->sum('quantity_per_person'), 4));
     }
 
     public function test_it_leaves_menus_without_combined_ingredients_untouched(): void

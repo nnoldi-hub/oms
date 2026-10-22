@@ -53,7 +53,7 @@
                 @foreach ($requirements['ingredients'] as $ingredient)
                     <li>
                         <span>{{ $ingredient['name'] }}</span>
-                        <span class="quantity">{{ rtrim(rtrim(number_format($ingredient['quantity'], 3, '.', ''), '0'), '.') }} {{ $ingredient['unit'] }}</span>
+                        <span class="quantity">{{ $ingredient['needs_configuration'] ? 'De configurat' : rtrim(rtrim(number_format($ingredient['quantity'], 3, '.', ''), '0'), '.') . ' ' . $ingredient['unit'] }}</span>
                     </li>
                 @endforeach
             </ul>
@@ -61,7 +61,7 @@
 
         <section class="packaging">
             <h2>Ambalaje</h2>
-            <p>Sunt necesare {{ $requirements['packaging']['count'] }} caserole.</p>
+            <p>{{ $requirements['packaging']['total_cost'] > 0 ? 'Sunt necesare ' . $requirements['packaging']['count'] . ' caserole.' : 'Nu este necesar ambalaj.' }}</p>
         </section>
     </main>
 </body>

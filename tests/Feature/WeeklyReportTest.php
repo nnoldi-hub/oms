@@ -39,6 +39,7 @@ class WeeklyReportTest extends TestCase
             'estimated_unit_cost' => 5.0,
             'estimated_cost' => 22.5,
             'has_missing_price' => false,
+            'needs_configuration' => false,
             'to_buy_quantity' => 4.5,
         ]], $report['ingredients']);
         $this->assertSame(['count' => 45, 'total_cost' => 67.5], $report['packaging']);
@@ -177,7 +178,7 @@ class WeeklyReportTest extends TestCase
             ->assertSee('Mancare de cartofi')
             ->assertSee('Ciorba de legume')
             ->assertSee('Fel principal: Mancare de cartofi')
-            ->assertSee('Ciorba: Ciorba de legume')
+            ->assertSee('Ciorbă: Ciorba de legume')
             ->assertSee('Portii confirmate:')
             ->assertSee('Telina')
             ->assertSee('De cumparat')

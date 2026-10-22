@@ -152,9 +152,9 @@ class OmsScheduleSeederTest extends TestCase
         $requirements = app(MealRequirementCalculator::class)->calculate($meal);
 
         $this->assertSame([
-            ['name' => 'Fasole boabe uscata', 'quantity' => 4.5, 'unit' => 'kg', 'estimated_unit_cost' => null, 'estimated_cost' => 0.0, 'has_missing_price' => true],
-            ['name' => 'Ciolan afumat dezosat', 'quantity' => 4.0, 'unit' => 'kg', 'estimated_unit_cost' => null, 'estimated_cost' => 0.0, 'has_missing_price' => true],
-            ['name' => 'Gogonele', 'quantity' => 5.0, 'unit' => 'kg', 'estimated_unit_cost' => null, 'estimated_cost' => 0.0, 'has_missing_price' => true],
+            ['name' => 'Fasole boabe uscata', 'quantity' => 4.5, 'unit' => 'kg', 'estimated_unit_cost' => null, 'estimated_cost' => 0.0, 'has_missing_price' => true, 'needs_configuration' => false],
+            ['name' => 'Ciolan afumat dezosat', 'quantity' => 4.0, 'unit' => 'kg', 'estimated_unit_cost' => null, 'estimated_cost' => 0.0, 'has_missing_price' => true, 'needs_configuration' => false],
+            ['name' => 'Gogonele', 'quantity' => 5.0, 'unit' => 'kg', 'estimated_unit_cost' => null, 'estimated_cost' => 0.0, 'has_missing_price' => true, 'needs_configuration' => false],
         ], $requirements['ingredients']);
     }
 }

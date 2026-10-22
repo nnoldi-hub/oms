@@ -104,6 +104,11 @@ class DailyMealForm
                     ->label('Observatii')
                     ->disabled(fn (): bool => auth()->user()?->isConstructionTeam() || auth()->user()?->isCoordinator())
                     ->columnSpanFull(),
+                TextInput::make('delivery_time')
+                    ->label('Ora de livrare pe santier')
+                    ->helperText('Camp liber: ora la care masa trebuie livrata pe santier (de exemplu 11:30).')
+                    ->disabled(fn (): bool => auth()->user()?->isConstructionTeam() || auth()->user()?->isCoordinator())
+                    ->maxLength(120),
                 Select::make('status')
                     ->label('Stare')
                     ->options([

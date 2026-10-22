@@ -20,7 +20,7 @@
         <h2>Zile si preparate</h2>
         <table><thead><tr><th>Data</th><th>Fel principal</th><th>Ciorba</th><th>Desert / gustare</th><th class="number">Portii</th></tr></thead><tbody>
         @forelse ($week->dailyMeals as $dailyMeal)
-            <tr><td>{{ $dailyMeal->meal_date->translatedFormat('D, j M') }}</td><td><strong>{{ $dailyMeal->menu?->name ?? '— fără meniu —' }}</strong><br><small>Alergeni: {{ $dailyMeal->menu && is_array($dailyMeal->menu->allergens) ? ($dailyMeal->menu->allergens === [] ? 'Niciunul declarat' : implode(', ', $dailyMeal->menu->allergens)) : 'De confirmat' }}</small></td><td>{{ $dailyMeal->soupMenu?->name ?? '-' }}</td><td>{{ $dailyMeal->dessertMenu?->name ?? '-' }}</td><td class="number">{{ $dailyMeal->estimated_people }}</td></tr>
+            <tr><td>{{ $dailyMeal->meal_date->translatedFormat('D, j M') }}</td><td><strong>{{ $dailyMeal->menu?->name ?? 'â€” fÄƒrÄƒ meniu â€”' }}</strong><br><small>Alergeni: {{ $dailyMeal->menu && is_array($dailyMeal->menu->allergens) ? ($dailyMeal->menu->allergens === [] ? 'Nedeclarat – de verificat' : implode(', ', $dailyMeal->menu->allergens)) : 'Nedeclarat – de verificat' }}</small></td><td>{{ $dailyMeal->soupMenu?->name ?? '-' }}</td><td>{{ $dailyMeal->dessertMenu?->name ?? '-' }}</td><td class="number">{{ $dailyMeal->estimated_people }}</td></tr>
         @empty
             <tr><td colspan="5">Nu exista zile alocate in aceasta saptamana.</td></tr>
         @endforelse

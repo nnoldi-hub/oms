@@ -50,13 +50,13 @@
                         <tr>
                             <td>{{ $dailyMeal->meal_date->translatedFormat('D, j M') }}</td>
                             <td>
-                                <strong>{{ $dailyMeal->menu?->name ?? '— fără meniu —' }}</strong><br>
-                                <small>Alergeni: {{ $dailyMeal->menu === null ? '-' : (is_array($dailyMeal->menu->allergens) ? ($dailyMeal->menu->allergens === [] ? 'Niciunul declarat' : implode(', ', $dailyMeal->menu->allergens)) : 'De confirmat') }}</small>
+                                <strong>{{ $dailyMeal->menu?->name ?? 'â€” fÄƒrÄƒ meniu â€”' }}</strong><br>
+                                <small>Alergeni: {{ $dailyMeal->menu === null ? '-' : (is_array($dailyMeal->menu->allergens) ? ($dailyMeal->menu->allergens === [] ? 'Nedeclarat – de verificat' : implode(', ', $dailyMeal->menu->allergens)) : 'Nedeclarat – de verificat') }}</small>
                             </td>
                             <td>
                                 @if ($dailyMeal->soupMenu)
                                     <strong>{{ $dailyMeal->soupMenu->name }}</strong><br>
-                                    <small>Alergeni: {{ is_array($dailyMeal->soupMenu->allergens) ? ($dailyMeal->soupMenu->allergens === [] ? 'Niciunul declarat' : implode(', ', $dailyMeal->soupMenu->allergens)) : 'De confirmat' }}</small>
+                                    <small>Alergeni: {{ is_array($dailyMeal->soupMenu->allergens) ? ($dailyMeal->soupMenu->allergens === [] ? 'Nedeclarat – de verificat' : implode(', ', $dailyMeal->soupMenu->allergens)) : 'Nedeclarat – de verificat' }}</small>
                                 @else
                                     -
                                 @endif
@@ -64,7 +64,7 @@
                             <td>
                                 @if ($dailyMeal->dessertMenu)
                                     <strong>{{ $dailyMeal->dessertMenu->name }}</strong><br>
-                                    <small>Alergeni: {{ is_array($dailyMeal->dessertMenu->allergens) ? ($dailyMeal->dessertMenu->allergens === [] ? 'Niciunul declarat' : implode(', ', $dailyMeal->dessertMenu->allergens)) : 'De confirmat' }}</small>
+                                    <small>Alergeni: {{ is_array($dailyMeal->dessertMenu->allergens) ? ($dailyMeal->dessertMenu->allergens === [] ? 'Nedeclarat – de verificat' : implode(', ', $dailyMeal->dessertMenu->allergens)) : 'Nedeclarat – de verificat' }}</small>
                                 @else
                                     -
                                 @endif
@@ -103,7 +103,11 @@
                     @endforelse
                 </tbody>
             </table>
-            <p><strong>Ambalaje:</strong> {{ $shoppingList['packaging']['count'] }} caserole. <strong>Cost ambalaje:</strong> {{ number_format($shoppingList['packaging']['total_cost'], 2, '.', ' ') }} RON.</p>
+            @if ($shoppingList['packaging']['total_cost'] > 0)
+                <p><strong>Ambalaje:</strong> {{ $shoppingList['packaging']['count'] }} caserole. <strong>Cost ambalaje:</strong> {{ number_format($shoppingList['packaging']['total_cost'], 2, '.', ' ') }} RON.</p>
+            @else
+                <p><strong>Ambalaje:</strong> fără ambalaj.</p>
+            @endif
             <p><strong>Cost ingrediente configurat:</strong> {{ number_format($shoppingList['totals']['ingredients_cost'], 2, '.', ' ') }} RON. <strong>Total estimat configurat:</strong> {{ number_format($shoppingList['totals']['total_cost'], 2, '.', ' ') }} RON.</p>
             @if ($shoppingList['totals']['has_missing_prices'])<p class="notice">Unele ingrediente nu au pret estimat. Totalul este partial pana la completarea preturilor.</p>@endif
         </section>

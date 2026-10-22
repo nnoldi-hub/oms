@@ -29,6 +29,7 @@ class DailyMeal extends Model
         'maximum_budget',
         'contributor_count',
         'notes',
+        'delivery_time',
         'public_token',
         'status',
         'is_free_day',
@@ -89,6 +90,7 @@ class DailyMeal extends Model
                         'estimated_people',
                         'confirmed_people',
                         'notes',
+                        'delivery_time',
                         'public_token',
                         'status',
                     ])) {

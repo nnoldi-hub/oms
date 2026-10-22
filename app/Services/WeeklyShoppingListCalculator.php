@@ -139,6 +139,8 @@ class WeeklyShoppingListCalculator
         $ingredients[$key]['quantity'] += $ingredient['quantity'];
         $ingredients[$key]['estimated_cost'] += $ingredient['estimated_cost'];
         $ingredients[$key]['has_missing_price'] = $ingredients[$key]['has_missing_price'] || $ingredient['has_missing_price'];
+        $ingredients[$key]['needs_configuration'] = ($ingredients[$key]['needs_configuration'] ?? false)
+            || ($ingredient['needs_configuration'] ?? false);
         $ingredients[$key]['estimated_unit_cost'] = $ingredients[$key]['has_missing_price']
             ? null
             : ($ingredients[$key]['quantity'] > 0
