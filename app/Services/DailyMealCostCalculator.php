@@ -56,7 +56,7 @@ class DailyMealCostCalculator
 
             $requirements = $this->requirementsFor($dailyMeal, $menu);
             $totalCost += $ingredientsOnly
-                ? $requirements['totals']['ingredients_cost']
+                ? ($requirements['totals']['ingredients_cost'] + ($requirements['totals']['fixed_costs_cost'] ?? 0.0))
                 : $requirements['totals']['total_cost'];
             $hasMissingPrices = $hasMissingPrices || $requirements['totals']['has_missing_prices'];
         }
