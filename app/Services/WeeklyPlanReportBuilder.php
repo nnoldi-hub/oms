@@ -14,6 +14,7 @@ class WeeklyPlanReportBuilder
     public function __construct(
         private WeeklyDaySheets $daySheets,
         private DailyMessageBuilder $messageBuilder,
+        private DailyMealCostSnapshotService $snapshotService,
     ) {}
 
     /**
@@ -26,7 +27,8 @@ class WeeklyPlanReportBuilder
      */
     public function build(Week $week, bool $includePhones = true): array
     {
-        $week->loadMissing(['congregation', 'dailyMeals']);
+        $this->snapshotService->snapshotWeekIfClosed($week);
+        $week->loadMissing(['congregation', 'dailyMeals', 'dailyMeals.costSnapshot']);
 
         $days = $this->daySheets->for($week)
             ->map(fn (array $sheet): array => $this->day($sheet, $includePhones))

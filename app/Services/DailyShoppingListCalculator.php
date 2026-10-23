@@ -7,7 +7,10 @@ use App\Support\PracticalQuantity;
 
 class DailyShoppingListCalculator
 {
-    public function __construct(private DailyMealComponents $components) {}
+    public function __construct(
+        private DailyMealComponents $components,
+        private DailyMealCostSnapshotService $snapshotService,
+    ) {}
 
     /**
      * Lista de cumparaturi a unei zile: ingredientele din toate felurile zilei,
@@ -17,6 +20,8 @@ class DailyShoppingListCalculator
      */
     public function for(DailyMeal $dailyMeal): array
     {
+        $this->snapshotService->snapshotMealIfClosed($dailyMeal);
+
         $components = collect($this->components->for($dailyMeal))
             ->filter(fn (array $component): bool => $component['menu'] !== null);
 

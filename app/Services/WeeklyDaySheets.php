@@ -11,6 +11,7 @@ class WeeklyDaySheets
     public function __construct(
         private DailyMealComponents $components,
         private DailyMealCostCalculator $costCalculator,
+        private DailyMealCostSnapshotService $snapshotService,
     ) {}
 
     /**

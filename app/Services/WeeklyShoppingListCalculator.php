@@ -8,14 +8,18 @@ use App\Support\PracticalQuantity;
 
 class WeeklyShoppingListCalculator
 {
-    public function __construct(private MealRequirementCalculator $mealRequirementCalculator) {}
+    public function __construct(
+        private MealRequirementCalculator $mealRequirementCalculator,
+        private DailyMealCostSnapshotService $snapshotService,
+    ) {}
 
     /**
      * @return array{ingredients: list<array{name: string, quantity: float, to_buy_quantity: float, unit: string, estimated_unit_cost: ?float, estimated_cost: float, has_missing_price: bool}>, fixed_costs: list<array{name: string, quantity: float, unit: string, estimated_unit_cost: ?float, estimated_cost: float, has_missing_price: bool}>, packaging: array{count: int, total_cost: float}, daily_costs: list<array{daily_meal_id: int, ingredients_cost: float, fixed_costs_cost: float, packaging_cost: float, total_cost: float, has_missing_prices: bool}>, totals: array{ingredients_cost: float, fixed_costs_cost: float, total_cost: float, has_missing_prices: bool}, incomplete_meals: int}
      */
     public function calculate(Week $week): array
     {
-        $week->loadMissing('dailyMeals.menu', 'dailyMeals.soupMenu', 'dailyMeals.dessertMenu');
+        $this->snapshotService->snapshotWeekIfClosed($week);
+        $week->loadMissing('dailyMeals.menu', 'dailyMeals.soupMenu', 'dailyMeals.dessertMenu', 'dailyMeals.costSnapshot');
         $ingredients = [];
         $fixedCosts = [];
         $packagingCount = 0;
@@ -88,14 +92,27 @@ class WeeklyShoppingListCalculator
                 $hasMissingPrices = $hasMissingPrices || $dessertRequirements['totals']['has_missing_prices'];
             }
 
-            $dailyCosts[] = [
-                'daily_meal_id' => $dailyMeal->id,
-                'ingredients_cost' => round($ingredientsCost, 2),
-                'fixed_costs_cost' => round($fixedCostsCost, 2),
-                'packaging_cost' => round($requirements['packaging']['total_cost'] + $dessertPackagingCost, 2),
-                'total_cost' => round($ingredientsCost + $fixedCostsCost + $requirements['packaging']['total_cost'] + $dessertPackagingCost, 2),
-                'has_missing_prices' => $hasMissingPrices,
-            ];
+            $snapshot = $dailyMeal->relationLoaded('costSnapshot')
+                ? $dailyMeal->getRelation('costSnapshot')
+                : $dailyMeal->costSnapshot;
+
+            $dailyCosts[] = $snapshot !== null
+                ? [
+                    'daily_meal_id' => $dailyMeal->id,
+                    'ingredients_cost' => (float) $snapshot->ingredients_cost,
+                    'fixed_costs_cost' => (float) $snapshot->fixed_costs_cost,
+                    'packaging_cost' => (float) $snapshot->packaging_cost,
+                    'total_cost' => (float) $snapshot->total_cost,
+                    'has_missing_prices' => (bool) $snapshot->has_missing_prices,
+                ]
+                : [
+                    'daily_meal_id' => $dailyMeal->id,
+                    'ingredients_cost' => round($ingredientsCost, 2),
+                    'fixed_costs_cost' => round($fixedCostsCost, 2),
+                    'packaging_cost' => round($requirements['packaging']['total_cost'] + $dessertPackagingCost, 2),
+                    'total_cost' => round($ingredientsCost + $fixedCostsCost + $requirements['packaging']['total_cost'] + $dessertPackagingCost, 2),
+                    'has_missing_prices' => $hasMissingPrices,
+                ];
         }
 
         $ingredients = array_values(array_map(

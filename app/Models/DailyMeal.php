@@ -147,6 +147,11 @@ class DailyMeal extends Model
         return $this->hasOne(DailySupplyPlan::class);
     }
 
+    public function costSnapshot(): HasOne
+    {
+        return $this->hasOne(DailyMealCostSnapshot::class);
+    }
+
     public function workTeams(): HasMany
     {
         return $this->hasMany(WorkTeam::class);
