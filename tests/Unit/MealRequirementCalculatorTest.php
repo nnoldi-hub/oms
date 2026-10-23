@@ -29,7 +29,7 @@ class MealRequirementCalculatorTest extends TestCase
 ['name' => 'Orez', 'quantity' => 4.0, 'unit' => 'kg', 'estimated_unit_cost' => 5.0, 'estimated_cost' => 20.0, 'has_missing_price' => false, 'needs_configuration' => false, 'package_quantity' => null],
         ], $requirements['ingredients']);
         $this->assertSame(['count' => 50, 'unit_cost' => 1.25, 'total_cost' => 62.5], $requirements['packaging']);
-        $this->assertSame(['ingredients_cost' => 220.0, 'total_cost' => 282.5, 'has_missing_prices' => false], $requirements['totals']);
+        $this->assertSame(['ingredients_cost' => 220.0, 'fixed_costs_cost' => 0.0, 'total_cost' => 282.5, 'has_missing_prices' => false], $requirements['totals']);
     }
 
     public function test_it_marks_the_total_as_partial_when_an_ingredient_has_no_price(): void
@@ -44,7 +44,7 @@ class MealRequirementCalculatorTest extends TestCase
         $requirements = app(MealRequirementCalculator::class)->calculate($dailyMeal);
 
         $this->assertTrue($requirements['ingredients'][0]['has_missing_price']);
-        $this->assertSame(['ingredients_cost' => 0.0, 'total_cost' => 10.0, 'has_missing_prices' => true], $requirements['totals']);
+        $this->assertSame(['ingredients_cost' => 0.0, 'fixed_costs_cost' => 0.0, 'total_cost' => 10.0, 'has_missing_prices' => true], $requirements['totals']);
     }
 
     public function test_it_marks_split_components_as_needing_configuration(): void
@@ -87,6 +87,6 @@ class MealRequirementCalculatorTest extends TestCase
 
         $this->assertSame(0.0, $requirements['ingredients'][0]['quantity']);
         $this->assertSame(8.5, $requirements['ingredients'][0]['estimated_unit_cost']);
-        $this->assertSame(['ingredients_cost' => 0.0, 'total_cost' => 0.0, 'has_missing_prices' => false], $requirements['totals']);
+        $this->assertSame(['ingredients_cost' => 0.0, 'fixed_costs_cost' => 0.0, 'total_cost' => 0.0, 'has_missing_prices' => false], $requirements['totals']);
     }
 }

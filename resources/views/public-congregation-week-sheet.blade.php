@@ -13,7 +13,7 @@
     <header>
         <p class="kicker">Organizare masa pentru santier</p>
         <h1>{{ $congregation->name }}</h1>
-        <p class="dates"><strong>Saptamana {{ $week->week_number }}:</strong> {{ $week->start_date->translatedFormat('j F Y') }} - {{ $week->start_date->addDays(4)->translatedFormat('j F Y') }}</p>
+        <p class="dates"><strong>Saptamana {{ $week->week_number }}:</strong> {{ $week->periodLabel() }}</p>
         <button class="print" type="button" onclick="window.print()">Printeaza fisa</button>
     </header>
     <section>

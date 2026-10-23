@@ -34,7 +34,7 @@
         <header>
             <p class="kicker">Organizare masa pentru santier - fisa pentru congregatie</p>
             <h1>{{ $congregation->name }}</h1>
-            <p class="meta"><strong>Saptamana {{ $week->week_number }}:</strong> {{ $week->start_date->translatedFormat('j F Y') }} - {{ $week->start_date->addDays(4)->translatedFormat('j F Y') }}</p>
+            <p class="meta"><strong>Saptamana {{ $week->week_number }}:</strong> {{ $week->periodLabel() }}</p>
             @if ($congregation->assistant_name)
                 <div class="contact"><strong>Asistent responsabil:</strong> {{ $congregation->assistant_name }}@if ($congregation->assistant_phone), {{ $congregation->assistant_phone }}@endif@if ($congregation->assistant_email), {{ $congregation->assistant_email }}@endif</div>
             @endif
@@ -108,6 +108,9 @@
             @else
                 <p><strong>Ambalaje:</strong> fără ambalaj.</p>
             @endif
+            @foreach ($shoppingList['fixed_costs'] as $fixedCost)
+                <p><strong>{{ $fixedCost['label'] }}:</strong> {{ $fixedCost['has_missing_price'] ? 'De configurat' : number_format($fixedCost['estimated_cost'], 2, '.', ' ') . ' RON' }}</p>
+            @endforeach
             <p><strong>Cost ingrediente configurat:</strong> {{ number_format($shoppingList['totals']['ingredients_cost'], 2, '.', ' ') }} RON. <strong>Total estimat configurat:</strong> {{ number_format($shoppingList['totals']['total_cost'], 2, '.', ' ') }} RON.</p>
             @if ($shoppingList['totals']['has_missing_prices'])<p class="notice">Unele ingrediente nu au pret estimat. Totalul este partial pana la completarea preturilor.</p>@endif
         </section>

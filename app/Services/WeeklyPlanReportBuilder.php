@@ -274,11 +274,7 @@ class WeeklyPlanReportBuilder
      */
     private function range(Week $week): string
     {
-        $meals = $week->dailyMeals->sortBy(fn (DailyMeal $meal): int => $meal->meal_date->getTimestamp());
-        $start = $meals->first()?->meal_date ?? $week->start_date;
-        $end = $meals->last()?->meal_date ?? $start;
-
-        return $start->translatedFormat('j F Y').' – '.$end->translatedFormat('j F Y');
+        return $week->periodLabel();
     }
 
     private function weekdayLabel(CarbonInterface $date): string

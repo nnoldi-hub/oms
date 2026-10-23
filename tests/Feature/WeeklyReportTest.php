@@ -44,7 +44,7 @@ class WeeklyReportTest extends TestCase
             'to_buy_quantity' => 4.5,
         ]], $report['ingredients']);
         $this->assertSame(['count' => 45, 'total_cost' => 67.5], $report['packaging']);
-        $this->assertSame(['ingredients_cost' => 22.5, 'total_cost' => 90.0, 'has_missing_prices' => false], $report['totals']);
+        $this->assertSame(['ingredients_cost' => 22.5, 'fixed_costs_cost' => 0.0, 'total_cost' => 90.0, 'has_missing_prices' => false], $report['totals']);
     }
 
     public function test_weekly_report_shows_the_meal_plan_only_for_an_authorized_user(): void
@@ -207,6 +207,31 @@ class WeeklyReportTest extends TestCase
             ->assertSee('Portii estimate:')
             ->assertDontSee('Portii confirmate:')
             ->assertSee('0.50 RON / portie');
+    }
+
+    public function test_the_report_headers_use_the_first_and_last_programmed_meal_dates(): void
+    {
+        $congregation = Congregation::factory()->create(['name' => 'Congregatia Est']);
+        $week = Week::factory()->for($congregation)->create(['start_date' => '2026-11-24']);
+        $menu = Menu::factory()->create();
+
+        DailyMeal::factory()->for($week)->for($congregation)->for($menu)->create(['meal_date' => '2026-11-26']);
+        DailyMeal::factory()->for($week)->for($congregation)->for($menu)->create(['meal_date' => '2026-12-02']);
+
+        $administrator = User::factory()->create(['role' => 'admin']);
+        $period = '26 noiembrie 2026 – 2 decembrie 2026';
+
+        $this->actingAs($administrator)
+            ->get(route('weekly-reports.show', $week))
+            ->assertOk()
+            ->assertSee($period)
+            ->assertDontSee('24 noiembrie 2026 – 28 noiembrie 2026');
+
+        $this->actingAs($administrator)
+            ->get(route('congregation-weekly-reports.show', [$week, $congregation]))
+            ->assertOk()
+            ->assertSee($period)
+            ->assertDontSee('24 noiembrie 2026 – 28 noiembrie 2026');
     }
 
     public function test_congregation_report_contains_only_its_days_and_assistant_contact(): void

@@ -62,6 +62,9 @@ class WeeklyDaySheets
         $packagingCost = round(collect($dayComponents)->sum(
             fn (array $component): float => (float) $component['requirements']['packaging']['total_cost'],
         ), 2);
+        $fixedCostsCost = round(collect($dayComponents)->sum(
+            fn (array $component): float => (float) $component['requirements']['totals']['fixed_costs_cost'],
+        ), 2);
 
         return [
             'meal' => $dailyMeal,
@@ -70,6 +73,7 @@ class WeeklyDaySheets
             'portions_label' => $dailyMeal->confirmed_people !== null ? 'Portii confirmate' : 'Portii estimate',
             'cost' => $cost,
             'ingredients_cost' => $ingredientsCost,
+            'fixed_costs_cost' => $fixedCostsCost,
             'packaging_cost' => $packagingCost,
             'cost_per_portion' => $portions > 0 && ! $cost['has_missing_prices']
                 ? round($cost['total_cost'] / $portions, 2)

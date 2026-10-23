@@ -101,6 +101,31 @@ class FilamentPagesLoadTest extends TestCase
             ->assertSuccessful();
     }
 
+    public function test_the_ingredient_form_persists_the_package_allergen_and_fixed_cost_fields(): void
+    {
+        $administrator = User::factory()->create(['role' => 'admin']);
+
+        Livewire::actingAs($administrator)
+            ->test(CreateIngredient::class)
+            ->fillForm([
+                'name' => 'Ingredient test pachet',
+                'unit' => 'kg',
+                'unit_price' => 7.5,
+                'package_quantity' => 5,
+                'has_no_allergens' => true,
+                'fixed_cost_per_portion' => true,
+                'is_active' => true,
+            ])
+            ->call('create')
+            ->assertHasNoErrors();
+
+        $ingredient = Ingredient::query()->where('name', 'Ingredient test pachet')->firstOrFail();
+
+        $this->assertSame(5.0, (float) $ingredient->package_quantity);
+        $this->assertTrue((bool) $ingredient->has_no_allergens);
+        $this->assertTrue((bool) $ingredient->fixed_cost_per_portion);
+    }
+
     public function test_the_menu_form_keeps_the_quantity_optional_for_the_components_to_configure(): void
     {
         $administrator = User::factory()->create(['role' => 'admin']);

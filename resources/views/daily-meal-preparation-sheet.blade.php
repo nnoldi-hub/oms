@@ -105,6 +105,9 @@
                             @endforeach
                         </tbody>
                     </table>
+                    @foreach ($section['requirements']['fixed_costs'] as $fixedCost)
+                        <p><strong>{{ $fixedCost['label'] }}:</strong> {{ $fixedCost['has_missing_price'] ? 'De configurat' : number_format($fixedCost['estimated_cost'], 2, '.', ' ') . ' RON' }}</p>
+                    @endforeach
                     <p>
                         @if ($hasPackaging)
                             <strong>Ambalaje:</strong> {{ $packaging['count'] }} caserole. <strong>Cost ambalaje:</strong> {{ number_format($packaging['total_cost'], 2, '.', ' ') }} RON.
@@ -127,6 +130,9 @@
                     <strong>Total ambalaje:</strong> {{ number_format($shoppingList['totals']['packaging_cost'], 2, '.', ' ') }} RON.
                     <strong>Total estimat:</strong> {{ number_format($shoppingList['totals']['total_cost'], 2, '.', ' ') }} RON.
                 </p>
+                @foreach ($shoppingList['fixed_costs'] as $fixedCost)
+                    <p><strong>{{ $fixedCost['label'] }}:</strong> {{ $fixedCost['has_missing_price'] ? 'De configurat' : number_format($fixedCost['estimated_cost'], 2, '.', ' ') . ' RON' }}</p>
+                @endforeach
                 @if ($shoppingList['cost_per_portion'] !== null)
                     <p><strong>Cost pe porție:</strong> {{ number_format($shoppingList['cost_per_portion'], 2, '.', ' ') }} RON / porție.</p>
                 @else
