@@ -57,14 +57,12 @@ class DailyMealForm
                     ->disabled(fn (): bool => auth()->user()?->isConstructionTeam() ?? false),
                 TextInput::make('estimated_people')
                     ->label('Numar estimat persoane')
-                    ->disabled(fn (): bool => auth()->user()?->isCoordinator() ?? false)
                     ->required()
                     ->numeric()
                     ->default(0),
                 TextInput::make('confirmed_people')
                     ->label('Numar confirmat persoane')
                     ->helperText('Completeaza cand numarul final e confirmat; rapoartele il afiseaza in locul estimarii.')
-                    ->disabled(fn (): bool => auth()->user()?->isCoordinator() ?? false)
                     ->numeric()
                     ->integer()
                     ->minValue(0),
@@ -102,12 +100,12 @@ class DailyMealForm
                     ->visible(fn (): bool => auth()->user()?->isAdmin() ?? false),
                 Textarea::make('notes')
                     ->label('Observatii')
-                    ->disabled(fn (): bool => auth()->user()?->isConstructionTeam() || auth()->user()?->isCoordinator())
+                    ->disabled(fn (): bool => auth()->user()?->isConstructionTeam() ?? false)
                     ->columnSpanFull(),
                 TextInput::make('delivery_time')
                     ->label('Ora de livrare pe santier')
                     ->helperText('Camp liber: ora la care masa trebuie livrata pe santier (de exemplu 11:30).')
-                    ->disabled(fn (): bool => auth()->user()?->isConstructionTeam() || auth()->user()?->isCoordinator())
+                    ->disabled(fn (): bool => auth()->user()?->isConstructionTeam() ?? false)
                     ->maxLength(120),
                 Select::make('status')
                     ->label('Stare')

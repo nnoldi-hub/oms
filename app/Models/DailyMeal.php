@@ -81,20 +81,17 @@ class DailyMeal extends Model
                     throw new AuthorizationException('Echipa de constructii poate modifica doar numarul de persoane.');
                 }
 
-                // 2. Restricții pentru Coordonatorul de Congregație
+                // 2. Restricții pentru Coordonatorul de Congregație: organizeaza zilele congregatiei sale
+                // (retete, portii, buget, observatii), dar nu muta zilele si nu schimba congregatia.
                 if ($user?->isCoordinator()) {
-                    if ($user->congregation_id !== $dailyMeal->congregation_id || $dailyMeal->isDirty([
+                    if ($user->congregation_id !== $dailyMeal->getOriginal('congregation_id') || $dailyMeal->isDirty([
                         'meal_date',
                         'week_id',
                         'congregation_id',
-                        'estimated_people',
-                        'confirmed_people',
-                        'notes',
-                        'delivery_time',
                         'public_token',
                         'status',
                     ])) {
-                        throw new AuthorizationException('Coordonatorul poate modifica doar retetele zilelor congregatiei sale.');
+                        throw new AuthorizationException('Coordonatorul poate organiza doar zilele congregatiei sale, fara a le muta.');
                     }
                 }
             }

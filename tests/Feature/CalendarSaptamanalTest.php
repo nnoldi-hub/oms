@@ -295,6 +295,48 @@ class CalendarSaptamanalTest extends TestCase
         $this->assertSame(1, DailyMeal::query()->whereDate('meal_date', '2026-11-30')->count());
     }
 
+    public function test_the_form_state_includes_a_newly_added_working_day(): void
+    {
+        $congregation = Congregation::factory()->create();
+        $week = Week::factory()->for($congregation)->create(['start_date' => '2026-11-30']);
+        $administrator = User::factory()->create(['role' => 'admin']);
+
+        $component = Livewire::actingAs($administrator)
+            ->test(CalendarSaptamanal::class)
+            ->set('weekId', $week->id)
+            ->call('toggleWorkingDay', '2026-11-30');
+
+        $meal = DailyMeal::query()->whereDate('meal_date', '2026-11-30')->firstOrFail();
+
+        $component
+            ->assertSet("estimatedPeople.{$meal->id}", 0)
+            ->assertSet('workingDayDates.2026-11-30', true);
+        $this->assertArrayHasKey($meal->id, $component->get('plannedMenus'));
+    }
+
+    public function test_the_form_state_is_reloaded_when_the_days_change_outside_the_page(): void
+    {
+        $congregation = Congregation::factory()->create();
+        $week = Week::factory()->for($congregation)->create(['start_date' => '2026-11-30']);
+        $menu = Menu::factory()->create();
+        $administrator = User::factory()->create(['role' => 'admin']);
+
+        $component = Livewire::actingAs($administrator)
+            ->test(CalendarSaptamanal::class)
+            ->set('weekId', $week->id);
+
+        $meal = DailyMeal::factory()->for($week)->for($congregation)->for($menu)->create([
+            'meal_date' => '2026-12-01',
+            'estimated_people' => 25,
+        ]);
+
+        $component
+            ->call('$refresh')
+            ->assertSet("plannedMenus.{$meal->id}", $menu->id)
+            ->assertSet("estimatedPeople.{$meal->id}", 25)
+            ->assertSet('workingDayDates.2026-12-01', true);
+    }
+
     public function test_removing_a_working_day_with_data_requires_confirmation_then_deletes_it(): void
     {
         $congregation = Congregation::factory()->create();
@@ -532,6 +574,59 @@ class CalendarSaptamanalTest extends TestCase
             'member_count' => 6,
             'location' => 'Cort',
         ]);
+    }
+
+    public function test_a_coordinator_organizes_the_days_of_their_own_congregation(): void
+    {
+        $own = Congregation::factory()->create();
+        $week = Week::factory()->for($own)->create(['start_date' => '2026-11-30']);
+        $menu = Menu::factory()->create(['type' => 'main']);
+        $dailyMeal = DailyMeal::factory()->for($week)->for($own)->create(['meal_date' => '2026-11-30', 'menu_id' => null]);
+        $coordinator = User::factory()->create(['role' => 'coordinator', 'congregation_id' => $own->id]);
+
+        Livewire::actingAs($coordinator)
+            ->test(CalendarSaptamanal::class)
+            ->set('weekId', $week->id)
+            ->set("estimatedPeople.{$dailyMeal->id}", 48)
+            ->call('saveEstimatedPeople', $dailyMeal->id)
+            ->set("plannedMenus.{$dailyMeal->id}", $menu->id)
+            ->call('savePlannedMenu', $dailyMeal->id, 'main')
+            ->call('openTeams', $dailyMeal->id)
+            ->set('teamName', 'Echipa congregatiei')
+            ->call('saveTeam')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('daily_meals', ['id' => $dailyMeal->id, 'estimated_people' => 48, 'menu_id' => $menu->id]);
+        $this->assertDatabaseHas('work_teams', ['daily_meal_id' => $dailyMeal->id, 'name' => 'Echipa congregatiei']);
+    }
+
+    public function test_a_coordinator_cannot_organize_the_days_of_another_congregation(): void
+    {
+        $own = Congregation::factory()->create();
+        $other = Congregation::factory()->create();
+        $week = Week::factory()->for($other)->create(['start_date' => '2026-11-30']);
+        $dailyMeal = DailyMeal::factory()->for($week)->for($other)->create(['meal_date' => '2026-11-30', 'estimated_people' => 10]);
+        $coordinator = User::factory()->create(['role' => 'coordinator', 'congregation_id' => $own->id]);
+
+        $this->actingAs($coordinator);
+
+        $this->expectException(AuthorizationException::class);
+
+        $dailyMeal->update(['estimated_people' => 99]);
+    }
+
+    public function test_a_coordinator_cannot_move_their_day_on_the_server(): void
+    {
+        $own = Congregation::factory()->create();
+        $week = Week::factory()->for($own)->create(['start_date' => '2026-11-30']);
+        $dailyMeal = DailyMeal::factory()->for($week)->for($own)->create(['meal_date' => '2026-11-30']);
+        $coordinator = User::factory()->create(['role' => 'coordinator', 'congregation_id' => $own->id]);
+
+        $this->actingAs($coordinator);
+
+        $this->expectException(AuthorizationException::class);
+
+        $dailyMeal->update(['meal_date' => '2026-12-01']);
     }
 
     public function test_the_day_card_summarizes_food_fund_transactions(): void

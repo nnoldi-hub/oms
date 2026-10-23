@@ -246,7 +246,6 @@ class CalendarSaptamanal extends Page
             ->firstOrFail();
 
         Gate::authorize('update', $dailyMeal);
-        abort_unless(auth()->user()?->isAdmin() || auth()->user()?->isConstructionTeam(), 403);
 
         $dailyMeal->update(['estimated_people' => (int) $this->estimatedPeople[$mealId]]);
 
@@ -453,6 +452,30 @@ class CalendarSaptamanal extends Page
     }
 
     /**
+     * Ziua poate fi organizata (retete, echipe, persoane) de administrator
+     * sau de coordonatorul congregatiei care raspunde de ea.
+     */
+    public function canOrganize(DailyMeal $meal): bool
+    {
+        $user = auth()->user();
+
+        return (bool) ($user?->isAdmin()
+            || ($user?->isCoordinator() && $user->congregation_id === $meal->congregation_id));
+    }
+
+    private function organizerMeal(int $mealId): DailyMeal
+    {
+        $meal = DailyMeal::query()
+            ->whereKey($mealId)
+            ->where('week_id', $this->weekId)
+            ->firstOrFail();
+
+        abort_unless($this->canOrganize($meal), 403);
+
+        return $meal;
+    }
+
+    /**
      * @return array<int, string>
      */
     private function previewWarnings(DailyMeal $meal, string $newDate): array
@@ -553,8 +576,26 @@ class CalendarSaptamanal extends Page
         return $warnings;
     }
 
+    /**
+     * Daca zilele saptamanii s-au schimbat (alta actiune, alt tab, alt utilizator), starea
+     * formularelor nu mai corespunde cardurilor; o reincarcam ca sa nu apara "- neales -" / portii goale.
+     */
+    public function rendering(): void
+    {
+        $mealIds = $this->selectedWeek?->dailyMeals->pluck('id')->sort()->values()->all() ?? [];
+        $stateIds = collect(array_keys($this->plannedMenus))->map(fn ($id): int => (int) $id)->sort()->values()->all();
+
+        if ($mealIds !== $stateIds || $this->buildWorkingDayDates() !== $this->workingDayDates) {
+            $this->loadCalendarValues();
+        }
+    }
+
     private function loadCalendarValues(): void
     {
+        // Proprietatile calculate sunt memorate pe durata cererii; dupa o modificare
+        // trebuie golite, altfel starea se construieste din datele vechi.
+        unset($this->selectedWeek, $this->weeks);
+
         $dailyMeals = $this->selectedWeek?->dailyMeals ?? collect();
         $this->estimatedPeople = $dailyMeals->mapWithKeys(fn (DailyMeal $dailyMeal): array => [$dailyMeal->id => $dailyMeal->estimated_people])->all();
         $this->maximumBudget = $dailyMeals->mapWithKeys(fn (DailyMeal $dailyMeal): array => [$dailyMeal->id => $dailyMeal->maximum_budget])->all();
@@ -619,7 +660,7 @@ class CalendarSaptamanal extends Page
 
     public function savePlannedMenu(int $mealId, string $type): void
     {
-        $meal = $this->calendarMeal($mealId);
+        $meal = $this->organizerMeal($mealId);
 
         [$property, $column, $typeName] = match ($type) {
             'main' => ['plannedMenus', 'menu_id', 'main'],
@@ -906,7 +947,7 @@ class CalendarSaptamanal extends Page
 
     public function copyFromPreviousDay(): void
     {
-        $this->guardPeopleManagement();
+        $this->organizerMeal((int) $this->teamsMealId);
 
         $week = $this->selectedWeek;
 
@@ -914,7 +955,7 @@ class CalendarSaptamanal extends Page
             return;
         }
 
-        $target = $week->dailyMeals->firstWhere('id', $this->peopleMealId);
+        $target = $week->dailyMeals->firstWhere('id', $this->teamsMealId);
 
         if ($target === null) {
             return;
@@ -941,7 +982,7 @@ class CalendarSaptamanal extends Page
                 'supply_responsible' => $team->supply_responsible,
             ];
 
-            WorkTeam::create(array_merge($attributes, ['daily_meal_id' => (int) $this->peopleMealId]));
+            WorkTeam::create(array_merge($attributes, ['daily_meal_id' => (int) $this->teamsMealId]));
         });
 
         $this->loadCalendarValues();
@@ -1062,6 +1103,7 @@ class CalendarSaptamanal extends Page
     public function editVolunteer(int $volunteerId): void
     {
         $this->guardPeopleManagement();
+        $this->calendarMealForRole((int) $this->peopleMealId);
 
         $volunteer = Volunteer::query()
             ->whereKey($volunteerId)
@@ -1189,6 +1231,7 @@ class CalendarSaptamanal extends Page
     public function deleteVolunteer(int $volunteerId): void
     {
         $this->guardPeopleManagement();
+        $this->calendarMealForRole((int) $this->peopleMealId);
 
         Volunteer::query()
             ->whereKey($volunteerId)
@@ -1259,7 +1302,7 @@ class CalendarSaptamanal extends Page
 
     public function openTeams(int $mealId): void
     {
-        $this->calendarMeal($mealId);
+        $this->organizerMeal($mealId);
 
         $this->teamsMealId = $mealId;
         $this->resetTeamForm();
@@ -1273,7 +1316,7 @@ class CalendarSaptamanal extends Page
 
     public function editTeam(int $teamId): void
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        $this->organizerMeal((int) $this->teamsMealId);
 
         $team = WorkTeam::query()
             ->whereKey($teamId)
@@ -1300,11 +1343,11 @@ class CalendarSaptamanal extends Page
             'teamSupplyResponsible' => ['nullable', 'string', 'max:120'],
         ]);
 
-        $meal = $this->calendarMeal((int) $this->teamsMealId);
+        $meal = $this->organizerMeal((int) $this->teamsMealId);
 
         $attributes = [
             'name' => $this->teamName,
-            'member_count' => $this->teamMemberCount,
+            'member_count' => $this->teamMemberCount ?? 0,
             'starts_at' => $this->teamStartsAt ?: null,
             'ends_at' => $this->teamEndsAt ?: null,
             'location' => $this->teamLocation ?: null,
@@ -1325,7 +1368,7 @@ class CalendarSaptamanal extends Page
 
     public function deleteTeam(int $teamId): void
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        $this->organizerMeal((int) $this->teamsMealId);
 
         WorkTeam::query()
             ->whereKey($teamId)

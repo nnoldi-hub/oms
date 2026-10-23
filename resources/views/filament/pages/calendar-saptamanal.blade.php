@@ -110,7 +110,7 @@
             <div class="oms-calendar__weekdays">
                 <span class="oms-calendar__weekdays-label">Zile lucratoare</span>
                 @foreach ($this->workingDayDates as $date => $isWorking)
-                    <label class="oms-calendar__weekday {{ $isWorking ? 'is-on' : '' }}">
+                    <label class="oms-calendar__weekday {{ $isWorking ? 'is-on' : '' }}" wire:key="working-day-{{ $date }}-{{ $isWorking ? 1 : 0 }}">
                         <input
                             type="checkbox"
                             @checked($isWorking)
@@ -157,7 +157,7 @@
                     @php($budgetDifference = $dailyMeal->maximum_budget === null ? null : (float) $dailyMeal->maximum_budget - $dailyCost['total_cost'])
                     @php($contribution = $dailyMeal->contributor_count ? $dailyCost['total_cost'] / $dailyMeal->contributor_count : null)
                     @php($warnings = $this->cardWarnings[$dailyMeal->id] ?? [])
-                    <article class="oms-card">
+                    <article class="oms-card" wire:key="calendar-meal-{{ $dailyMeal->id }}">
                         <header class="oms-card__header">
                             <div>
                                 <p class="oms-card__day">{{ $dailyMeal->meal_date->translatedFormat('l') }}</p>
@@ -178,7 +178,7 @@
                                 <p class="oms-card__value">{{ $dailyMeal->congregation?->name ?? 'Nealocata' }}</p>
                             </div>
 
-                            @php($canPlan = auth()->user()?->isAdmin())
+                            @php($canPlan = $this->canOrganize($dailyMeal))
                             @php($mealSections = [
                                 ['main', 'Fel principal', 'plannedMenus', $this->menuOptions['main']],
                                 ['soup', 'Ciorba', 'plannedSoups', $this->menuOptions['soup']],
@@ -196,7 +196,9 @@
                                                 @endforeach
                                             </select>
                                             <button class="oms-card__mini oms-card__mini--save" type="button" title="Salveaza" wire:click="savePlannedMenu({{ $dailyMeal->id }}, '{{ $type }}')">✓</button>
-                                            <button class="oms-card__mini oms-card__mini--new" type="button" title="Fel nou" wire:click="openNewDish({{ $dailyMeal->id }}, '{{ $type }}')">+ nou</button>
+                                            @if (auth()->user()?->isAdmin())
+                                                <button class="oms-card__mini oms-card__mini--new" type="button" title="Fel nou" wire:click="openNewDish({{ $dailyMeal->id }}, '{{ $type }}')">+ nou</button>
+                                            @endif
                                         </div>
                                     @else
                                         <p class="oms-card__value">{{ $dailyMeal->{['main' => 'menu', 'soup' => 'soupMenu', 'dessert' => 'dessertMenu'][$type]}?->name ?? '-' }}</p>
@@ -223,7 +225,7 @@
                         </div>
                         <footer class="oms-card__footer">
                             <p class="oms-card__label">Portii estimate</p>
-                            @if (auth()->user()?->isAdmin() || auth()->user()?->isConstructionTeam())
+                            @if (auth()->user()?->isConstructionTeam() || $this->canOrganize($dailyMeal))
                                 <div class="oms-card__edit">
                                     <input class="oms-card__input" type="number" min="0" max="5000" wire:model.live.debounce.300ms="estimatedPeople.{{ $dailyMeal->id }}" aria-label="Portii estimate pentru {{ $dailyMeal->meal_date->format('d.m.Y') }}">
                                     <button class="oms-card__save" type="button" title="Salveaza portiile" aria-label="Salveaza portiile" wire:click="saveEstimatedPeople({{ $dailyMeal->id }})" wire:loading.attr="disabled" wire:target="saveEstimatedPeople({{ $dailyMeal->id }})">✓</button>
@@ -236,7 +238,7 @@
                             @endif
                             <div class="oms-card__budget">
                                 <p class="oms-card__label">Buget estimat, cost si contributii</p>
-                                @if (auth()->user()?->isAdmin() || auth()->user()?->isCoordinator())
+                                @if ($this->canOrganize($dailyMeal))
                                     <div class="oms-card__budget-grid">
                                         <input class="oms-card__budget-input" type="number" min="0" step="0.01" wire:model.live.debounce.300ms="maximumBudget.{{ $dailyMeal->id }}" aria-label="Buget estimat maxim in RON" placeholder="Buget estimat (RON)">
                                         <input class="oms-card__budget-input" type="number" min="1" step="1" wire:model.live.debounce.300ms="contributorCount.{{ $dailyMeal->id }}" aria-label="Numar de persoane care contribuie" placeholder="Contributori">
@@ -331,8 +333,10 @@
                             @endif
 
                             <div class="oms-card__actions">
-                                <button class="oms-card__action" type="button" wire:click="openPeople({{ $dailyMeal->id }})">Persoane ({{ count($people) }})</button>
-                                <button class="oms-card__action" type="button" wire:click="openTeams({{ $dailyMeal->id }})">Echipe ({{ count($teams) }})</button>
+                                @if ($this->canOrganize($dailyMeal))
+                                    <button class="oms-card__action" type="button" wire:click="openPeople({{ $dailyMeal->id }})">Persoane ({{ count($people) }})</button>
+                                    <button class="oms-card__action" type="button" wire:click="openTeams({{ $dailyMeal->id }})">Echipe ({{ count($teams) }})</button>
+                                @endif
                                 <button
                                     class="oms-card__action"
                                     type="button"
