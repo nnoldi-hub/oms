@@ -107,7 +107,23 @@ class User extends Authenticatable implements FilamentUser
 
     public function canManageContributions(): bool
     {
-        return $this->canManageSupply() || $this->isCongregationResponsible();
+        return $this->canManageSupply() || $this->isCongregationResponsible() || $this->isCoordinator();
+    }
+
+    /**
+     * Utilizatorul vede si gestioneaza doar datele congregatiei sale.
+     */
+    public function isScopedToCongregation(): bool
+    {
+        return $this->isCoordinator() || $this->isCongregationResponsible();
+    }
+
+    /**
+     * Coordonatorul isi gestioneaza costurile si fondurile congregatiei sale.
+     */
+    public function canManageCongregationFunds(): bool
+    {
+        return $this->canManageSupply() || $this->isCoordinator();
     }
 
     public function canAccessPanel(Panel $panel): bool

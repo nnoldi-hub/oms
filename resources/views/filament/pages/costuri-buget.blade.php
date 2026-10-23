@@ -63,7 +63,7 @@
                 ['icon' => '📅', 'label' => 'Cost mediu / zi', 'value' => number_format($this->costs->avg('cost') ?: 0, 2, '.', ' ').' RON', 'class' => ''],
                 ['icon' => '👥', 'label' => 'Cost mediu / voluntar', 'value' => number_format($peopleTotal > 0 ? $weeklyTotal / $peopleTotal : 0, 2, '.', ' ').' RON', 'class' => ''],
                 ['icon' => '⚖️', 'label' => 'Diferenta estimat / real', 'value' => ($this->weekIsClosed && $this->spentThisWeek > 0 ? number_format($weeklyTotal - $this->spentThisWeek, 2, '.', ' ') : 'In curs') . ' RON', 'class' => ''],
-                ['icon' => '📦', 'label' => 'Valoare stoc actual', 'value' => number_format($this->supplyCost, 2, '.', ' ').' RON', 'class' => ''],
+                ...($this->canSeeStock ? [['icon' => '📦', 'label' => 'Valoare stoc actual', 'value' => number_format($this->supplyCost, 2, '.', ' ').' RON', 'class' => '']] : []),
             ] as $card)
                 <article class="budget-kpi {{ $card['class'] }}">
                     <div class="budget-kpi-icon">{{ $card['icon'] }}</div>

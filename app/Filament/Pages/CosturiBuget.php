@@ -10,6 +10,8 @@ use App\Services\DailyMealCostCalculator;
 use Carbon\CarbonImmutable;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 
 class CosturiBuget extends Page
@@ -26,22 +28,65 @@ class CosturiBuget extends Page
     {
         $user = auth()->user();
 
-        return ($user?->canManageSupply() ?? false) || ($user?->isProjectSupervisor() ?? false);
+        return ($user?->canManageCongregationFunds() ?? false) || ($user?->isProjectSupervisor() ?? false);
     }
 
     public function mount(): void
     {
-        $this->weekId = Week::query()->orderByDesc('start_date')->value('id');
+        $this->weekId = $this->weeksQuery()->orderByDesc('start_date')->value('id');
+    }
+
+    /**
+     * Coordonatorul vede doar saptamanile si zilele congregatiei sale.
+     */
+    private function congregationScope(): ?int
+    {
+        $user = auth()->user();
+
+        return $user?->isScopedToCongregation() ? (int) $user->congregation_id : null;
+    }
+
+    private function weeksQuery(): Builder
+    {
+        $congregationId = $this->congregationScope();
+
+        return Week::query()
+            ->when($congregationId !== null, fn (Builder $query) => $query->where(
+                fn (Builder $scoped) => $scoped
+                    ->where('congregation_id', $congregationId)
+                    ->orWhereHas('dailyMeals', fn (Builder $meals) => $meals->where('congregation_id', $congregationId)),
+            ))
+            ->with($this->mealRelations());
+    }
+
+    /**
+     * @return array<string, \Closure|string>
+     */
+    private function mealRelations(): array
+    {
+        $congregationId = $this->congregationScope();
+
+        return [
+            'dailyMeals' => fn (HasMany $query) => $query->when($congregationId !== null, fn ($meals) => $meals->where('congregation_id', $congregationId)),
+            'dailyMeals.menu',
+            'dailyMeals.soupMenu',
+            'dailyMeals.dessertMenu',
+        ];
+    }
+
+    public function getCanSeeStockProperty(): bool
+    {
+        return $this->congregationScope() === null;
     }
 
     public function getWeekProperty(): ?Week
     {
-        return Week::with(['dailyMeals.menu', 'dailyMeals.soupMenu', 'dailyMeals.dessertMenu'])->find($this->weekId);
+        return $this->weeksQuery()->find($this->weekId);
     }
 
     public function getWeeksProperty(): Collection
     {
-        return Week::query()->orderBy('week_number')->get();
+        return $this->weeksQuery()->orderBy('week_number')->get();
     }
 
     public function getCostsProperty(DailyMealCostCalculator $calculator): Collection
@@ -82,6 +127,7 @@ class CosturiBuget extends Page
         }
 
         return (float) FoodFundTransaction::query()
+            ->visibleTo(auth()->user())
             ->where('type', 'expense')
             ->whereBetween('transaction_date', [
                 $week->start_date->toDateString(),
@@ -95,11 +141,12 @@ class CosturiBuget extends Page
      */
     public function getBudgetProperty(DailyMealCostCalculator $calculator): array
     {
-        $weeks = Week::query()->with(['dailyMeals.menu', 'dailyMeals.soupMenu', 'dailyMeals.dessertMenu'])
+        $weeks = $this->weeksQuery()
             ->orderBy('week_number')
             ->get();
 
         $expensesByPeriod = FoodFundTransaction::query()
+            ->visibleTo(auth()->user())
             ->where('type', 'expense')
             ->get()
             ->groupBy(fn (FoodFundTransaction $transaction): string => CarbonImmutable::parse($transaction->transaction_date)->toDateString())
@@ -139,7 +186,7 @@ class CosturiBuget extends Page
             ];
         }
 
-        $recordedExpenses = (float) FoodFundTransaction::query()->where('type', 'expense')->sum('amount');
+        $recordedExpenses = (float) FoodFundTransaction::query()->visibleTo(auth()->user())->where('type', 'expense')->sum('amount');
         $totalWeeks = $weeks->count();
         $averagePerWeek = $completedCount > 0 ? $completedEstimated / $completedCount : ($totalWeeks > 0 ? $estimatedTotal / $totalWeeks : 0.0);
 

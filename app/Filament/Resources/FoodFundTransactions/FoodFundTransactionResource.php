@@ -15,6 +15,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class FoodFundTransactionResource extends Resource
 {
@@ -30,22 +31,38 @@ class FoodFundTransactionResource extends Resource
     {
         $user = auth()->user();
 
-        return ($user?->canManageSupply() ?? false) || ($user?->isProjectSupervisor() ?? false);
+        return ($user?->canManageCongregationFunds() ?? false) || ($user?->isProjectSupervisor() ?? false);
     }
 
     public static function canCreate(): bool
     {
-        return auth()->user()?->canManageSupply() ?? false;
+        return auth()->user()?->canManageCongregationFunds() ?? false;
     }
 
     public static function canEdit($record): bool
     {
-        return auth()->user()?->canManageSupply() ?? false;
+        return self::canManageRecord($record);
     }
 
     public static function canDelete($record): bool
     {
-        return auth()->user()?->canManageSupply() ?? false;
+        return self::canManageRecord($record);
+    }
+
+    private static function canManageRecord(FoodFundTransaction $record): bool
+    {
+        $user = auth()->user();
+
+        if (! ($user?->canManageCongregationFunds() ?? false)) {
+            return false;
+        }
+
+        return ! $user->isScopedToCongregation() || (int) $record->congregation_id === (int) $user->congregation_id;
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->visibleTo(auth()->user());
     }
 
     public static function form(Schema $schema): Schema
@@ -55,6 +72,21 @@ class FoodFundTransactionResource extends Resource
                 'income' => 'Incasare fonduri',
                 'expense' => 'Cheltuiala / suma oferita',
             ])->required(),
+            Select::make('congregation_id')
+                ->label('Congregatie')
+                ->relationship(
+                    'congregation',
+                    'name',
+                    fn (Builder $query): Builder => auth()->user()?->isScopedToCongregation()
+                        ? $query->whereKey(auth()->user()->congregation_id)
+                        : $query,
+                )
+                ->default(fn (): ?int => auth()->user()?->isScopedToCongregation() ? auth()->user()->congregation_id : null)
+                ->disabled(fn (): bool => auth()->user()?->isScopedToCongregation() ?? false)
+                ->dehydrated()
+                ->helperText('Congregatia care a primit sau a cheltuit suma.')
+                ->searchable()
+                ->preload(),
             DatePicker::make('transaction_date')->label('Data')->default(today())->required(),
             TextInput::make('amount')->label('Suma')->numeric()->minValue(0.01)->prefix('RON')->required(),
             Select::make('category')->label('Categorie')->options([
@@ -82,6 +114,7 @@ class FoodFundTransactionResource extends Resource
             TextColumn::make('transaction_date')->label('Data')->date()->sortable(),
             TextColumn::make('type')->label('Tip')->badge()->formatStateUsing(fn (string $state): string => $state === 'income' ? 'Incasare' : 'Cheltuiala')->color(fn (string $state): string => $state === 'income' ? 'success' : 'danger'),
             TextColumn::make('amount')->label('Suma')->money('RON')->sortable(),
+            TextColumn::make('congregation.name')->label('Congregatie')->placeholder('-')->sortable(),
             TextColumn::make('category')->label('Categorie')->badge(),
             TextColumn::make('counterparty')->label('De la / catre')->searchable(),
             TextColumn::make('description')->label('Detalii')->limit(45)->searchable(),

@@ -460,7 +460,7 @@ class CalendarSaptamanal extends Page
         $user = auth()->user();
 
         return (bool) ($user?->isAdmin()
-            || ($user?->isCoordinator() && $user->congregation_id === $meal->congregation_id));
+            || ($user?->isCoordinator() && (int) $user->congregation_id === (int) $meal->congregation_id));
     }
 
     private function organizerMeal(int $mealId): DailyMeal
@@ -1024,6 +1024,7 @@ class CalendarSaptamanal extends Page
         $summary = [];
 
         FoodFundTransaction::query()
+            ->visibleTo(auth()->user())
             ->whereBetween('transaction_date', [
                 $week->start_date->toDateString(),
                 $week->start_date->copy()->addDays(6)->toDateString(),

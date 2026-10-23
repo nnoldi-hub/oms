@@ -84,7 +84,7 @@ class DailyMeal extends Model
                 // 2. Restricții pentru Coordonatorul de Congregație: organizeaza zilele congregatiei sale
                 // (retete, portii, buget, observatii), dar nu muta zilele si nu schimba congregatia.
                 if ($user?->isCoordinator()) {
-                    if ($user->congregation_id !== $dailyMeal->getOriginal('congregation_id') || $dailyMeal->isDirty([
+                    if ((int) $user->congregation_id !== (int) $dailyMeal->getOriginal('congregation_id') || $dailyMeal->isDirty([
                         'meal_date',
                         'week_id',
                         'congregation_id',

@@ -54,7 +54,7 @@ class SupplyContributionResource extends Resource
         $query = parent::getEloquentQuery();
         $user = auth()->user();
 
-        if ($user?->isCongregationResponsible()) {
+        if ($user?->isScopedToCongregation()) {
             $query->where('congregation_id', $user->congregation_id);
         }
 
@@ -64,7 +64,21 @@ class SupplyContributionResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema->components([
-            Select::make('congregation_id')->label('Congregatie')->relationship('congregation', 'name')->searchable()->preload()->required(),
+            Select::make('congregation_id')
+                ->label('Congregatie')
+                ->relationship(
+                    'congregation',
+                    'name',
+                    fn (Builder $query): Builder => auth()->user()?->isScopedToCongregation()
+                        ? $query->whereKey(auth()->user()->congregation_id)
+                        : $query,
+                )
+                ->default(fn (): ?int => auth()->user()?->isScopedToCongregation() ? auth()->user()->congregation_id : null)
+                ->disabled(fn (): bool => auth()->user()?->isScopedToCongregation() ?? false)
+                ->dehydrated()
+                ->searchable()
+                ->preload()
+                ->required(),
             Select::make('supply_item_id')->label('Resursa')->relationship('supplyItem', 'name')->searchable()->preload()->required(),
             DatePicker::make('delivery_date')->label('Ziua livrarii')->default(today())->required(),
             TextInput::make('quantity')->label('Cantitate')->numeric()->minValue(0)->required(),
