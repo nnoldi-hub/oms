@@ -12,7 +12,7 @@ class MenuCostReportController extends Controller
 {
     public function __invoke(MealRequirementCalculator $calculator): View
     {
-        Gate::authorize('viewAny', Menu::class);
+        Gate::authorize('viewCostReport', Menu::class);
 
         $menus = Menu::query()->orderBy('type')->orderBy('name')->get()->map(function (Menu $menu) use ($calculator): array {
             $meal = new DailyMeal(['estimated_people' => 1]);

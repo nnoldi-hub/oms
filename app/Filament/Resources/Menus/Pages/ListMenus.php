@@ -17,6 +17,7 @@ class ListMenus extends ListRecords
             Action::make('recipe-cost-report')
                 ->label('Raport retete si costuri')
                 ->url(route('menu-cost-reports.show'))
+                ->visible(fn (): bool => auth()->user()?->can('viewCostReport', \App\Models\Menu::class) ?? false)
                 ->openUrlInNewTab(),
             CreateAction::make(),
         ];

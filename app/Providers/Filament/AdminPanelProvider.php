@@ -6,6 +6,7 @@ use App\Filament\Widgets\OmsStatsOverview;
 use App\Filament\Widgets\SupplyStatsOverview;
 use App\Filament\Widgets\TomorrowMealOverview;
 use App\Filament\Widgets\TomorrowMessageWidget;
+use App\Models\Menu;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -45,15 +46,18 @@ class AdminPanelProvider extends PanelProvider
                 NavigationItem::make('Feluri principale')
                     ->group('Bucatarie')
                     ->icon('heroicon-o-squares-2x2')
-                    ->url('/admin/menus?type=main'),
+                    ->url('/admin/menus?type=main')
+                    ->visible(fn (): bool => auth()->user()?->can('viewAny', Menu::class) ?? false),
                 NavigationItem::make('Ciorbe')
                     ->group('Bucatarie')
                     ->icon('heroicon-o-fire')
-                    ->url('/admin/menus?type=soup'),
+                    ->url('/admin/menus?type=soup')
+                    ->visible(fn (): bool => auth()->user()?->can('viewAny', Menu::class) ?? false),
                 NavigationItem::make('Deserturi / gustari')
                     ->group('Bucatarie')
                     ->icon('heroicon-o-cake')
-                    ->url('/admin/menus?type=dessert'),
+                    ->url('/admin/menus?type=dessert')
+                    ->visible(fn (): bool => auth()->user()?->can('viewAny', Menu::class) ?? false),
             ])
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
