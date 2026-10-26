@@ -130,6 +130,7 @@
                 <div class="oms-calendar__reports">
                     @if (auth()->user()?->isAdmin())
                         <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="openSuggestWeek({{ $this->selectedWeek->id }})">Sugereaza meniul</button>
+                        <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="openPlanPeriod({{ $this->selectedWeek->id }})">Planifica perioada</button>
                         <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="openMoveWeek({{ $this->selectedWeek->id }})">Mută săptămâna</button>
                         <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="openDeleteWeek({{ $this->selectedWeek->id }})">Șterge săptămâna</button>
                     @endif
@@ -389,6 +390,77 @@
                         <button class="oms-modal__cancel" type="button" wire:click="closeSchedulingAction">Renunta</button>
                         <button class="oms-modal__confirm" type="button" wire:click="suggestMenus">Sugereaza</button>
                     </div>
+                </div>
+            </div>
+        @endif
+
+        @if ($planPeriodWeekId !== null)
+            <div class="oms-modal" style="overflow-y: auto;">
+                <div class="oms-modal__panel" style="max-width: 900px; width: 95%; max-height: 90vh; overflow-y: auto;">
+                    <h2 class="oms-modal__title">Planifica meniul pentru o perioada</h2>
+                    <p class="oms-modal__hint">Planifica automat felul principal si ciorba pe mai multe saptamani. Se respecta rotatia (minimum 10 zile intre acelasi fel principal), doua ciorbe diferite pe saptamana, plasarea ciorbei pe a 2-a si a 4-a masa si se incearca echilibrarea costului intre saptamani. Zilele trecute, cele gatite, cele publicate si zilele libere nu sunt modificate.</p>
+                    <div class="oms-modal__row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div>
+                            <label class="oms-modal__label" for="plan-period-from">De la</label>
+                            <input class="oms-card__input" id="plan-period-from" type="date" wire:model="planPeriodFrom">
+                            @error('planPeriodFrom')<p class="oms-card__error">{{ $message }}</p>@enderror
+                        </div>
+                        <div>
+                            <label class="oms-modal__label" for="plan-period-to">Pana la</label>
+                            <input class="oms-card__input" id="plan-period-to" type="date" wire:model="planPeriodTo">
+                            @error('planPeriodTo')<p class="oms-card__error">{{ $message }}</p>@enderror
+                        </div>
+                    </div>
+                    <label class="oms-modal__label" style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
+                        <input type="checkbox" wire:model="planPeriodReplace">
+                        Inlocuieste meniurile existente pe zilele editabile din perioada
+                    </label>
+                    <div class="oms-modal__buttons" style="margin-top: 14px;">
+                        <button class="oms-modal__cancel" type="button" wire:click="closePlanPeriod">Renunta</button>
+                        <button class="oms-modal__confirm" type="button" wire:click="previewPlanPeriod">Previzualizeaza</button>
+                        <button class="oms-modal__confirm" type="button" wire:click="applyPlanPeriod">Aplica</button>
+                    </div>
+
+                    @if ($planPeriodResult !== null)
+                        <div style="margin-top: 16px;">
+                            @if ($planPeriodResult['error'] !== null)
+                                <p class="oms-card__error">{{ $planPeriodResult['error'] }}</p>
+                            @else
+                                <p class="oms-modal__hint">
+                                    Zile modificate: <strong>{{ $planPeriodResult['changed'] }}</strong> · Diferenta intre saptamani (cost/portie): <strong>{{ number_format($planPeriodResult['spread'], 2) }} lei</strong>
+                                    @if ($planPeriodResult['has_missing_prices'])
+                                        · <span class="oms-card__error">Unele retete nu au preturi configurate</span>
+                                    @endif
+                                </p>
+                                @foreach ($planPeriodResult['weeks'] as $weekPlan)
+                                    <div style="margin-top: 12px; border: 1px solid rgba(15,23,42,0.08); border-radius: 10px; overflow: hidden;">
+                                        <div style="background: rgba(15,23,42,0.02); padding: 8px 12px; display: flex; justify-content: space-between;">
+                                            <strong>Saptamana {{ $weekPlan['week_number'] }} ({{ $weekPlan['start'] }} – {{ $weekPlan['end'] }})</strong>
+                                            <span>Cost/portie: {{ number_format($weekPlan['cost_per_portion'], 2) }} lei</span>
+                                        </div>
+                                        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                            <thead>
+                                                <tr style="background: rgba(15,23,42,0.01);">
+                                                    <th style="text-align: left; padding: 6px 12px;">Data</th>
+                                                    <th style="text-align: left; padding: 6px 12px;">Fel principal</th>
+                                                    <th style="text-align: left; padding: 6px 12px;">Ciorba</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach ($weekPlan['days'] as $dayPlan)
+                                                    <tr style="border-top: 1px solid rgba(15,23,42,0.06); {{ $dayPlan['changed'] ? 'background: rgba(22,163,74,0.04);' : '' }}">
+                                                        <td style="padding: 6px 12px;">{{ $dayPlan['date'] }}</td>
+                                                        <td style="padding: 6px 12px;">{{ $dayPlan['main'] ?? '—' }}</td>
+                                                        <td style="padding: 6px 12px;">{{ $dayPlan['soup'] ?? '—' }}</td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                @endforeach
+                            @endif
+                        </div>
+                    @endif
                 </div>
             </div>
         @endif

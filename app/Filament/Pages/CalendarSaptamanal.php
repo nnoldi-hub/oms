@@ -13,6 +13,7 @@ use App\Models\WorkTeam;
 use App\Services\DailyMealCostCalculator;
 use App\Services\DailyMessageBuilder;
 use App\Services\MenuSchedulingValidator;
+use App\Services\PeriodMenuPlanner;
 use Carbon\CarbonImmutable;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -86,6 +87,17 @@ class CalendarSaptamanal extends Page
     public string $newDishName = '';
 
     public ?int $suggestWeekId = null;
+
+    public ?int $planPeriodWeekId = null;
+
+    public ?string $planPeriodFrom = null;
+
+    public ?string $planPeriodTo = null;
+
+    public bool $planPeriodReplace = true;
+
+    /** @var array{error: ?string, changed: int, weeks: array, spread: float, has_missing_prices: bool}|null */
+    public ?array $planPeriodResult = null;
 
     public ?int $pendingWorkingDayMealId = null;
 
@@ -842,6 +854,84 @@ class CalendarSaptamanal extends Page
             ->title($filled > 0
                 ? "Sugestia a completat {$filled} zile goale."
                 : 'Nu exista zile goale de completat.')
+            ->success()
+            ->send();
+    }
+
+    public function openPlanPeriod(?int $weekId = null): void
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        $this->planPeriodWeekId = $weekId ?? $this->weekId;
+        $week = $weekId ? Week::query()->find($weekId) : $this->selectedWeek;
+
+        if ($week !== null && $this->planPeriodFrom === null) {
+            $this->planPeriodFrom = $week->start_date->toDateString();
+            $this->planPeriodTo = $week->start_date->copy()->addDays(34)->toDateString();
+        }
+
+        $this->planPeriodReplace = true;
+        $this->planPeriodResult = null;
+        $this->resetErrorBag();
+    }
+
+    public function closePlanPeriod(): void
+    {
+        $this->planPeriodWeekId = null;
+        $this->planPeriodResult = null;
+        $this->resetErrorBag();
+    }
+
+    public function previewPlanPeriod(PeriodMenuPlanner $planner): void
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        $this->validate([
+            'planPeriodFrom' => ['required', 'date'],
+            'planPeriodTo' => ['required', 'date', 'after_or_equal:planPeriodFrom'],
+        ]);
+
+        $from = CarbonImmutable::parse($this->planPeriodFrom);
+        $to = CarbonImmutable::parse($this->planPeriodTo);
+
+        $this->planPeriodResult = $planner->plan($from, $to, $this->planPeriodReplace, false);
+    }
+
+    public function applyPlanPeriod(PeriodMenuPlanner $planner): void
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        if ($this->planPeriodResult === null || ($this->planPeriodResult['error'] ?? null) !== null) {
+            $this->previewPlanPeriod($planner);
+
+            if ($this->planPeriodResult === null || ($this->planPeriodResult['error'] ?? null) !== null) {
+                return;
+            }
+        }
+
+        $this->validate([
+            'planPeriodFrom' => ['required', 'date'],
+            'planPeriodTo' => ['required', 'date', 'after_or_equal:planPeriodFrom'],
+        ]);
+
+        $from = CarbonImmutable::parse($this->planPeriodFrom);
+        $to = CarbonImmutable::parse($this->planPeriodTo);
+
+        $result = $planner->plan($from, $to, $this->planPeriodReplace, true);
+        $this->planPeriodResult = $result;
+
+        $this->loadCalendarValues();
+
+        if ($result['error'] !== null) {
+            Notification::make()->title($result['error'])->warning()->send();
+
+            return;
+        }
+
+        Notification::make()
+            ->title($result['changed'] > 0
+                ? "Planificarea pe perioada a aplicat modificari pe {$result['changed']} zile."
+                : 'Nicio modificare aplicata.')
             ->success()
             ->send();
     }
