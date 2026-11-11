@@ -19,6 +19,8 @@
         .day-sheet { border-top: 4px solid #059669; page-break-before: always; padding-top: 20px; }
         .day-meta { line-height: 1.55; margin: 0 0 12px; }
         table { background: white; border-collapse: collapse; width: 100%; }
+        .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .table-wrap > table { min-width: 680px; }
         th { background: #e4efe8; color: #14532d; text-align: left; }
         th, td { border: 1px solid #d6dfd9; padding: 11px 12px; vertical-align: top; }
         .number { text-align: right; white-space: nowrap; }
@@ -26,7 +28,7 @@
         .totals { background: #e4efe8; border-left: 4px solid #047857; line-height: 1.55; margin-top: 12px; padding: 12px 14px; }
         .totals p { margin: 4px 0; }
         .print { background: #047857; border: 0; color: white; cursor: pointer; font-weight: 700; margin-top: 18px; padding: 10px 16px; }
-        @media print { .print { display: none; } main { max-width: none; padding: 0; } .day-sheet { break-inside: avoid; } }
+        @media print { .print { display: none; } main { max-width: none; padding: 0; } .day-sheet { break-inside: avoid; } .table-wrap { overflow: visible; } }
     </style>
 </head>
 <body>
@@ -40,21 +42,23 @@
 
         <section>
             <h2>Rezumat: cost estimat pe zile</h2>
-            <table>
-                <thead><tr><th>Data</th><th>Fel principal</th><th class="number">Ingrediente</th><th class="number">Ambalaje</th><th class="number">Total</th><th class="number">Cost / portie</th></tr></thead>
-                <tbody>
-                    @foreach ($daySheets as $sheet)
-                        <tr>
-                            <td>{{ $sheet['meal']->meal_date->translatedFormat('D, j M') }}</td>
-                            <td>{{ $sheet['meal']->menu?->name ?? '— fără meniu —' }}</td>
-                            <td class="number">{{ $sheet['cost']['has_missing_prices'] ? 'De configurat' : number_format($sheet['ingredients_cost'], 2, '.', ' ') . ' RON' }}</td>
-                            <td class="number">{{ $sheet['cost']['has_missing_prices'] ? 'De configurat' : number_format($sheet['packaging_cost'], 2, '.', ' ') . ' RON' }}</td>
-                            <td class="number">{{ $sheet['cost']['has_missing_prices'] ? 'Partial' : number_format($sheet['cost']['total_cost'], 2, '.', ' ') . ' RON' }}</td>
-                            <td class="number">{{ $sheet['cost_per_portion'] === null ? '-' : number_format($sheet['cost_per_portion'], 2, '.', ' ') . ' RON' }}</td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Data</th><th>Fel principal</th><th class="number">Ingrediente</th><th class="number">Ambalaje</th><th class="number">Total</th><th class="number">Cost / portie</th></tr></thead>
+                    <tbody>
+                        @foreach ($daySheets as $sheet)
+                            <tr>
+                                <td>{{ $sheet['meal']->meal_date->translatedFormat('D, j M') }}</td>
+                                <td>{{ $sheet['meal']->menu?->name ?? '— fără meniu —' }}</td>
+                                <td class="number">{{ $sheet['cost']['has_missing_prices'] ? 'De configurat' : number_format($sheet['ingredients_cost'], 2, '.', ' ') . ' RON' }}</td>
+                                <td class="number">{{ $sheet['cost']['has_missing_prices'] ? 'De configurat' : number_format($sheet['packaging_cost'], 2, '.', ' ') . ' RON' }}</td>
+                                <td class="number">{{ $sheet['cost']['has_missing_prices'] ? 'Partial' : number_format($sheet['cost']['total_cost'], 2, '.', ' ') . ' RON' }}</td>
+                                <td class="number">{{ $sheet['cost_per_portion'] === null ? '-' : number_format($sheet['cost_per_portion'], 2, '.', ' ') . ' RON' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
             @if ($averageCostPerPortion !== null)
                 <p class="totals"><strong>Media saptamanii:</strong> {{ number_format($averageCostPerPortion, 2, '.', ' ') }} RON / portie.</p>
             @endif
@@ -62,22 +66,24 @@
 
         <section>
             <h2>Planificarea meselor</h2>
-            <table>
-                <thead><tr><th>Data</th><th>Congregatie</th><th>Fel principal</th><th>Ciorba</th><th>Desert / gustare</th><th>Stare / fel gatit</th><th class="number">Portii</th></tr></thead>
-                <tbody>
-                    @foreach ($week->dailyMeals as $dailyMeal)
-                        <tr>
-                            <td>{{ $dailyMeal->meal_date->translatedFormat('D, j M') }}</td>
-                            <td>{{ $dailyMeal->congregation?->name ?? '-' }}</td>
-                            <td>{{ $dailyMeal->menu?->name ?? '— fără meniu —' }}</td>
-                            <td>{{ $dailyMeal->soupMenu?->name ?? '-' }}</td>
-                            <td>{{ $dailyMeal->dessertMenu?->name ?? '-' }}</td>
-                            <td>{{ $dailyMeal->is_cooked ? 'Gatit' : 'Planificat' }}{{ $dailyMeal->actualMenu && $dailyMeal->actualMenu->id !== $dailyMeal->menu_id ? ': '.$dailyMeal->actualMenu->name : '' }}</td>
-                            <td class="number">{{ $dailyMeal->confirmed_people ?? $dailyMeal->estimated_people }}</td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Data</th><th>Congregatie</th><th>Fel principal</th><th>Ciorba</th><th>Desert / gustare</th><th>Stare / fel gatit</th><th class="number">Portii</th></tr></thead>
+                    <tbody>
+                        @foreach ($week->dailyMeals as $dailyMeal)
+                            <tr>
+                                <td>{{ $dailyMeal->meal_date->translatedFormat('D, j M') }}</td>
+                                <td>{{ $dailyMeal->congregation?->name ?? '-' }}</td>
+                                <td>{{ $dailyMeal->menu?->name ?? '— fără meniu —' }}</td>
+                                <td>{{ $dailyMeal->soupMenu?->name ?? '-' }}</td>
+                                <td>{{ $dailyMeal->dessertMenu?->name ?? '-' }}</td>
+                                <td>{{ $dailyMeal->is_cooked ? 'Gatit' : 'Planificat' }}{{ $dailyMeal->actualMenu && $dailyMeal->actualMenu->id !== $dailyMeal->menu_id ? ': '.$dailyMeal->actualMenu->name : '' }}</td>
+                                <td class="number">{{ $dailyMeal->confirmed_people ?? $dailyMeal->estimated_people }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
         </section>
 
         @foreach ($daySheets as $sheet)
@@ -132,22 +138,24 @@
 
         <section>
             <h2>Lista de cumparaturi bruta</h2>
-            <table>
-                <thead><tr><th>Ingredient</th><th class="number">Cantitate</th><th class="number">De cumparat</th><th class="number">Pret estimat</th><th class="number">Cost estimat</th></tr></thead>
-                <tbody>
-                    @forelse ($shoppingList['ingredients'] as $ingredient)
-                        <tr>
-                            <td>{{ $ingredient['name'] }}</td>
-                            <td class="number">{{ $ingredient['needs_configuration'] ? 'De configurat' : rtrim(rtrim(number_format($ingredient['quantity'], 3, '.', ''), '0'), '.') . ' ' . $ingredient['unit'] }}</td>
-                            <td class="number">{{ $ingredient['needs_configuration'] ? 'De configurat' : \App\Support\PracticalQuantity::format($ingredient['to_buy_quantity'], $ingredient['unit']) }}</td>
-                            <td class="number">{{ $ingredient['has_missing_price'] ? 'De configurat' : number_format($ingredient['estimated_unit_cost'], 2, '.', ' ') . ' RON/' . $ingredient['unit'] }}</td>
-                            <td class="number">{{ $ingredient['has_missing_price'] ? '-' : number_format($ingredient['estimated_cost'], 2, '.', ' ') . ' RON' }}</td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="5">Nu exista meniuri complete pentru aceasta saptamana.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Ingredient</th><th class="number">Cantitate</th><th class="number">De cumparat</th><th class="number">Pret estimat</th><th class="number">Cost estimat</th></tr></thead>
+                    <tbody>
+                        @forelse ($shoppingList['ingredients'] as $ingredient)
+                            <tr>
+                                <td>{{ $ingredient['name'] }}</td>
+                                <td class="number">{{ $ingredient['needs_configuration'] ? 'De configurat' : rtrim(rtrim(number_format($ingredient['quantity'], 3, '.', ''), '0'), '.') . ' ' . $ingredient['unit'] }}</td>
+                                <td class="number">{{ $ingredient['needs_configuration'] ? 'De configurat' : \App\Support\PracticalQuantity::format($ingredient['to_buy_quantity'], $ingredient['unit']) }}</td>
+                                <td class="number">{{ $ingredient['has_missing_price'] ? 'De configurat' : number_format($ingredient['estimated_unit_cost'], 2, '.', ' ') . ' RON/' . $ingredient['unit'] }}</td>
+                                <td class="number">{{ $ingredient['has_missing_price'] ? '-' : number_format($ingredient['estimated_cost'], 2, '.', ' ') . ' RON' }}</td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="5">Nu exista meniuri complete pentru aceasta saptamana.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
             @if ($shoppingList['packaging']['total_cost'] > 0)
                 <p><strong>Ambalaje:</strong> {{ $shoppingList['packaging']['count'] }} caserole. <strong>Cost ambalaje:</strong> {{ number_format($shoppingList['packaging']['total_cost'], 2, '.', ' ') }} RON.</p>
             @else

@@ -1,14 +1,14 @@
 <x-filament-panels::page>
     <style>
-        .oms-calendar { --ink: #16231e; --muted: #66756e; --line: #d8e0dc; --surface: #fff; --soft: #f4f7f5; --green: #047857; --green-soft: #e7f5ed; --amber: #b45309; --amber-soft: #fff5df; color: var(--ink); }
+        .oms-calendar { --ink: #16231e; --muted: #66756e; --line: #d8e0dc; --surface: #fff; --soft: #f4f7f5; --green: #047857; --green-soft: #e7f5ed; --amber: #b45309; --amber-soft: #fff5df; color: var(--ink); max-width: 100%; overflow-x: clip; }
         .oms-calendar * { box-sizing: border-box; }
         .oms-calendar__toolbar { align-items: end; border-bottom: 1px solid var(--line); display: flex; gap: 24px; justify-content: space-between; padding-bottom: 20px; }
         .oms-calendar__eyebrow { color: var(--green); font-size: 13px; font-weight: 700; margin: 0 0 6px; text-transform: uppercase; }
         .oms-calendar__title { font-size: 30px; font-weight: 750; line-height: 1.1; margin: 0; }
         .oms-calendar__selector { display: grid; gap: 6px; min-width: 310px; }
         .oms-calendar__selector label, .oms-card__label { color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; }
-        .oms-calendar select, .oms-card__input, .oms-card__select { background: var(--surface); border: 1px solid #b9c8bf; border-radius: 6px; color: var(--ink); font: inherit; min-height: 42px; padding: 8px 11px; width: 100%; }
-        .oms-card__select { min-height: 38px; font-size: 14px; }
+        .oms-calendar select, .oms-card__input, .oms-card__select { background: var(--surface); border: 1px solid #b9c8bf; border-radius: 6px; color: var(--ink); font: inherit; font-size: 16px; min-height: 44px; padding: 8px 11px; width: 100%; }
+        .oms-card__select { min-height: 44px; font-size: 16px; }
         .oms-calendar__weekdays { align-items: center; display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0 4px; }
         .oms-calendar__weekdays-label { color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; }
         .oms-calendar__weekday { align-items: center; background: var(--soft); border: 1px solid var(--line); border-radius: 999px; cursor: pointer; display: inline-flex; font-size: 13px; font-weight: 650; gap: 7px; padding: 7px 13px; }
@@ -16,11 +16,11 @@
         .oms-calendar__weekday.is-on { background: var(--green-soft); border-color: #91b4a2; color: var(--green); }
         .oms-calendar__summary { align-items: center; display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; margin: 22px 0; }
         .oms-calendar__dates { color: var(--muted); font-size: 15px; margin: 0; }
-        .oms-calendar__report { background: var(--green); border-radius: 6px; color: #fff; font-size: 14px; font-weight: 700; padding: 11px 15px; text-decoration: none; }
+        .oms-calendar__report { background: var(--green); border-radius: 6px; color: #fff; font-size: 14px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 11px 15px; text-decoration: none; }
         .oms-calendar__reports { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
         .oms-calendar__report--secondary { background: #fff; border: 1px solid #91b4a2; color: #166534; cursor: pointer; }
         .oms-calendar__grid { display: grid; gap: 20px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-        .oms-card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 2px 6px rgb(22 35 30 / 8%); display: flex; flex-direction: column; min-height: 350px; overflow: hidden; }
+        .oms-card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 2px 6px rgb(22 35 30 / 8%); display: flex; flex-direction: column; min-height: 350px; min-width: 0; overflow: hidden; }
         .oms-card__header { align-items: center; background: var(--soft); border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; padding: 15px 16px; }
         .oms-card__day { font-size: 18px; font-weight: 750; margin: 0; text-transform: capitalize; }
         .oms-card__date { color: var(--muted); font-size: 13px; margin: 3px 0 0; }
@@ -36,9 +36,9 @@
         .oms-card__meal--main .oms-card__label { color: var(--green); }
         .oms-card__meal--soup .oms-card__label { color: var(--amber); }
         .oms-card__meal--dessert .oms-card__label { color: #4338ca; }
-        .oms-card__meal-row { align-items: center; display: flex; gap: 8px; margin-top: 7px; }
-        .oms-card__meal-row .oms-card__select { flex: 1; }
-        .oms-card__mini { background: #fff; border: 1px solid #91b4a2; border-radius: 6px; color: #166534; cursor: pointer; font-size: 18px; font-weight: 800; height: 38px; line-height: 1; padding: 0 11px; }
+        .oms-card__meal-row { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 7px; }
+        .oms-card__meal-row .oms-card__select { flex: 1 1 160px; min-width: 0; }
+        .oms-card__mini { background: #fff; border: 1px solid #91b4a2; border-radius: 6px; color: #166534; cursor: pointer; font-size: 18px; font-weight: 800; line-height: 1; min-height: 44px; min-width: 44px; padding: 0 11px; }
         .oms-card__mini--save { background: var(--green); border-color: var(--green); color: #fff; }
         .oms-card__mini--new { font-size: 14px; padding: 0 10px; }
         .oms-card__warnings { background: var(--amber-soft); border: 1px solid #f0d29e; border-radius: 6px; color: var(--amber); font-size: 13px; line-height: 1.5; margin: 0; padding: 10px 12px; }
@@ -48,45 +48,53 @@
         .oms-card__footer { background: var(--soft); border-top: 1px solid var(--line); margin-top: auto; padding: 16px; }
         .oms-card__edit { align-items: center; display: flex; gap: 8px; margin-top: 7px; }
         .oms-card__input { font-size: 20px; font-weight: 750; text-align: center; }
-        .oms-card__save { align-items: center; background: var(--green); border: 0; border-radius: 6px; color: #fff; cursor: pointer; display: inline-flex; font-size: 22px; font-weight: 800; height: 42px; justify-content: center; line-height: 1; width: 46px; }
+        .oms-card__save { align-items: center; background: var(--green); border: 0; border-radius: 6px; color: #fff; cursor: pointer; display: inline-flex; font-size: 22px; font-weight: 800; min-height: 44px; justify-content: center; line-height: 1; width: 46px; }
         .oms-card__save:disabled { cursor: wait; opacity: .65; }
         .oms-card__count { color: var(--green); font-size: 32px; font-weight: 750; margin: 5px 0 0; }
         .oms-card__error { color: #be123c; font-size: 13px; margin: 7px 0 0; }
-        .oms-card__print { color: var(--green); display: inline-block; font-size: 13px; font-weight: 700; margin-top: 12px; text-decoration: underline; }
+        .oms-card__print { align-items: center; color: var(--green); display: inline-flex; font-size: 13px; font-weight: 700; margin-top: 12px; min-height: 44px; text-decoration: underline; }
         .oms-card__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-        .oms-card__action { background: #fff; border: 1px solid #91b4a2; border-radius: 5px; color: #166534; cursor: pointer; font: inherit; font-size: 13px; font-weight: 700; padding: 7px 11px; }
+        .oms-card__action { align-items: center; background: #fff; border: 1px solid #91b4a2; border-radius: 5px; color: #166534; cursor: pointer; display: inline-flex; font: inherit; font-size: 13px; font-weight: 700; justify-content: center; min-height: 44px; padding: 7px 11px; text-decoration: none; }
         .oms-card__action:hover { background: var(--green-soft); }
         .oms-card__cooked { align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 6px; display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; padding: 11px 12px; }
-        .oms-card__cooked-label { align-items: center; display: flex; font-size: 14px; font-weight: 700; gap: 8px; }
+        .oms-card__cooked-label { align-items: center; display: flex; font-size: 14px; font-weight: 700; gap: 8px; min-height: 44px; }
         .oms-card__cooked-label input { accent-color: var(--green); height: 18px; width: 18px; }
-        .oms-card__cooked-cost { display: flex; gap: 8px; min-width: 180px; }
-        .oms-card__cooked-cost .oms-card__select { min-height: 36px; }
-        .oms-card__cooked-cost input { min-height: 36px; text-align: right; }
-        .oms-modal { background: rgb(22 35 30 / 55%); display: flex; inset: 0; justify-content: center; padding: 40px 16px; position: fixed; z-index: 60; }
-        .oms-modal__panel { background: var(--surface); border-radius: 10px; box-shadow: 0 18px 45px rgb(22 35 30 / 35%); display: flex; flex-direction: column; gap: 14px; max-width: 460px; padding: 22px; width: 100%; }
+        .oms-card__cooked-cost { display: flex; flex-wrap: wrap; gap: 8px; min-width: 180px; }
+        .oms-card__cooked-cost .oms-card__select { flex: 1 1 160px; min-height: 44px; min-width: 0; }
+        .oms-card__cooked-cost input { flex: 1 1 120px; min-height: 44px; min-width: 0; text-align: right; }
+        .oms-modal { background: rgb(22 35 30 / 55%); display: flex; inset: 0; justify-content: center; overflow-y: auto; padding: 24px 16px; position: fixed; z-index: 60; }
+        .oms-modal__panel { background: var(--surface); border-radius: 10px; box-shadow: 0 18px 45px rgb(22 35 30 / 35%); display: flex; flex-direction: column; gap: 14px; max-height: calc(100dvh - 48px); max-width: 460px; overflow-y: auto; padding: 22px; width: 100%; -webkit-overflow-scrolling: touch; }
         .oms-modal__title { font-size: 19px; font-weight: 750; margin: 0; }
         .oms-modal__label { color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; }
         .oms-modal__hint { color: var(--muted); font-size: 13px; line-height: 1.5; margin: 0; }
         .oms-modal__row { display: grid; gap: 6px; }
         .oms-modal__radio { align-items: center; display: flex; gap: 8px; font-size: 14px; }
-        .oms-modal__buttons { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; }
-        .oms-modal__confirm { background: var(--green); border: 0; border-radius: 6px; color: #fff; cursor: pointer; font: inherit; font-weight: 700; padding: 9px 15px; }
-        .oms-modal__confirm--link { display: inline-block; text-decoration: none; }
-        .oms-modal__cancel { background: #fff; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); cursor: pointer; font: inherit; font-weight: 700; padding: 9px 15px; }
-        .oms-modal__danger { background: #be123c; border: 0; border-radius: 6px; color: #fff; cursor: pointer; font: inherit; font-weight: 700; padding: 9px 15px; }
+        .oms-modal__buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; margin-top: 4px; }
+        .oms-modal__confirm { align-items: center; background: var(--green); border: 0; border-radius: 6px; color: #fff; cursor: pointer; display: inline-flex; font: inherit; font-weight: 700; justify-content: center; min-height: 44px; padding: 9px 15px; }
+        .oms-modal__confirm--link { display: inline-flex; text-decoration: none; }
+        .oms-modal__cancel { align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); cursor: pointer; display: inline-flex; font: inherit; font-weight: 700; justify-content: center; min-height: 44px; padding: 9px 15px; }
+        .oms-modal__danger { align-items: center; background: #be123c; border: 0; border-radius: 6px; color: #fff; cursor: pointer; display: inline-flex; font: inherit; font-weight: 700; justify-content: center; min-height: 44px; padding: 9px 15px; }
         .oms-card__budget { border-top: 1px solid var(--line); display: grid; gap: 9px; margin-top: 14px; padding-top: 14px; }
         .oms-card__budget-grid { display: grid; gap: 8px; grid-template-columns: 1fr 1fr auto; }
-        .oms-card__budget-input { background: var(--surface); border: 1px solid #b9c8bf; border-radius: 5px; color: var(--ink); min-width: 0; padding: 8px; width: 100%; }
-        .oms-card__budget-save { background: #b45309; border: 0; border-radius: 5px; color: #fff; cursor: pointer; font-size: 18px; font-weight: 800; padding: 0 11px; }
+        .oms-card__budget-input { background: var(--surface); border: 1px solid #b9c8bf; border-radius: 5px; color: var(--ink); font-size: 16px; min-height: 44px; min-width: 0; padding: 8px; width: 100%; }
+        .oms-card__budget-save { align-items: center; background: #b45309; border: 0; border-radius: 5px; color: #fff; cursor: pointer; display: inline-flex; font-size: 18px; font-weight: 800; justify-content: center; min-height: 44px; min-width: 44px; padding: 0 11px; }
         .oms-card__budget-result { font-size: 12px; line-height: 1.45; margin: 0; }
         .oms-card__budget-result strong { color: var(--green); }
+        .oms-card__value { overflow-wrap: anywhere; }
         .oms-calendar__empty { border: 1px dashed #aebcb5; border-radius: 8px; color: var(--muted); padding: 32px; text-align: center; }
         .dark .oms-calendar { --ink: #ecf5ef; --muted: #b4c1ba; --line: #3d4d45; --surface: #1e2823; --soft: #26322c; --green-soft: #123c2b; --amber-soft: #3d2c10; }
         .dark .oms-card__meal--dessert { background: #27264d; border-color: #5653a4; }
         .dark .oms-card__meal--dessert .oms-card__label { color: #c7d2fe; }
         .dark .oms-card__cooked, .dark .oms-card__mini { background: #26322c; }
-        @media (max-width: 1100px) { .oms-calendar__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-        @media (max-width: 700px) { .oms-calendar__toolbar { align-items: stretch; flex-direction: column; } .oms-calendar__selector { min-width: 0; } .oms-calendar__grid { grid-template-columns: 1fr; } .oms-calendar__title { font-size: 26px; } }
+        @media (max-width: 1023.98px) { .oms-calendar__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        @media (max-width: 700px) { .oms-calendar__toolbar { align-items: stretch; flex-direction: column; } .oms-calendar__selector { min-width: 0; } .oms-calendar__title { font-size: 26px; } }
+        @media (max-width: 639.98px) {
+            .oms-calendar__grid { grid-template-columns: 1fr; }
+            .oms-calendar input, .oms-calendar select, .oms-calendar textarea { font-size: 16px !important; }
+            .oms-modal { padding: 12px; }
+            .oms-modal__panel { padding: 16px; max-height: calc(100dvh - 24px); }
+            .oms-card__budget-grid { gap: 6px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
+        }
     </style>
 
     <div class="oms-calendar">
@@ -240,7 +248,7 @@
                             <p class="oms-card__label">Portii estimate</p>
                             @if (auth()->user()?->isConstructionTeam() || $this->canOrganize($dailyMeal))
                                 <div class="oms-card__edit">
-                                    <input class="oms-card__input" type="number" min="0" max="5000" wire:model.live.debounce.300ms="estimatedPeople.{{ $dailyMeal->id }}" aria-label="Portii estimate pentru {{ $dailyMeal->meal_date->format('d.m.Y') }}">
+                                    <input class="oms-card__input" type="number" inputmode="numeric" min="0" max="5000" wire:model.live.debounce.300ms="estimatedPeople.{{ $dailyMeal->id }}" aria-label="Portii estimate pentru {{ $dailyMeal->meal_date->format('d.m.Y') }}">
                                     <button class="oms-card__save" type="button" title="Salveaza portiile" aria-label="Salveaza portiile" wire:click="saveEstimatedPeople({{ $dailyMeal->id }})" wire:loading.attr="disabled" wire:target="saveEstimatedPeople({{ $dailyMeal->id }})">✓</button>
                                 </div>
                                 @error("estimatedPeople.{$dailyMeal->id}")
@@ -253,8 +261,8 @@
                                 <p class="oms-card__label">Buget estimat, cost si contributii</p>
                                 @if ($this->canOrganize($dailyMeal))
                                     <div class="oms-card__budget-grid">
-                                        <input class="oms-card__budget-input" type="number" min="0" step="0.01" wire:model.live.debounce.300ms="maximumBudget.{{ $dailyMeal->id }}" aria-label="Buget estimat maxim in RON" placeholder="Buget estimat (RON)">
-                                        <input class="oms-card__budget-input" type="number" min="1" step="1" wire:model.live.debounce.300ms="contributorCount.{{ $dailyMeal->id }}" aria-label="Numar de persoane care contribuie" placeholder="Contributori">
+                                        <input class="oms-card__budget-input" type="number" inputmode="decimal" min="0" step="0.01" wire:model.live.debounce.300ms="maximumBudget.{{ $dailyMeal->id }}" aria-label="Buget estimat maxim in RON" placeholder="Buget estimat (RON)">
+                                        <input class="oms-card__budget-input" type="number" inputmode="numeric" min="1" step="1" wire:model.live.debounce.300ms="contributorCount.{{ $dailyMeal->id }}" aria-label="Numar de persoane care contribuie" placeholder="Contributori">
                                         <button class="oms-card__budget-save" type="button" title="Salveaza bugetul estimat" aria-label="Salveaza bugetul estimat" wire:click="saveBudget({{ $dailyMeal->id }})">✓</button>
                                     </div>
                                 @endif
@@ -295,7 +303,7 @@
                                                 <option value="{{ $option->id }}">{{ $option->name }}</option>
                                             @endforeach
                                         </select>
-                                        <input class="oms-card__input" type="number" min="0" step="0.01" wire:model="actualCosts.{{ $dailyMeal->id }}" placeholder="Cost real" title="Costul real al zilei (RON)" style="font-size:14px;font-weight:600;">
+                                        <input class="oms-card__input" type="number" inputmode="decimal" min="0" step="0.01" wire:model="actualCosts.{{ $dailyMeal->id }}" placeholder="Cost real" title="Costul real al zilei (RON)" style="font-size:14px;font-weight:600;">
                                         <button class="oms-card__mini oms-card__mini--save" type="button" title="Salveaza gatitul si costul real" wire:click="markCooked({{ $dailyMeal->id }})">✓</button>
                                     </div>
                                 </div>
@@ -534,7 +542,7 @@
                     <p class="oms-modal__hint">Muta toate zilele saptamanii cu numarul de zile ales. Meniurile si bugetele raman pe zilele respective.</p>
                     <div class="oms-modal__row">
                         <label class="oms-modal__label" for="move-week-days">Numar de zile</label>
-                        <input class="oms-card__input" id="move-week-days" type="number" min="-30" max="30" wire:model="moveWeekDays">
+                        <input class="oms-card__input" id="move-week-days" type="number" inputmode="numeric" min="-30" max="30" wire:model="moveWeekDays">
                         @error('moveWeekDays')<p class="oms-card__error">{{ $message }}</p>@enderror
                     </div>
                     <div class="oms-modal__buttons">
@@ -619,7 +627,7 @@
 
                     <div class="oms-modal__row">
                         <span class="oms-modal__label">Contributie (optional)</span>
-                        <input class="oms-card__input" type="number" min="0" step="0.01" wire:model="contributionAmount" placeholder="Suma in RON" style="font-size:15px;font-weight:600;">
+                        <input class="oms-card__input" type="number" inputmode="decimal" min="0" step="0.01" wire:model="contributionAmount" placeholder="Suma in RON" style="font-size:15px;font-weight:600;">
                         @error('contributionAmount')<p class="oms-card__error">{{ $message }}</p>@enderror
                         <select class="oms-card__select" wire:model="contributionStatus">
                             <option value="promis">Promis</option>
@@ -683,7 +691,7 @@
                     </div>
                     <div class="oms-modal__row">
                         <label class="oms-modal__label" for="team-members">Numar membri</label>
-                        <input class="oms-card__input" id="team-members" type="number" min="0" wire:model="teamMemberCount" style="font-size:15px;font-weight:600;">
+                        <input class="oms-card__input" id="team-members" type="number" inputmode="numeric" min="0" wire:model="teamMemberCount" style="font-size:15px;font-weight:600;">
                         @error('teamMemberCount')<p class="oms-card__error">{{ $message }}</p>@enderror
                     </div>
                     <div class="oms-modal__row">
@@ -725,7 +733,7 @@
                     <p class="oms-modal__hint">Creeaza o saptamana noua. Dupa creare, poti adauga zile prin bifarea zilelor lucratoare.</p>
                     <div class="oms-modal__row">
                         <label class="oms-modal__label" for="new-week-number">Numar saptamana</label>
-                        <input class="oms-card__input" id="new-week-number" type="number" min="1" max="520" wire:model="newWeekNumber" style="font-size:15px;font-weight:600;">
+                        <input class="oms-card__input" id="new-week-number" type="number" inputmode="numeric" min="1" max="520" wire:model="newWeekNumber" style="font-size:15px;font-weight:600;">
                         @error('newWeekNumber')<p class="oms-card__error">{{ $message }}</p>@enderror
                     </div>
                     <div class="oms-modal__row">

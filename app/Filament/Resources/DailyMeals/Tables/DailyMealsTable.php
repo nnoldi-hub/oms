@@ -25,7 +25,8 @@ class DailyMealsTable
                     ->sortable(),
                 TextColumn::make('week.week_number')
                     ->label('Saptamana')
-                    ->searchable(),
+                    ->searchable()
+                    ->visibleFrom('md'),
                 TextColumn::make('congregation.name')
                     ->label('Congregatie')
                     ->searchable(),
@@ -34,21 +35,25 @@ class DailyMealsTable
                     ->searchable(),
                 TextColumn::make('soupMenu.name')
                     ->label('Ciorba')
-                    ->searchable(),
+                    ->searchable()
+                    ->visibleFrom('md'),
                 TextColumn::make('dessertMenu.name')
                     ->label('Desert / gustare')
-                    ->searchable(),
+                    ->searchable()
+                    ->visibleFrom('md'),
                 TextColumn::make('estimated_people')
                     ->label('Persoane estimate')
                     ->numeric()
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('md'),
                 IconColumn::make('has_allergies')
                     ->label('Alergii')
                     ->boolean()
                     ->trueColor('danger'),
                 TextColumn::make('status')
                     ->label('Stare')
-                    ->searchable(),
+                    ->searchable()
+                    ->visibleFrom('md'),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()

@@ -17,6 +17,8 @@
         .meta { line-height: 1.55; margin: 12px 0 0; }
         .contact { background: #e4efe8; border-left: 4px solid #059669; margin-top: 18px; padding: 14px 16px; }
         table { background: white; border-collapse: collapse; width: 100%; }
+        .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .table-wrap > table { min-width: 720px; }
         th { background: #e4efe8; color: #14532d; text-align: left; }
         th, td { border: 1px solid #d6dfd9; padding: 11px 12px; vertical-align: top; }
         .number { text-align: right; white-space: nowrap; }
@@ -26,7 +28,7 @@
         .safety p, .safety li { line-height: 1.45; }
         .safety ul { margin: 8px 0 0; padding-left: 20px; }
         .print { background: #047857; border: 0; color: white; cursor: pointer; font-weight: 700; margin-top: 18px; padding: 10px 16px; }
-        @media print { .print { display: none; } main { max-width: none; padding: 0; } }
+        @media print { .print { display: none; } main { max-width: none; padding: 0; } .table-wrap { overflow: visible; } }
     </style>
 </head>
 <body>
@@ -43,39 +45,41 @@
 
         <section>
             <h2>Zile si portii de pregatit</h2>
-            <table>
-                <thead><tr><th>Data</th><th>Fel principal si alergeni</th><th>Ciorba si alergeni</th><th>Desert si alergeni</th><th class="number">Portii</th></tr></thead>
-                <tbody>
-                    @forelse ($week->dailyMeals as $dailyMeal)
-                        <tr>
-                            <td>{{ $dailyMeal->meal_date->translatedFormat('D, j M') }}</td>
-                            <td>
-                                <strong>{{ $dailyMeal->menu?->name ?? '— fără meniu —' }}</strong><br>
-                                <small>Alergeni: {{ $dailyMeal->menu === null ? '-' : $dailyMeal->menu->allergensLabel() }}</small>
-                            </td>
-                            <td>
-                                @if ($dailyMeal->soupMenu)
-                                    <strong>{{ $dailyMeal->soupMenu->name }}</strong><br>
-                                    <small>Alergeni: {{ $dailyMeal->soupMenu->allergensLabel() }}</small>
-                                @else
-                                    -
-                                @endif
-                            </td>
-                            <td>
-                                @if ($dailyMeal->dessertMenu)
-                                    <strong>{{ $dailyMeal->dessertMenu->name }}</strong><br>
-                                    <small>Alergeni: {{ $dailyMeal->dessertMenu->allergensLabel() }}</small>
-                                @else
-                                    -
-                                @endif
-                            </td>
-                            <td class="number">{{ $dailyMeal->estimated_people }}</td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="5">Aceasta congregatie nu are zile alocate in saptamana selectata.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Data</th><th>Fel principal si alergeni</th><th>Ciorba si alergeni</th><th>Desert si alergeni</th><th class="number">Portii</th></tr></thead>
+                    <tbody>
+                        @forelse ($week->dailyMeals as $dailyMeal)
+                            <tr>
+                                <td>{{ $dailyMeal->meal_date->translatedFormat('D, j M') }}</td>
+                                <td>
+                                    <strong>{{ $dailyMeal->menu?->name ?? '— fără meniu —' }}</strong><br>
+                                    <small>Alergeni: {{ $dailyMeal->menu === null ? '-' : $dailyMeal->menu->allergensLabel() }}</small>
+                                </td>
+                                <td>
+                                    @if ($dailyMeal->soupMenu)
+                                        <strong>{{ $dailyMeal->soupMenu->name }}</strong><br>
+                                        <small>Alergeni: {{ $dailyMeal->soupMenu->allergensLabel() }}</small>
+                                    @else
+                                        -
+                                    @endif
+                                </td>
+                                <td>
+                                    @if ($dailyMeal->dessertMenu)
+                                        <strong>{{ $dailyMeal->dessertMenu->name }}</strong><br>
+                                        <small>Alergeni: {{ $dailyMeal->dessertMenu->allergensLabel() }}</small>
+                                    @else
+                                        -
+                                    @endif
+                                </td>
+                                <td class="number">{{ $dailyMeal->estimated_people }}</td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="5">Aceasta congregatie nu are zile alocate in saptamana selectata.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
         </section>
 
         <section class="safety">
@@ -93,16 +97,18 @@
 
         <section>
             <h2>Lista de cumparaturi</h2>
-            <table>
-                <thead><tr><th>Ingredient</th><th class="number">Cantitate</th><th class="number">Pret estimat</th><th class="number">Cost estimat</th></tr></thead>
-                <tbody>
-                    @forelse ($shoppingList['ingredients'] as $ingredient)
-                        <tr><td>{{ $ingredient['name'] }}</td><td class="number">{{ rtrim(rtrim(number_format($ingredient['quantity'], 3, '.', ''), '0'), '.') }} {{ $ingredient['unit'] }}</td><td class="number">{{ $ingredient['has_missing_price'] ? 'De configurat' : number_format($ingredient['estimated_unit_cost'], 2, '.', ' ') . ' RON/' . $ingredient['unit'] }}</td><td class="number">{{ $ingredient['has_missing_price'] ? '-' : number_format($ingredient['estimated_cost'], 2, '.', ' ') . ' RON' }}</td></tr>
-                    @empty
-                        <tr><td colspan="4">Nu exista meniuri complete pentru aceasta congregatie.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Ingredient</th><th class="number">Cantitate</th><th class="number">Pret estimat</th><th class="number">Cost estimat</th></tr></thead>
+                    <tbody>
+                        @forelse ($shoppingList['ingredients'] as $ingredient)
+                            <tr><td>{{ $ingredient['name'] }}</td><td class="number">{{ rtrim(rtrim(number_format($ingredient['quantity'], 3, '.', ''), '0'), '.') }} {{ $ingredient['unit'] }}</td><td class="number">{{ $ingredient['has_missing_price'] ? 'De configurat' : number_format($ingredient['estimated_unit_cost'], 2, '.', ' ') . ' RON/' . $ingredient['unit'] }}</td><td class="number">{{ $ingredient['has_missing_price'] ? '-' : number_format($ingredient['estimated_cost'], 2, '.', ' ') . ' RON' }}</td></tr>
+                        @empty
+                            <tr><td colspan="4">Nu exista meniuri complete pentru aceasta congregatie.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
             @if ($shoppingList['packaging']['total_cost'] > 0)
                 <p><strong>Ambalaje:</strong> {{ $shoppingList['packaging']['count'] }} caserole. <strong>Cost ambalaje:</strong> {{ number_format($shoppingList['packaging']['total_cost'], 2, '.', ' ') }} RON.</p>
             @else

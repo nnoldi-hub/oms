@@ -25,7 +25,8 @@ class WeeksTable
                     ->sortable(),
                 TextColumn::make('congregation.name')
                     ->label('Congregatie principala')
-                    ->searchable(),
+                    ->searchable()
+                    ->visibleFrom('md'),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()

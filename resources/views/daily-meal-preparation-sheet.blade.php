@@ -19,6 +19,7 @@
         .recipe--soup { background: #fff5df; border-color: #d97706; }
         .recipe p { margin: 7px 0 0; }
         table { background: white; border-collapse: collapse; width: 100%; }
+        .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         th { background: #e4efe8; color: #14532d; text-align: left; }
         th, td { border: 1px solid #d6dfd9; padding: 11px 12px; vertical-align: top; }
         .number { text-align: right; white-space: nowrap; }
@@ -37,7 +38,16 @@
         .crew__missing { color: #be123c; font-weight: 700; }
         .delivery { background: #eef2ff; border-left: 4px solid #4338ca; line-height: 1.55; margin-top: 10px; padding: 14px 16px; }
         .print { background: #047857; border: 0; color: white; cursor: pointer; font-weight: 700; margin-top: 18px; padding: 10px 16px; }
-        @media print { .print { display: none; } main { max-width: none; padding: 0; } }
+        @media print { .print { display: none; } main { max-width: none; padding: 0; } .table-wrap { overflow: visible; } }
+        @media screen and (max-width: 640px) {
+            .ingredient-table thead { display: none; }
+            .ingredient-table, .ingredient-table tbody, .ingredient-table tr, .ingredient-table td { display: block; width: 100%; }
+            .ingredient-table tr { background: #fff; border: 1px solid #d6dfd9; padding: 10px 12px; }
+            .ingredient-table tr + tr { margin-top: 8px; }
+            .ingredient-table td { border: 0; padding: 2px 0; }
+            .ingredient-table td.number { text-align: left; white-space: normal; }
+            .ingredient-table td[data-label]::before { content: attr(data-label) ': '; color: #4b5563; font-weight: 700; }
+        }
     </style>
 </head>
 <body>
@@ -92,19 +102,21 @@
                         <p><strong>Instrucțiuni:</strong> {{ $section['menu']->instructions ?: 'De stabilit de echipa de bucătărie.' }}</p>
                         <p><strong>Alergeni:</strong> {{ $allergenText }}</p>
                     </div>
-                    <table>
-                        <thead><tr><th class="check"></th><th>Ingredient</th><th class="number">Cantitate pentru {{ $dailyMeal->portions() }} porții</th><th class="number">Cost estimat</th></tr></thead>
-                        <tbody>
-                            @foreach ($section['requirements']['ingredients'] as $ingredient)
-                                <tr>
-                                    <td class="check"><input type="checkbox" aria-label="De cumparat {{ $ingredient['name'] }}"></td>
-                                    <td>{{ $ingredient['name'] }}</td>
-                                    <td class="number">{{ $ingredient['needs_configuration'] ? 'De configurat' : rtrim(rtrim(number_format($ingredient['quantity'], 3, '.', ''), '0'), '.') . ' ' . $ingredient['unit'] }}</td>
-                                    <td class="number">{{ $ingredient['has_missing_price'] ? 'De configurat' : number_format($ingredient['estimated_cost'], 2, '.', ' ') . ' RON' }}</td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+                    <div class="table-wrap">
+                        <table class="ingredient-table">
+                            <thead><tr><th class="check"></th><th>Ingredient</th><th class="number">Cantitate pentru {{ $dailyMeal->portions() }} porții</th><th class="number">Cost estimat</th></tr></thead>
+                            <tbody>
+                                @foreach ($section['requirements']['ingredients'] as $ingredient)
+                                    <tr>
+                                        <td class="check"><input type="checkbox" aria-label="De cumparat {{ $ingredient['name'] }}"></td>
+                                        <td data-label="Ingredient">{{ $ingredient['name'] }}</td>
+                                        <td class="number" data-label="Cantitate">{{ $ingredient['needs_configuration'] ? 'De configurat' : rtrim(rtrim(number_format($ingredient['quantity'], 3, '.', ''), '0'), '.') . ' ' . $ingredient['unit'] }}</td>
+                                        <td class="number" data-label="Cost estimat">{{ $ingredient['has_missing_price'] ? 'De configurat' : number_format($ingredient['estimated_cost'], 2, '.', ' ') . ' RON' }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
                     @foreach ($section['requirements']['fixed_costs'] as $fixedCost)
                         <p><strong>{{ $fixedCost['label'] }}:</strong> {{ $fixedCost['has_missing_price'] ? 'De configurat' : number_format($fixedCost['estimated_cost'], 2, '.', ' ') . ' RON' }}</p>
                     @endforeach
@@ -139,23 +151,25 @@
                     <p class="notice">Costul pe porție este parțial: unele ingrediente nu au preț configurat.</p>
                 @endif
             </div>
-            <table>
-                <thead><tr><th class="check"></th><th>De cumpărat</th><th class="number">Cantitate</th><th class="number">Cantitate de cumpărat</th><th class="number">Preț estimat</th><th class="number">Cost estimat</th></tr></thead>
-                <tbody>
-                    @forelse ($shoppingList['ingredients'] as $ingredient)
-                        <tr>
-                            <td class="check"><input type="checkbox" aria-label="De cumparat {{ $ingredient['name'] }}"></td>
-                            <td>{{ $ingredient['name'] }}</td>
-                            <td class="number">{{ $ingredient['needs_configuration'] ? 'De configurat' : rtrim(rtrim(number_format($ingredient['quantity'], 3, '.', ''), '0'), '.') . ' ' . $ingredient['unit'] }}</td>
-                            <td class="number">{{ $ingredient['needs_configuration'] ? 'De configurat' : \App\Support\PracticalQuantity::format($ingredient['to_buy_quantity'], $ingredient['unit']) }}</td>
-                            <td class="number">{{ $ingredient['has_missing_price'] ? 'De configurat' : number_format($ingredient['estimated_unit_cost'], 2, '.', ' ') . ' RON/' . $ingredient['unit'] }}</td>
-                            <td class="number">{{ $ingredient['has_missing_price'] ? '—' : number_format($ingredient['estimated_cost'], 2, '.', ' ') . ' RON' }}</td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="6">Nu există meniuri complete pentru această zi.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
+            <div class="table-wrap">
+                <table class="ingredient-table">
+                    <thead><tr><th class="check"></th><th>De cumpărat</th><th class="number">Cantitate</th><th class="number">Cantitate de cumpărat</th><th class="number">Preț estimat</th><th class="number">Cost estimat</th></tr></thead>
+                    <tbody>
+                        @forelse ($shoppingList['ingredients'] as $ingredient)
+                            <tr>
+                                <td class="check"><input type="checkbox" aria-label="De cumparat {{ $ingredient['name'] }}"></td>
+                                <td data-label="De cumpărat">{{ $ingredient['name'] }}</td>
+                                <td class="number" data-label="Cantitate">{{ $ingredient['needs_configuration'] ? 'De configurat' : rtrim(rtrim(number_format($ingredient['quantity'], 3, '.', ''), '0'), '.') . ' ' . $ingredient['unit'] }}</td>
+                                <td class="number" data-label="Cantitate de cumpărat">{{ $ingredient['needs_configuration'] ? 'De configurat' : \App\Support\PracticalQuantity::format($ingredient['to_buy_quantity'], $ingredient['unit']) }}</td>
+                                <td class="number" data-label="Preț estimat">{{ $ingredient['has_missing_price'] ? 'De configurat' : number_format($ingredient['estimated_unit_cost'], 2, '.', ' ') . ' RON/' . $ingredient['unit'] }}</td>
+                                <td class="number" data-label="Cost estimat">{{ $ingredient['has_missing_price'] ? '—' : number_format($ingredient['estimated_cost'], 2, '.', ' ') . ' RON' }}</td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="6">Nu există meniuri complete pentru această zi.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
             @if ($shoppingList['totals']['has_missing_prices'])
                 <p class="notice">Unele ingrediente nu au preț estimat. Totalul afișat este parțial până la completarea prețurilor din meniuri.</p>
             @endif

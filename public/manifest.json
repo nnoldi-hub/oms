@@ -1,0 +1,33 @@
+{
+    "name": "OMS - Organizare mese santier",
+    "short_name": "OMS",
+    "description": "Planificarea si organizarea meselor pentru santier.",
+    "lang": "ro",
+    "dir": "ltr",
+    "start_url": "/admin",
+    "scope": "/",
+    "display": "standalone",
+    "orientation": "portrait-primary",
+    "background_color": "#f4f7f5",
+    "theme_color": "#047857",
+    "icons": [
+        {
+            "src": "/icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}

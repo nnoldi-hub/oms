@@ -21,6 +21,7 @@ class MenusTable
                     ->searchable(),
                 TextColumn::make('type')
                     ->label('Tip')
+                    ->visibleFrom('md')
                     ->formatStateUsing(fn (string $state): string => [
                         'main' => 'Fel principal',
                         'soup' => 'Ciorba',
@@ -28,7 +29,8 @@ class MenusTable
                     ][$state] ?? $state),
                 TextColumn::make('packaging_cost')
                     ->money('RON')
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('md'),
                 IconColumn::make('is_active')
                     ->boolean(),
                 TextColumn::make('created_at')

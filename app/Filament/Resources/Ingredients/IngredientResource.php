@@ -48,13 +48,13 @@ class IngredientResource extends Resource
     {
         return $table->columns([
             TextColumn::make('name')->label('Ingredient')->searchable()->sortable(),
-            TextColumn::make('unit')->label('Unitate')->sortable(),
+            TextColumn::make('unit')->label('Unitate')->sortable()->visibleFrom('md'),
             TextColumn::make('unit_price')->label('Pret curent')->money('RON')->placeholder('De configurat')->sortable(),
             TextColumn::make('package_quantity')->label('Pachet')->numeric(decimalPlaces: 3)->placeholder('-')->toggleable(isToggledHiddenByDefault: true),
             IconColumn::make('has_no_allergens')->label('Fara alergeni')->boolean()->toggleable(isToggledHiddenByDefault: true),
-            IconColumn::make('fixed_cost_per_portion')->label('Cost fix / portie')->boolean(),
+            IconColumn::make('fixed_cost_per_portion')->label('Cost fix / portie')->boolean()->visibleFrom('md'),
             IconColumn::make('is_active')->label('Activ')->boolean(),
-            TextColumn::make('updated_at')->label('Actualizat')->dateTime()->sortable(),
+            TextColumn::make('updated_at')->label('Actualizat')->dateTime()->sortable()->visibleFrom('md'),
         ])->recordActions([
             \Filament\Actions\EditAction::make(),
             \Filament\Actions\DeleteAction::make(),
