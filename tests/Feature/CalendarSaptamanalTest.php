@@ -765,4 +765,73 @@ class CalendarSaptamanalTest extends TestCase
             ->assertSee('Echipe de lucru')
             ->assertSee('Echipa 1');
     }
+
+    public function test_the_day_card_shows_a_live_menu_usage_note_and_the_save_still_works(): void
+    {
+        $own = Congregation::factory()->create(['name' => 'Congregatia mea']);
+        $titan = Congregation::factory()->create(['name' => 'Titan']);
+        $week = Week::factory()->for($own)->create(['start_date' => '2026-11-16']);
+        $menu = Menu::factory()->create(['name' => 'Pilaf des folosit']);
+        DailyMeal::factory()->for(Week::factory()->for($titan))->for($titan)->for($menu)->create([
+            'meal_date' => '2026-11-12',
+        ]);
+        $dailyMeal = DailyMeal::factory()->for($week)->for($own)->create([
+            'meal_date' => '2026-11-18',
+            'menu_id' => null,
+        ]);
+        $coordinator = User::factory()->create(['role' => 'coordinator', 'congregation_id' => $own->id]);
+
+        $component = Livewire::actingAs($coordinator)
+            ->test(CalendarSaptamanal::class)
+            ->set('weekId', $week->id)
+            ->set("plannedMenus.{$dailyMeal->id}", $menu->id)
+            ->assertSee('Gătit ultima dată pe')
+            ->assertSee('acum 6 zile')
+            ->assertSee('la Titan');
+
+        $component
+            ->call('savePlannedMenu', $dailyMeal->id, 'main')
+            ->assertHasNoErrors();
+
+        $this->assertSame($menu->id, $dailyMeal->fresh()->menu_id);
+
+        $component
+            ->assertSee('Gătit ultima dată pe')
+            ->assertSee('minimum 10 zile');
+    }
+
+    public function test_the_day_card_reports_often_cooked_menus_and_upcoming_schedules_without_blocking(): void
+    {
+        $own = Congregation::factory()->create(['name' => 'Congregatia mea']);
+        $balta = Congregation::factory()->create(['name' => 'Balta Alba']);
+        $titan = Congregation::factory()->create(['name' => 'Titan']);
+        $week = Week::factory()->for($own)->create(['start_date' => '2026-11-16']);
+        $menu = Menu::factory()->create(['name' => 'Fel repetat des']);
+        $unused = Menu::factory()->create(['name' => 'Fel niciodata folosit']);
+
+        foreach (['2026-11-03', '2026-10-28', '2026-10-15'] as $index => $date) {
+            $congregation = $index === 0 ? $balta : $titan;
+            DailyMeal::factory()->for(Week::factory()->for($congregation))->for($congregation)->for($menu)->create([
+                'meal_date' => $date,
+            ]);
+        }
+        DailyMeal::factory()->for(Week::factory()->for($balta))->for($balta)->for($menu)->create([
+            'meal_date' => '2026-11-25',
+        ]);
+
+        $dailyMeal = DailyMeal::factory()->for($week)->for($own)->for($unused)->create(['meal_date' => '2026-11-18']);
+        $coordinator = User::factory()->create(['role' => 'coordinator', 'congregation_id' => $own->id]);
+
+        Livewire::actingAs($coordinator)
+            ->test(CalendarSaptamanal::class)
+            ->set('weekId', $week->id)
+            ->set("plannedMenus.{$dailyMeal->id}", $menu->id)
+            ->assertSee('Gătit de 3 ori în ultimele 6 săptămâni')
+            ->assertSee('Programat și pe')
+            ->assertSee('la Balta Alba')
+            ->call('savePlannedMenu', $dailyMeal->id, 'main')
+            ->assertHasNoErrors();
+
+        $this->assertSame($menu->id, $dailyMeal->fresh()->menu_id);
+    }
 }

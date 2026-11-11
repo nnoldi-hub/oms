@@ -13,6 +13,7 @@ use App\Models\WorkTeam;
 use App\Services\DailyMealCostCalculator;
 use App\Services\DailyMessageBuilder;
 use App\Services\MenuSchedulingValidator;
+use App\Services\MenuUsageInsight;
 use App\Services\PeriodMenuPlanner;
 use Carbon\CarbonImmutable;
 use Filament\Notifications\Notification;
@@ -531,6 +532,87 @@ class CalendarSaptamanal extends Page
         return $this->selectedWeek?->dailyMeals
             ->mapWithKeys(fn (DailyMeal $dailyMeal): array => [$dailyMeal->id => $validator->warnings($dailyMeal)])
             ->all() ?? [];
+    }
+
+    /**
+     * Notele despre folosirea meniurilor selectate, calculate din starea
+     * dropdown-urilor (inainte de salvare). Nu blocheaza salvarea si nu
+     * dubleaza avertismentele din MenuSchedulingValidator.
+     *
+     * @return array<int, array<string, string>> mealId => tip => nota
+     */
+    public function getMenuUsageNotesProperty(): array
+    {
+        $week = $this->selectedWeek;
+
+        if ($week === null) {
+            return [];
+        }
+
+        $insight = app(MenuUsageInsight::class);
+        $notes = [];
+
+        foreach ($week->dailyMeals as $dailyMeal) {
+            foreach ([
+                'main' => $this->plannedMenus[$dailyMeal->id] ?? null,
+                'soup' => $this->plannedSoups[$dailyMeal->id] ?? null,
+                'dessert' => $this->plannedDesserts[$dailyMeal->id] ?? null,
+            ] as $type => $menuId) {
+                if (blank($menuId) || $dailyMeal->is_free_day) {
+                    continue;
+                }
+
+                $note = $this->buildMenuUsageNote(
+                    $insight->insight((int) $menuId, $dailyMeal->meal_date, $dailyMeal),
+                );
+
+                if ($note !== null) {
+                    $notes[$dailyMeal->id][$type] = $note;
+                }
+            }
+        }
+
+        return $notes;
+    }
+
+    /**
+     * @param  array{last_used: ?array{date: string, congregation: string, days_passed: int}, used_in_window: int, next_scheduled: ?array{date: string, congregation: string}}  $insight
+     */
+    private function buildMenuUsageNote(array $insight): ?string
+    {
+        $notes = [];
+
+        $lastUsed = $insight['last_used'];
+
+        if ($lastUsed !== null && $lastUsed['days_passed'] < MenuUsageInsight::RECENT_DAYS) {
+            $notes[] = sprintf(
+                'Gătit ultima dată pe %s (acum %d %s), la %s',
+                CarbonImmutable::parse($lastUsed['date'])->translatedFormat('j M'),
+                $lastUsed['days_passed'],
+                $lastUsed['days_passed'] === 1 ? 'zi' : 'zile',
+                $lastUsed['congregation'],
+            );
+        }
+
+        if ($insight['used_in_window'] >= MenuUsageInsight::OFTEN_COOKED_COUNT) {
+            $notes[] = sprintf(
+                'Gătit de %d ori în ultimele %d săptămâni',
+                $insight['used_in_window'],
+                MenuUsageInsight::USAGE_WINDOW_WEEKS,
+            );
+        }
+
+        $nextScheduled = $insight['next_scheduled'];
+
+        if ($nextScheduled !== null) {
+            $notes[] = sprintf(
+                'Programat și pe %s, la %s',
+                CarbonImmutable::parse($nextScheduled['date'])->translatedFormat('j M'),
+                $nextScheduled['congregation'],
+            );
+        }
+
+        return $notes === [] ? null : implode(' ', $notes);
     }
 
     /**

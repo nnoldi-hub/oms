@@ -43,6 +43,8 @@
         .oms-card__mini--new { font-size: 14px; padding: 0 10px; }
         .oms-card__warnings { background: var(--amber-soft); border: 1px solid #f0d29e; border-radius: 6px; color: var(--amber); font-size: 13px; line-height: 1.5; margin: 0; padding: 10px 12px; }
         .oms-card__warnings ul { margin: 0; padding-left: 18px; }
+        .oms-card__usage-note { background: var(--amber-soft); border: 1px solid #f0d29e; border-radius: 6px; color: var(--amber); font-size: 13px; line-height: 1.5; margin: 0; padding: 10px 12px; }
+        .oms-card__usage-note ul { margin: 0; padding-left: 18px; }
         .oms-card__footer { background: var(--soft); border-top: 1px solid var(--line); margin-top: auto; padding: 16px; }
         .oms-card__edit { align-items: center; display: flex; gap: 8px; margin-top: 7px; }
         .oms-card__input { font-size: 20px; font-weight: 750; text-align: center; }
@@ -190,7 +192,7 @@
                                     <p class="oms-card__label">{{ $label }}</p>
                                     @if ($canPlan)
                                         <div class="oms-card__meal-row">
-                                            <select class="oms-card__select" wire:model="{{ $property }}.{{ $dailyMeal->id }}">
+                                            <select class="oms-card__select" wire:model.live="{{ $property }}.{{ $dailyMeal->id }}">
                                                 <option value="">- neales -</option>
                                                 @foreach ($options as $option)
                                                     <option value="{{ $option->id }}">{{ $option->name }}</option>
@@ -206,6 +208,16 @@
                                     @endif
                                 </div>
                             @endforeach
+
+                            @if (($usageNotes = $this->menuUsageNotes[$dailyMeal->id] ?? []) !== [])
+                                <div class="oms-card__usage-note" aria-label="Istoricul folosirii meniurilor selectate">
+                                    <ul>
+                                        @foreach ($usageNotes as $type => $note)
+                                            <li>{{ ['main' => 'Fel principal', 'soup' => 'Ciorba', 'dessert' => 'Desert'][$type] ?? $type }}: {{ $note }}</li>
+                                        @endforeach
+                                    </ul>
+                                </div>
+                            @endif
 
                             @if ($warnings !== [])
                                 <div class="oms-card__warnings">
