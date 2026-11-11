@@ -23,7 +23,8 @@ class UserInfolist
                     ->label('Congregatie')
                     ->placeholder('-'),
                 TextEntry::make('role')
-                    ->label('Rol'),
+    ->label('Rol')
+    ->formatStateUsing(fn (?string $state): string => UserForm::roleOptions()[$state] ?? (string) $state),
                 TextEntry::make('created_at')
                     ->label('Creat la')
                     ->dateTime()

@@ -9,6 +9,25 @@ use Filament\Schemas\Schema;
 
 class UserForm
 {
+    /**
+     * Etichetele rolurilor, folosite în formular, în lista de conturi și în pagina de detalii.
+     * Cheile sunt valorile din baza de date și nu se schimbă.
+     *
+     * @return array<string, string>
+     */
+    public static function roleOptions(): array
+    {
+        return [
+            'admin' => 'Administrator',
+            'coordinator' => 'Coordonator',
+            'construction' => 'Echipa constructii',
+            'kitchen' => 'Echipa gastronomica',
+            'supply_manager' => 'Responsabil aprovizionare',
+            'congregation_responsible' => 'Responsabil congregatie',
+            'project_supervisor' => 'Supraveghetor proiect',
+        ];
+    }
+
     public static function configure(Schema $schema): Schema
     {
         return $schema
@@ -28,15 +47,7 @@ class UserForm
                     ->dehydrated(fn (?string $state): bool => filled($state)),
                 Select::make('role')
                     ->label('Rol')
-                    ->options([
-                        'admin' => 'Administrator',
-                        'coordinator' => 'Coordonator congregatie',
-                        'construction' => 'Echipa constructii',
-                        'kitchen' => 'Echipa gastronomica',
-                        'supply_manager' => 'Responsabil aprovizionare',
-                        'congregation_responsible' => 'Responsabil congregatie',
-                        'project_supervisor' => 'Supraveghetor proiect',
-                    ])
+                    ->options(self::roleOptions())
                     ->default('coordinator')
                     ->required()
                     ->live(),

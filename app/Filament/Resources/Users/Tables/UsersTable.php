@@ -8,6 +8,7 @@ use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use App\Filament\Resources\Users\Schemas\UserForm;
 
 class UsersTable
 {
@@ -30,9 +31,10 @@ class UsersTable
                     ->label('Congregatie')
                     ->searchable(),
                 TextColumn::make('role')
-                    ->label('Rol')
-                    ->badge()
-                    ->searchable(),
+    ->label('Rol')
+    ->badge()
+    ->formatStateUsing(fn (?string $state): string => UserForm::roleOptions()[$state] ?? (string) $state)
+    ->searchable(),
                 TextColumn::make('created_at')
                     ->label('Creat la')
                     ->dateTime()
