@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Console\Commands\FillMenus;
+use App\Models\Congregation;
 use App\Models\DailyMeal;
 use App\Models\FoodFundTransaction;
 use App\Models\Menu;
@@ -14,7 +15,7 @@ use App\Services\DailyMealCostCalculator;
 use App\Services\DailyMessageBuilder;
 use App\Services\MenuSchedulingValidator;
 use App\Services\MenuUsageInsight;
-use App\Services\PeriodMenuPlanner;
+use App\Services\PeriodProgramPlanner;
 use Carbon\CarbonImmutable;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -89,16 +90,30 @@ class CalendarSaptamanal extends Page
 
     public ?int $suggestWeekId = null;
 
-    public ?int $planPeriodWeekId = null;
+    public bool $showProgramPeriod = false;
 
-    public ?string $planPeriodFrom = null;
+    public ?string $programFrom = null;
 
-    public ?string $planPeriodTo = null;
+    public ?string $programTo = null;
 
-    public bool $planPeriodReplace = true;
+    public bool $programIncludeSaturday = false;
 
-    /** @var array{error: ?string, changed: int, weeks: array, spread: float, has_missing_prices: bool}|null */
-    public ?array $planPeriodResult = null;
+    public string $programMode = 'replace';
+
+    public bool $programReuseMenus = true;
+
+    /** @var array<string, bool> data (Y-m-d) => bifat */
+    public array $programHolidays = [];
+
+    /** @var list<string> */
+    public array $programSuggestedHolidays = [];
+
+    public ?string $programNewHoliday = null;
+
+    public string $programDeleteProtectedConfirmation = '';
+
+    /** @var array<string, mixed>|null */
+    public ?array $programPreview = null;
 
     public ?int $pendingWorkingDayMealId = null;
 
@@ -138,8 +153,8 @@ class CalendarSaptamanal extends Page
     /** @var array<string, bool> */
     public array $applyToDays = [];
 
-    /** @var bool */
     public bool $applyContribution = false;
+
     public ?int $teamsMealId = null;
 
     public bool $includePhones = true;
@@ -940,82 +955,207 @@ class CalendarSaptamanal extends Page
             ->send();
     }
 
-    public function openPlanPeriod(?int $weekId = null): void
+    public function openProgramPeriod(?int $weekId = null): void
     {
         abort_unless(auth()->user()?->isAdmin(), 403);
 
-        $this->planPeriodWeekId = $weekId ?? $this->weekId;
         $week = $weekId ? Week::query()->find($weekId) : $this->selectedWeek;
 
-        if ($week !== null && $this->planPeriodFrom === null) {
-            $this->planPeriodFrom = $week->start_date->toDateString();
-            $this->planPeriodTo = $week->start_date->copy()->addDays(34)->toDateString();
+        if ($this->programFrom === null) {
+            $start = $week?->start_date ?? CarbonImmutable::today();
+            $this->programFrom = $start->toDateString();
+            $this->programTo = $start->copy()->addDays(34)->toDateString();
         }
 
-        $this->planPeriodReplace = true;
-        $this->planPeriodResult = null;
+        $this->programIncludeSaturday = false;
+        $this->programMode = 'replace';
+        $this->programReuseMenus = true;
+        $this->programNewHoliday = null;
+        $this->programDeleteProtectedConfirmation = '';
+        $this->programPreview = null;
+        $this->refreshProgramHolidays();
+        $this->showProgramPeriod = true;
         $this->resetErrorBag();
     }
 
-    public function closePlanPeriod(): void
+    public function closeProgramPeriod(): void
     {
-        $this->planPeriodWeekId = null;
-        $this->planPeriodResult = null;
+        $this->showProgramPeriod = false;
+        $this->programPreview = null;
+        $this->programDeleteProtectedConfirmation = '';
+        $this->programNewHoliday = null;
         $this->resetErrorBag();
     }
 
-    public function previewPlanPeriod(PeriodMenuPlanner $planner): void
+    public function updatedProgramFrom(): void
+    {
+        $this->refreshProgramHolidays();
+        $this->programPreview = null;
+    }
+
+    public function updatedProgramTo(): void
+    {
+        $this->refreshProgramHolidays();
+        $this->programPreview = null;
+    }
+
+    public function updatedProgramMode(): void
+    {
+        $this->programPreview = null;
+    }
+
+    public function updatedProgramIncludeSaturday(): void
+    {
+        $this->programPreview = null;
+    }
+
+    public function updatedProgramReuseMenus(): void
+    {
+        $this->programPreview = null;
+    }
+
+    public function updatedProgramDeleteProtectedConfirmation(): void
+    {
+        if ($this->programPreview !== null && empty($this->programPreview['error'])) {
+            $this->programPreview = app(PeriodProgramPlanner::class)->preview($this->programInput());
+        }
+    }
+
+    public function addProgramHoliday(): void
     {
         abort_unless(auth()->user()?->isAdmin(), 403);
 
         $this->validate([
-            'planPeriodFrom' => ['required', 'date'],
-            'planPeriodTo' => ['required', 'date', 'after_or_equal:planPeriodFrom'],
+            'programNewHoliday' => ['required', 'date'],
         ]);
 
-        $from = CarbonImmutable::parse($this->planPeriodFrom);
-        $to = CarbonImmutable::parse($this->planPeriodTo);
+        $date = CarbonImmutable::parse($this->programNewHoliday)->toDateString();
+        $from = CarbonImmutable::parse($this->programFrom);
+        $to = CarbonImmutable::parse($this->programTo);
 
-        $this->planPeriodResult = $planner->plan($from, $to, $this->planPeriodReplace, false);
+        if (! CarbonImmutable::parse($date)->betweenIncluded($from, $to)) {
+            $this->addError('programNewHoliday', 'Alege o data din intervalul programului.');
+
+            return;
+        }
+
+        $this->programHolidays[$date] = true;
+        $this->programNewHoliday = null;
+        $this->programPreview = null;
     }
 
-    public function applyPlanPeriod(PeriodMenuPlanner $planner): void
+    public function removeProgramHoliday(string $date): void
     {
         abort_unless(auth()->user()?->isAdmin(), 403);
 
-        if ($this->planPeriodResult === null || ($this->planPeriodResult['error'] ?? null) !== null) {
-            $this->previewPlanPeriod($planner);
+        unset($this->programHolidays[$date]);
+        $this->programPreview = null;
+    }
 
-            if ($this->planPeriodResult === null || ($this->planPeriodResult['error'] ?? null) !== null) {
-                return;
-            }
-        }
+    public function previewProgramPeriod(PeriodProgramPlanner $planner): void
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
 
-        $this->validate([
-            'planPeriodFrom' => ['required', 'date'],
-            'planPeriodTo' => ['required', 'date', 'after_or_equal:planPeriodFrom'],
-        ]);
+        $this->validateProgramParameters();
 
-        $from = CarbonImmutable::parse($this->planPeriodFrom);
-        $to = CarbonImmutable::parse($this->planPeriodTo);
+        $this->programPreview = $planner->preview($this->programInput());
+    }
 
-        $result = $planner->plan($from, $to, $this->planPeriodReplace, true);
-        $this->planPeriodResult = $result;
+    public function applyProgramPeriod(PeriodProgramPlanner $planner): void
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
 
-        $this->loadCalendarValues();
+        $this->validateProgramParameters();
 
-        if ($result['error'] !== null) {
+        $result = $planner->apply($this->programInput());
+
+        if (($result['error'] ?? null) !== null) {
+            $this->programPreview = $result;
+
             Notification::make()->title($result['error'])->warning()->send();
 
             return;
         }
 
+        $applied = $result['applied'] ?? $result;
+
+        $this->closeProgramPeriod();
+        $this->weekId = Week::query()->orderBy('week_number')->value('id');
+        $this->loadCalendarValues();
+
         Notification::make()
-            ->title($result['changed'] > 0
-                ? "Planificarea pe perioada a aplicat modificari pe {$result['changed']} zile."
-                : 'Nicio modificare aplicata.')
+            ->title(sprintf(
+                'Program actualizat: %d saptamani si %d zile create, %d sterse, %d pastrate.',
+                $applied['created_weeks'] ?? 0,
+                $applied['created_days'] ?? 0,
+                $applied['deleted_days'] ?? 0,
+                $applied['kept_days'] ?? 0,
+            ))
             ->success()
             ->send();
+    }
+
+    private function validateProgramParameters(): void
+    {
+        $this->validate([
+            'programFrom' => ['required', 'date'],
+            'programTo' => ['required', 'date', 'after_or_equal:programFrom'],
+            'programMode' => ['required', 'in:replace,adjust'],
+        ]);
+    }
+
+    /**
+     * @return array{from: string, to: string, holidays: list<string>, include_saturday: bool, mode: string, reuse_menus: bool, delete_protected: bool}
+     */
+    private function programInput(): array
+    {
+        return [
+            'from' => (string) $this->programFrom,
+            'to' => (string) $this->programTo,
+            'holidays' => collect($this->programHolidays)
+                ->filter(fn ($checked): bool => (bool) $checked)
+                ->keys()
+                ->values()
+                ->all(),
+            'include_saturday' => $this->programIncludeSaturday,
+            'mode' => $this->programMode,
+            'reuse_menus' => $this->programReuseMenus,
+            'delete_protected' => $this->programDeleteProtectedConfirmation === 'STERGE',
+        ];
+    }
+
+    private function refreshProgramHolidays(): void
+    {
+        if (blank($this->programFrom)) {
+            return;
+        }
+
+        $from = CarbonImmutable::parse($this->programFrom);
+        $to = blank($this->programTo) ? $from : CarbonImmutable::parse($this->programTo);
+
+        if ($to->lt($from)) {
+            $to = $from;
+        }
+
+        $suggested = PeriodProgramPlanner::suggestedHolidays($from, $to);
+        $new = [];
+
+        foreach ($suggested as $date) {
+            $new[$date] = $this->programHolidays[$date] ?? true;
+        }
+
+        foreach ($this->programHolidays as $date => $checked) {
+            $day = CarbonImmutable::parse($date);
+
+            if (! $checked || in_array($date, $suggested, true) || ! $day->betweenIncluded($from, $to)) {
+                continue;
+            }
+
+            $new[$date] = true;
+        }
+
+        $this->programSuggestedHolidays = $suggested;
+        $this->programHolidays = $new;
     }
 
     public function openCreateWeek(): void
@@ -1163,7 +1303,7 @@ class CalendarSaptamanal extends Page
     }
 
     /**
-     * @return array<int, array<int, \App\Models\Volunteer>>
+     * @return array<int, array<int, Volunteer>>
      */
     public function getVolunteersByMealProperty(): array
     {
@@ -1173,7 +1313,7 @@ class CalendarSaptamanal extends Page
     }
 
     /**
-     * @return array<int, array<int, \App\Models\WorkTeam>>
+     * @return array<int, array<int, WorkTeam>>
      */
     public function getTeamsByMealProperty(): array
     {
@@ -1606,7 +1746,7 @@ class CalendarSaptamanal extends Page
             return [];
         }
 
-        $builder = app(\App\Services\DailyMessageBuilder::class);
+        $builder = app(DailyMessageBuilder::class);
         $roles = [];
 
         foreach ($week->dailyMeals as $meal) {
@@ -1625,7 +1765,7 @@ class CalendarSaptamanal extends Page
      */
     public function getRoleOptionsProperty(): array
     {
-        return \App\Services\DailyMessageBuilder::ROLES;
+        return DailyMessageBuilder::ROLES;
     }
 
     public function getWhatsappMessagesProperty(): array
@@ -1637,7 +1777,7 @@ class CalendarSaptamanal extends Page
             return ['week' => '', 'days' => []];
         }
 
-        $builder = app(\App\Services\DailyMessageBuilder::class);
+        $builder = app(DailyMessageBuilder::class);
 
         $days = [];
 
@@ -1654,18 +1794,19 @@ class CalendarSaptamanal extends Page
     }
 
     /**
-     * @return Collection<int, \App\Models\Congregation>
+     * @return Collection<int, Congregation>
      */
     public function getCongregationOptionsProperty(): Collection
     {
-        return \App\Models\Congregation::query()->orderBy('name')->get();
+        return Congregation::query()->orderBy('name')->get();
     }
 
     /**
      * @param  Collection<int, SupplyContribution>  $contributions
      * @return list<array{icon: string, label: string}>
      */
-    private function buildSupplyIndicators(Collection $contributions): array    {
+    private function buildSupplyIndicators(Collection $contributions): array
+    {
         $indicators = [];
 
         foreach ([

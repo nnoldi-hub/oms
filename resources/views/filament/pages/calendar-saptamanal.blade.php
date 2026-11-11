@@ -140,7 +140,7 @@
                 <div class="oms-calendar__reports">
                     @if (auth()->user()?->isAdmin())
                         <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="openSuggestWeek({{ $this->selectedWeek->id }})">Sugereaza meniul</button>
-                        <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="openPlanPeriod({{ $this->selectedWeek->id }})">Planifica perioada</button>
+                        <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="openProgramPeriod({{ $this->selectedWeek->id }})">Programeaza perioada</button>
                         <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="openMoveWeek({{ $this->selectedWeek->id }})">Mută săptămâna</button>
                         <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="openDeleteWeek({{ $this->selectedWeek->id }})">Șterge săptămâna</button>
                     @endif
@@ -414,70 +414,183 @@
             </div>
         @endif
 
-        @if ($planPeriodWeekId !== null)
+        @if ($showProgramPeriod)
             <div class="oms-modal" style="overflow-y: auto;">
-                <div class="oms-modal__panel" style="max-width: 900px; width: 95%; max-height: 90vh; overflow-y: auto;">
-                    <h2 class="oms-modal__title">Planifica meniul pentru o perioada</h2>
-                    <p class="oms-modal__hint">Planifica automat felul principal si ciorba pe mai multe saptamani. Se respecta rotatia (minimum 10 zile intre acelasi fel principal), doua ciorbe diferite pe saptamana, plasarea ciorbei pe a 2-a si a 4-a masa si se incearca echilibrarea costului intre saptamani. Zilele trecute, cele gatite, cele publicate si zilele libere nu sunt modificate.</p>
+                <div class="oms-modal__panel" style="max-width: 980px; width: 95%; max-height: 92vh; overflow-y: auto;">
+                    <h2 class="oms-modal__title">Programeaza perioada</h2>
+                    <p class="oms-modal__hint">Alege intervalul, zilele lucratoare si zilele libere. Previzualizarea nu modifica nimic. Aplicarea se face intr-o singura tranzactie: saptamanile se numeroteaza cronologic, congregatiile se rotesc in ordinea configurata, felul principal respecta pauza de 10 zile, iar ciorba este plasata pe a 2-a si a 4-a masa, cu doua ciorbe diferite pe saptamana.</p>
+
                     <div class="oms-modal__row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                         <div>
-                            <label class="oms-modal__label" for="plan-period-from">De la</label>
-                            <input class="oms-card__input" id="plan-period-from" type="date" wire:model="planPeriodFrom">
-                            @error('planPeriodFrom')<p class="oms-card__error">{{ $message }}</p>@enderror
+                            <label class="oms-modal__label" for="program-from">De la</label>
+                            <input class="oms-card__input" id="program-from" type="date" wire:model.live="programFrom">
+                            @error('programFrom')<p class="oms-card__error">{{ $message }}</p>@enderror
                         </div>
                         <div>
-                            <label class="oms-modal__label" for="plan-period-to">Pana la</label>
-                            <input class="oms-card__input" id="plan-period-to" type="date" wire:model="planPeriodTo">
-                            @error('planPeriodTo')<p class="oms-card__error">{{ $message }}</p>@enderror
+                            <label class="oms-modal__label" for="program-to">Pana la</label>
+                            <input class="oms-card__input" id="program-to" type="date" wire:model.live="programTo">
+                            @error('programTo')<p class="oms-card__error">{{ $message }}</p>@enderror
                         </div>
                     </div>
-                    <label class="oms-modal__label" style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
-                        <input type="checkbox" wire:model="planPeriodReplace">
-                        Inlocuieste meniurile existente pe zilele editabile din perioada
-                    </label>
-                    <div class="oms-modal__buttons" style="margin-top: 14px;">
-                        <button class="oms-modal__cancel" type="button" wire:click="closePlanPeriod">Renunta</button>
-                        <button class="oms-modal__confirm" type="button" wire:click="previewPlanPeriod">Previzualizeaza</button>
-                        <button class="oms-modal__confirm" type="button" wire:click="applyPlanPeriod">Aplica</button>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
+                        <div>
+                            <span class="oms-modal__label">Zile lucratoare</span>
+                            <label style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
+                                <input type="checkbox" checked disabled> Luni - Vineri
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
+                                <input type="checkbox" wire:model.live="programIncludeSaturday"> Include sambata
+                            </label>
+                        </div>
+                        <div>
+                            <span class="oms-modal__label">Mod aplicare</span>
+                            <label style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
+                                <input type="radio" value="replace" wire:model.live="programMode"> Inlocuieste tot
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
+                                <input type="radio" value="adjust" wire:model.live="programMode"> Ajusteaza perioada (doar capetele)
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
+                                <input type="checkbox" wire:model.live="programReuseMenus"> Pastreaza meniurile existente pe zilele care raman
+                            </label>
+                        </div>
                     </div>
 
-                    @if ($planPeriodResult !== null)
-                        <div style="margin-top: 16px;">
-                            @if ($planPeriodResult['error'] !== null)
-                                <p class="oms-card__error">{{ $planPeriodResult['error'] }}</p>
-                            @else
-                                <p class="oms-modal__hint">
-                                    Zile modificate: <strong>{{ $planPeriodResult['changed'] }}</strong> · Diferenta intre saptamani (cost/portie): <strong>{{ number_format($planPeriodResult['spread'], 2) }} lei</strong>
-                                    @if ($planPeriodResult['has_missing_prices'])
-                                        · <span class="oms-card__error">Unele retete nu au preturi configurate</span>
-                                    @endif
-                                </p>
-                                @foreach ($planPeriodResult['weeks'] as $weekPlan)
-                                    <div style="margin-top: 12px; border: 1px solid rgba(15,23,42,0.08); border-radius: 10px; overflow: hidden;">
-                                        <div style="background: rgba(15,23,42,0.02); padding: 8px 12px; display: flex; justify-content: space-between;">
-                                            <strong>Saptamana {{ $weekPlan['week_number'] }} ({{ $weekPlan['start'] }} – {{ $weekPlan['end'] }})</strong>
-                                            <span>Cost/portie: {{ number_format($weekPlan['cost_per_portion'], 2) }} lei</span>
-                                        </div>
-                                        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                                            <thead>
-                                                <tr style="background: rgba(15,23,42,0.01);">
-                                                    <th style="text-align: left; padding: 6px 12px;">Data</th>
-                                                    <th style="text-align: left; padding: 6px 12px;">Fel principal</th>
-                                                    <th style="text-align: left; padding: 6px 12px;">Ciorba</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                @foreach ($weekPlan['days'] as $dayPlan)
-                                                    <tr style="border-top: 1px solid rgba(15,23,42,0.06); {{ $dayPlan['changed'] ? 'background: rgba(22,163,74,0.04);' : '' }}">
-                                                        <td style="padding: 6px 12px;">{{ $dayPlan['date'] }}</td>
-                                                        <td style="padding: 6px 12px;">{{ $dayPlan['main'] ?? '—' }}</td>
-                                                        <td style="padding: 6px 12px;">{{ $dayPlan['soup'] ?? '—' }}</td>
-                                                    </tr>
-                                                @endforeach
-                                            </tbody>
-                                        </table>
-                                    </div>
+                    <div style="margin-top: 14px; border-top: 1px solid rgba(15,23,42,0.08); padding-top: 12px;">
+                        <span class="oms-modal__label">Zile libere</span>
+                        <p class="oms-modal__hint" style="margin-top: 4px;">Sugestiile legale sunt bifate automat. Debifeaza ce nu se aplica sau adauga alte zile libere.</p>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px 14px; margin-top: 8px;">
+                            @foreach ($programSuggestedHolidays as $holidayDate)
+                                <label style="display: flex; align-items: center; gap: 8px;">
+                                    <input type="checkbox" wire:model.live="programHolidays.{{ $holidayDate }}">
+                                    <span>{{ \Carbon\CarbonImmutable::parse($holidayDate)->format('d.m.Y') }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+
+                        @php($extraHolidays = collect(array_keys($programHolidays))->diff($programSuggestedHolidays)->values())
+                        @if ($extraHolidays->isNotEmpty())
+                            <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;">
+                                @foreach ($extraHolidays as $holidayDate)
+                                    <span style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: rgba(15,23,42,0.06);">
+                                        {{ \Carbon\CarbonImmutable::parse($holidayDate)->format('d.m.Y') }}
+                                        <button type="button" wire:click="removeProgramHoliday('{{ $holidayDate }}')" style="background: none; border: 0; cursor: pointer; color: #b91c1c;" title="Elimina">&times;</button>
+                                    </span>
                                 @endforeach
+                            </div>
+                        @endif
+
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: end; margin-top: 10px;">
+                            <div>
+                                <label class="oms-modal__label" for="program-new-holiday">Adauga zi libera</label>
+                                <input class="oms-card__input" id="program-new-holiday" type="date" wire:model="programNewHoliday">
+                                @error('programNewHoliday')<p class="oms-card__error">{{ $message }}</p>@enderror
+                            </div>
+                            <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="addProgramHoliday">Adauga</button>
+                        </div>
+                    </div>
+
+                    @if (! empty($programPreview['error']))
+                        <p class="oms-card__error" style="margin-top: 12px;">{{ $programPreview['error'] }}</p>
+                    @endif
+
+                    <div class="oms-modal__buttons" style="margin-top: 14px;">
+                        <button class="oms-modal__cancel" type="button" wire:click="closeProgramPeriod">Renunta</button>
+                        <button class="oms-modal__confirm" type="button" wire:click="previewProgramPeriod">Previzualizeaza</button>
+                        <button class="oms-modal__confirm" type="button" wire:click="applyProgramPeriod">Aplica perioada</button>
+                    </div>
+
+                    @if ($programPreview !== null && empty($programPreview['error']))
+                        <div style="margin-top: 16px;">
+                            <p class="oms-modal__hint">
+                                Saptamani: <strong>{{ count($programPreview['weeks']) }}</strong>
+                                · Zile noi: <strong>{{ $programPreview['created_days'] }}</strong>
+                                · Zile pastrate: <strong>{{ $programPreview['kept_days'] }}</strong>
+                                · Zile sterse: <strong>{{ $programPreview['deleted_days'] }}</strong>
+                                · Diferenta cost/portie intre saptamani: <strong>{{ number_format($programPreview['spread'], 2) }} lei</strong>
+                                @if ($programPreview['has_missing_prices'])
+                                    · <span class="oms-card__error">Unele retete nu au preturi configurate</span>
+                                @endif
+                            </p>
+
+                            @foreach ($programPreview['weeks'] as $weekPlan)
+                                <div style="margin-top: 12px; border: 1px solid rgba(15,23,42,0.08); border-radius: 10px; overflow: hidden;">
+                                    <div style="background: rgba(15,23,42,0.02); padding: 8px 12px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between;">
+                                        <strong>Saptamana {{ $weekPlan['week_number'] }} ({{ $weekPlan['start'] }} – {{ $weekPlan['end'] }})</strong>
+                                        <span>{{ $weekPlan['congregation'] ?? 'Fara congregatie' }} · Cost/portie: {{ number_format($weekPlan['cost_per_portion'], 2) }} lei</span>
+                                    </div>
+                                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                        <thead>
+                                            <tr style="background: rgba(15,23,42,0.01);">
+                                                <th style="text-align: left; padding: 6px 12px;">Data</th>
+                                                <th style="text-align: left; padding: 6px 12px;">Fel principal</th>
+                                                <th style="text-align: left; padding: 6px 12px;">Ciorba</th>
+                                                <th style="text-align: left; padding: 6px 12px;">Stare</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach ($weekPlan['days'] as $dayPlan)
+                                                <tr style="border-top: 1px solid rgba(15,23,42,0.06); {{ $dayPlan['status'] === 'new' ? 'background: rgba(22,163,74,0.04);' : '' }}">
+                                                    <td style="padding: 6px 12px;">{{ $dayPlan['date'] }}</td>
+                                                    <td style="padding: 6px 12px;">{{ $dayPlan['is_free_day'] ? 'Zi libera' : ($dayPlan['main'] ?? '—') }}</td>
+                                                    <td style="padding: 6px 12px;">{{ $dayPlan['is_free_day'] ? '—' : ($dayPlan['soup'] ?? '—') }}</td>
+                                                    <td style="padding: 6px 12px;">
+                                                        @if ($dayPlan['is_free_day'])
+                                                            libera
+                                                        @elseif ($dayPlan['status'] === 'protected')
+                                                            protejata
+                                                        @elseif ($dayPlan['status'] === 'new')
+                                                            noua
+                                                        @elseif ($dayPlan['reused'])
+                                                            pastrata
+                                                        @else
+                                                            existenta
+                                                        @endif
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            @endforeach
+
+                            <div style="margin-top: 16px;">
+                                <strong>Se vor sterge</strong>
+                                @if (empty($programPreview['deleted']))
+                                    <p class="oms-modal__hint">Nicio zi programata nu va fi stearsa.</p>
+                                @else
+                                    @foreach ($programPreview['deleted'] as $deletedWeek)
+                                        <div style="margin-top: 8px; padding: 8px 12px; border: 1px solid rgba(185,28,28,0.18); border-radius: 10px; background: rgba(185,28,28,0.03);">
+                                            <strong>Saptamana {{ $deletedWeek['week_number'] ?? '—' }} ({{ $deletedWeek['start'] }} – {{ $deletedWeek['end'] }})</strong>
+                                            <ul style="margin: 6px 0 0 18px; padding: 0;">
+                                                @foreach ($deletedWeek['days'] as $deletedDay)
+                                                    <li>{{ $deletedDay['date'] }} · {{ $deletedDay['main'] ?? 'fara fel principal' }} · {{ $deletedDay['soup'] ?? 'fara ciorba' }}</li>
+                                                @endforeach
+                                            </ul>
+                                        </div>
+                                    @endforeach
+                                @endif
+                            </div>
+
+                            @if (! empty($programPreview['protected']))
+                                <div style="margin-top: 16px; padding: 10px 12px; border: 1px solid rgba(180,83,9,0.25); border-radius: 10px; background: rgba(180,83,9,0.04);">
+                                    <strong>Zile protejate</strong>
+                                    <p class="oms-modal__hint">Aceste zile au oameni, echipe, contributii sau consum confirmat si nu sunt modificate implicit.</p>
+                                    @foreach ($programPreview['protected'] as $protectedDay)
+                                        <p style="margin: 6px 0; font-size: 13px;">
+                                            {{ $protectedDay['date'] }} · {{ $protectedDay['main'] ?? 'fara fel principal' }}
+                                            · oameni: <strong>{{ $protectedDay['people'] }}</strong>
+                                            · echipe: <strong>{{ $protectedDay['teams'] }}</strong>
+                                            · contributii: <strong>{{ $protectedDay['contributions'] }}</strong>
+                                            @if ($protectedDay['will_delete'])
+                                                · <span class="oms-card__error">se va sterge</span>
+                                            @endif
+                                        </p>
+                                    @endforeach
+                                    <label class="oms-modal__label" for="program-delete-confirmation" style="margin-top: 10px;">Pentru a sterge si zilele protejate, scrie STERGE</label>
+                                    <input class="oms-card__input" id="program-delete-confirmation" type="text" wire:model.live="programDeleteProtectedConfirmation" autocomplete="off">
+                                </div>
                             @endif
                         </div>
                     @endif
