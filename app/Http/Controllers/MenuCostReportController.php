@@ -17,7 +17,7 @@ class MenuCostReportController extends Controller
         $menus = Menu::query()->orderBy('type')->orderBy('name')->get()->map(function (Menu $menu) use ($calculator): array {
             $meal = new DailyMeal(['estimated_people' => 1]);
             $meal->setRelation('menu', $menu);
-            $requirements = $calculator->calculate($meal);
+           $requirements = $calculator->calculate($meal, 1);
 
             return ['menu' => $menu, 'requirements' => $requirements];
         });
