@@ -5,7 +5,7 @@ namespace Tests\Unit;
 use App\Models\DailyMeal;
 use App\Models\Menu;
 use App\Services\MealRequirementCalculator;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 
 class MealRequirementCalculatorTest extends TestCase
 {

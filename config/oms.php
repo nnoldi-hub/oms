@@ -11,4 +11,17 @@ return [
     |
     */
     'actual_cost_deviation_threshold' => env('OMS_ACTUAL_COST_DEVIATION_THRESHOLD', 0.25),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Marja de siguranta a portiilor
+    |--------------------------------------------------------------------------
+    |
+    | Procentul cu care se majoreaza numarul de portii la generarea retetei si a
+    | listei de cumparaturi, ca sa acoperim zilele in care numarul exact de
+    | persoane nu este inca stabilit. Valoarea se rotunjeste in sus la portii
+    | intregi. Ex.: 0.1 = +10%.
+    |
+    */
+    'portion_safety_margin' => env('OMS_PORTION_SAFETY_MARGIN', 0.1),
 ];

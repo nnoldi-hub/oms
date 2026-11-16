@@ -21,6 +21,7 @@ class MealRequirementCalculator
             throw new InvalidArgumentException('O zi de masa necesita un meniu pentru calcul.');
         }
 
+        $portions = $dailyMeal->bufferedPortions();
         $requirements = [];
         $fixedRequirements = [];
         $ingredientIds = collect($menu->ingredients)->pluck('ingredient_id')->filter()->unique();
@@ -33,7 +34,7 @@ class MealRequirementCalculator
             $name = $catalogIngredient?->name ?? trim((string) Arr::get($recipeIngredient, 'name'));
             $unit = $catalogIngredient?->unit ?? (string) Arr::get($recipeIngredient, 'unit');
             $key = mb_strtolower($name).'|'.$unit;
-            $quantity = $dailyMeal->portions() * (float) Arr::get($recipeIngredient, 'quantity_per_person');
+            $quantity = $portions * (float) Arr::get($recipeIngredient, 'quantity_per_person');
             $unitCost = $catalogIngredient?->unit_price ?? Arr::get($recipeIngredient, 'estimated_unit_cost');
             $hasPrice = is_numeric($unitCost) && (float) $unitCost >= 0;
             $needsConfiguration = (bool) Arr::get($recipeIngredient, 'needs_configuration', false);
@@ -123,13 +124,13 @@ class MealRequirementCalculator
 
         $ingredientsCost = round(array_sum(array_column($ingredients, 'estimated_cost')), 2);
         $fixedCostsCost = round(array_sum(array_column($fixedCosts, 'estimated_cost')), 2);
-        $packagingCost = round($dailyMeal->portions() * (float) $menu->packaging_cost, 2);
+        $packagingCost = round($portions * (float) $menu->packaging_cost, 2);
 
         return [
             'ingredients' => $ingredients,
             'fixed_costs' => $fixedCosts,
             'packaging' => [
-                'count' => $dailyMeal->portions(),
+                'count' => $portions,
                 'unit_cost' => (float) $menu->packaging_cost,
                 'total_cost' => $packagingCost,
             ],

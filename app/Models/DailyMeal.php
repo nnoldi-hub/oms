@@ -166,4 +166,25 @@ class DailyMeal extends Model
     {
         return max(0, (int) ($this->confirmed_people ?? $this->estimated_people));
     }
+
+    /**
+     * Portiile pe care se genereaza reteta si lista de cumparaturi: numarul de
+     * persoane majorat cu marja de siguranta configurabila, rotunjit in sus.
+     */
+    public function bufferedPortions(): int
+    {
+        $portions = $this->portions();
+
+        if ($portions <= 0) {
+            return 0;
+        }
+
+        $margin = (float) config('oms.portion_safety_margin', 0.0);
+
+        if ($margin <= 0) {
+            return $portions;
+        }
+
+        return (int) ceil(round($portions * (1 + $margin), 6));
+    }
 }

@@ -38,7 +38,7 @@ class DailyMealCostCalculator
      */
     public function calculateFresh(DailyMeal $dailyMeal): array
     {
-        $portions = $dailyMeal->portions();
+        $portions = $dailyMeal->bufferedPortions();
 
         if ($dailyMeal->actual_cost !== null) {
             $totalCost = round((float) $dailyMeal->actual_cost, 2);
