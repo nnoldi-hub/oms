@@ -10,12 +10,16 @@ use App\Models\Menu;
 use App\Models\SupplyContribution;
 use App\Models\Volunteer;
 use App\Models\Week;
+use App\Models\WeekChangeRequest;
 use App\Models\WorkTeam;
 use App\Services\DailyMealCostCalculator;
 use App\Services\DailyMessageBuilder;
+use App\Services\MealChangeNotifier;
 use App\Services\MenuSchedulingValidator;
 use App\Services\MenuUsageInsight;
 use App\Services\PeriodProgramPlanner;
+use App\Services\WeekChangeRequestService;
+use App\Services\WeekCongregationChanger;
 use Carbon\CarbonImmutable;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -174,6 +178,27 @@ class CalendarSaptamanal extends Page
     public string $teamLocation = '';
 
     public ?string $teamSupplyResponsible = '';
+
+    public ?string $weekChangeMode = null;
+
+    public ?int $weekChangeTargetCongregationId = null;
+
+    public ?int $weekChangeSecondWeekId = null;
+
+    public string $weekChangeReason = '';
+
+    public bool $weekChangeConfirmCooked = false;
+
+    /** @var array<string, mixed>|null */
+    public ?array $weekChangePreview = null;
+
+    public bool $showWeekChangeRequest = false;
+
+    public string $weekChangeRequestReason = '';
+
+    public ?int $weekChangeRequestPreferredCongregationId = null;
+
+    public ?int $weekChangeRequestPreferredWeekId = null;
 
     public function mount(): void
     {
@@ -466,6 +491,150 @@ class CalendarSaptamanal extends Page
         $this->closeNewDish();
     }
 
+    /**
+     * @return Collection<int, Week>
+     */
+    public function getOtherWeeksProperty(): Collection
+    {
+        return $this->weeks->where('id', '!=', $this->weekId)->values();
+    }
+
+    public function canManageWeekCongregation(): bool
+    {
+        return auth()->user()?->isAdmin() ?? false;
+    }
+
+    public function openWeekChange(string $mode): void
+    {
+        abort_unless($this->canManageWeekCongregation(), 403);
+        abort_unless(in_array($mode, ['move', 'swap'], true), 422);
+
+        $this->weekChangeMode = $mode;
+        $this->weekChangeTargetCongregationId = null;
+        $this->weekChangeSecondWeekId = null;
+        $this->weekChangeReason = '';
+        $this->weekChangeConfirmCooked = false;
+        $this->weekChangePreview = null;
+    }
+
+    public function previewWeekChange(): void
+    {
+        abort_unless($this->canManageWeekCongregation(), 403);
+
+        $week = $this->selectedWeek;
+        abort_if($week === null, 404);
+
+        $changer = app(WeekCongregationChanger::class);
+
+        if ($this->weekChangeMode === 'move') {
+            $target = Congregation::query()->find($this->weekChangeTargetCongregationId);
+            abort_if($target === null, 422);
+
+            $this->weekChangePreview = $changer->preview($week, $target);
+        } elseif ($this->weekChangeMode === 'swap') {
+            $other = Week::query()->find((int) $this->weekChangeSecondWeekId);
+            abort_if($other === null, 422);
+
+            $this->weekChangePreview = $changer->preview($week, $other->congregation);
+        }
+    }
+
+    public function applyWeekChange(): void
+    {
+        abort_unless($this->canManageWeekCongregation(), 403);
+
+        $this->validate([
+            'weekChangeReason' => ['required', 'string', 'min:3', 'max:500'],
+        ], [], ['weekChangeReason' => 'motivul']);
+
+        $week = $this->selectedWeek;
+        abort_if($week === null, 404);
+
+        $changer = app(WeekCongregationChanger::class);
+        $admin = auth()->user();
+
+        if ($this->weekChangeMode === 'move') {
+            $target = Congregation::query()->findOrFail((int) $this->weekChangeTargetCongregationId);
+            $preview = $changer->preview($week, $target);
+
+            if ($preview['has_cooked'] && ! $this->weekChangeConfirmCooked) {
+                $this->addError('weekChangeConfirmCooked', 'Zilele au deja cost real sau au fost gatite. Bifeaza confirmarea pentru a continua.');
+
+                return;
+            }
+
+            $changer->move($week, $target, $this->weekChangeReason, $admin);
+        } elseif ($this->weekChangeMode === 'swap') {
+            $other = Week::query()->findOrFail((int) $this->weekChangeSecondWeekId);
+            $changer->swap($week, $other, $this->weekChangeReason, $admin);
+        } else {
+            abort(422);
+        }
+
+        $this->closeWeekChange();
+        $this->loadCalendarValues();
+
+        Notification::make()->title('Saptamana a fost actualizata.')->success()->send();
+    }
+
+    public function closeWeekChange(): void
+    {
+        $this->weekChangeMode = null;
+        $this->weekChangeTargetCongregationId = null;
+        $this->weekChangeSecondWeekId = null;
+        $this->weekChangeReason = '';
+        $this->weekChangeConfirmCooked = false;
+        $this->weekChangePreview = null;
+    }
+
+    public function openWeekChangeRequest(): void
+    {
+        $this->showWeekChangeRequest = true;
+        $this->weekChangeRequestReason = '';
+        $this->weekChangeRequestPreferredCongregationId = null;
+        $this->weekChangeRequestPreferredWeekId = null;
+    }
+
+    public function closeWeekChangeRequest(): void
+    {
+        $this->showWeekChangeRequest = false;
+    }
+
+    public function submitWeekChangeRequest(): void
+    {
+        $week = $this->selectedWeek;
+        abort_if($week === null, 404);
+
+        $this->validate([
+            'weekChangeRequestReason' => ['required', 'string', 'min:3', 'max:500'],
+        ], [], ['weekChangeRequestReason' => 'motivul']);
+
+        app(WeekChangeRequestService::class)->create(
+            $week,
+            auth()->user(),
+            $this->weekChangeRequestReason,
+            $this->weekChangeRequestPreferredCongregationId === null ? null : Congregation::query()->find($this->weekChangeRequestPreferredCongregationId),
+            $this->weekChangeRequestPreferredWeekId === null ? null : Week::query()->find($this->weekChangeRequestPreferredWeekId),
+        );
+
+        $this->closeWeekChangeRequest();
+
+        Notification::make()->title('Cererea a fost trimisa administratorilor.')->success()->send();
+    }
+
+    /**
+     * @return Collection<int, WeekChangeRequest>
+     */
+    public function getMyWeekChangeRequestsProperty(): Collection
+    {
+        return WeekChangeRequest::query()
+            ->where('user_id', auth()->id())
+            ->with(['week', 'preferredCongregation', 'preferredWeek'])
+            ->orderByDesc('created_at')
+            ->limit(10)
+            ->get();
+    }
+
     private function calendarMeal(int $mealId): DailyMeal
     {
         $meal = DailyMeal::query()
@@ -577,57 +746,15 @@ class CalendarSaptamanal extends Page
                     continue;
                 }
 
-                $note = $this->buildMenuUsageNote(
-                    $insight->insight((int) $menuId, $dailyMeal->meal_date, $dailyMeal),
-                );
+                $note = $insight->notes((int) $menuId, $dailyMeal->meal_date, $dailyMeal);
 
-                if ($note !== null) {
-                    $notes[$dailyMeal->id][$type] = $note;
+                if ($note !== []) {
+                    $notes[$dailyMeal->id][$type] = implode(' ', $note);
                 }
             }
         }
 
         return $notes;
-    }
-
-    /**
-     * @param  array{last_used: ?array{date: string, congregation: string, days_passed: int}, used_in_window: int, next_scheduled: ?array{date: string, congregation: string}}  $insight
-     */
-    private function buildMenuUsageNote(array $insight): ?string
-    {
-        $notes = [];
-
-        $lastUsed = $insight['last_used'];
-
-        if ($lastUsed !== null && $lastUsed['days_passed'] < MenuUsageInsight::RECENT_DAYS) {
-            $notes[] = sprintf(
-                'Gătit ultima dată pe %s (acum %d %s), la %s',
-                CarbonImmutable::parse($lastUsed['date'])->translatedFormat('j M'),
-                $lastUsed['days_passed'],
-                $lastUsed['days_passed'] === 1 ? 'zi' : 'zile',
-                $lastUsed['congregation'],
-            );
-        }
-
-        if ($insight['used_in_window'] >= MenuUsageInsight::OFTEN_COOKED_COUNT) {
-            $notes[] = sprintf(
-                'Gătit de %d ori în ultimele %d săptămâni',
-                $insight['used_in_window'],
-                MenuUsageInsight::USAGE_WINDOW_WEEKS,
-            );
-        }
-
-        $nextScheduled = $insight['next_scheduled'];
-
-        if ($nextScheduled !== null) {
-            $notes[] = sprintf(
-                'Programat și pe %s, la %s',
-                CarbonImmutable::parse($nextScheduled['date'])->translatedFormat('j M'),
-                $nextScheduled['congregation'],
-            );
-        }
-
-        return $notes === [] ? null : implode(' ', $notes);
     }
 
     /**
@@ -781,11 +908,21 @@ class CalendarSaptamanal extends Page
         abort_if($property === null, 422);
 
         $value = $this->{$property}[$mealId] ?? null;
+        $oldValue = $meal->{$column};
+        $newValue = $value === '' ? null : $value;
 
-        $meal->{$column} = $value === '' ? null : $value;
+        $meal->{$column} = $newValue;
 
         $warnings = app(MenuSchedulingValidator::class)->warnings($meal);
         $meal->save();
+
+        if (
+            auth()->user()?->isCoordinator()
+            && $oldValue !== null
+            && (int) $oldValue !== (int) $newValue
+        ) {
+            app(MealChangeNotifier::class)->dishChanged($meal, $typeName, (int) $oldValue, $newValue === null ? null : (int) $newValue);
+        }
 
         $this->loadCalendarValues();
         $this->notifyWarnings($warnings, 'Meniul a fost actualizat.');
@@ -797,21 +934,54 @@ class CalendarSaptamanal extends Page
             "actualCosts.{$mealId}" => ['nullable', 'numeric', 'min:0', 'max:1000000'],
         ]);
 
-        $meal = $this->calendarMeal($mealId);
+        $meal = $this->organizerMeal($mealId);
+
+        $wasCooked = (bool) $meal->is_cooked;
+        $previousActualMenuId = $meal->actual_menu_id;
+        $previousActualCost = $meal->actual_cost;
 
         $meal->is_cooked = (bool) ($this->cookedFlags[$mealId] ?? false);
         $meal->actual_menu_id = filled($this->actualMenus[$mealId] ?? null) ? $this->actualMenus[$mealId] : null;
         $meal->actual_cost = blank($this->actualCosts[$mealId] ?? null) ? null : $this->actualCosts[$mealId];
         $meal->save();
 
+        if (auth()->user()?->isCoordinator()) {
+            $this->notifyCoordinatorMealChanges($meal, $wasCooked, $previousActualMenuId, $previousActualCost);
+        }
+
         $this->loadCalendarValues();
 
         Notification::make()->title('Starea de gatit, felul real si costul au fost salvate.')->success()->send();
     }
 
+    private function notifyCoordinatorMealChanges(DailyMeal $meal, bool $wasCooked, ?int $previousActualMenuId, ?string $previousActualCost): void
+    {
+        $notifier = app(MealChangeNotifier::class);
+
+        if (
+            $meal->is_cooked
+            && $meal->actual_menu_id !== null
+            && (int) $meal->actual_menu_id !== (int) $meal->menu_id
+            && ((int) $meal->actual_menu_id !== (int) $previousActualMenuId || ! $wasCooked)
+        ) {
+            $notifier->cookedDifferent($meal, $meal->menu_id === null ? null : (int) $meal->menu_id, (int) $meal->actual_menu_id);
+        }
+
+        if ($meal->actual_cost !== null && (string) $meal->actual_cost !== (string) $previousActualCost) {
+            $probe = clone $meal;
+            $probe->actual_cost = null;
+            $estimated = (float) app(DailyMealCostCalculator::class)->calculateFresh($probe)['total_cost'];
+            $threshold = (float) config('oms.actual_cost_deviation_threshold', 0.25);
+
+            if ($estimated > 0 && (float) $meal->actual_cost > $estimated * (1 + $threshold)) {
+                $notifier->costDeviation($meal, $estimated, (float) $meal->actual_cost);
+            }
+        }
+    }
+
     public function openNewDish(int $mealId, string $type): void
     {
-        $this->calendarMeal($mealId);
+        $this->organizerMeal($mealId);
 
         $this->newDishMealId = $mealId;
         $this->newDishType = $type;
@@ -832,12 +1002,23 @@ class CalendarSaptamanal extends Page
             'newDishType' => ['required', 'in:main,soup,dessert'],
         ]);
 
+        $this->organizerMeal((int) $this->newDishMealId);
+
+        $user = auth()->user();
+        $isCoordinator = (bool) $user?->isCoordinator();
+
         $menu = Menu::create([
             'name' => $this->newDishName,
             'type' => $this->newDishType,
             'ingredients' => [],
             'is_active' => true,
+            'created_by_congregation_id' => $isCoordinator ? $user->congregation_id : null,
+            'is_reviewed' => ! $isCoordinator,
         ]);
+
+        if ($isCoordinator) {
+            app(MealChangeNotifier::class)->recipeCreated($menu);
+        }
 
         $mealId = (int) $this->newDishMealId;
 

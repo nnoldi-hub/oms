@@ -31,6 +31,11 @@ class MenusTable
                     ->money('RON')
                     ->sortable()
                     ->visibleFrom('md'),
+                TextColumn::make('is_reviewed')
+                    ->label('Verificare')
+                    ->badge()
+                    ->state(fn ($record): string => $record->is_reviewed ? 'verificata' : 'nouă, de verificat')
+                    ->color(fn ($state): string => $state === 'verificata' ? 'success' : 'warning'),
                 IconColumn::make('is_active')
                     ->boolean(),
                 TextColumn::make('created_at')
@@ -49,6 +54,12 @@ class MenusTable
                         'main' => 'Fel principal',
                         'soup' => 'Ciorbe',
                         'dessert' => 'Desert / gustare',
+                    ]),
+                SelectFilter::make('is_reviewed')
+                    ->label('Verificare')
+                    ->options([
+                        '1' => 'Verificate',
+                        '0' => 'Noi, de verificat',
                     ]),
             ])
             ->recordActions([

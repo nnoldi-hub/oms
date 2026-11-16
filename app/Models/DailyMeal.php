@@ -154,6 +154,11 @@ class DailyMeal extends Model
         return $this->hasMany(WorkTeam::class);
     }
 
+    public function changeLogs(): HasMany
+    {
+        return $this->hasMany(MealChangeLog::class);
+    }
+
     /**
      * Numarul de portii pe care se face calculul: confirmat daca exista, altfel estimat.
      */

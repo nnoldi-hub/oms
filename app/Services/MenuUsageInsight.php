@@ -74,6 +74,53 @@ class MenuUsageInsight
     }
 
     /**
+     * Notele de folosire ale unui meniu intr-o zi (gatit recent, gatit des,
+     * programat si in alta zi). Folosite atat pe cartonasele din calendar,
+     * cat si in notificarile pentru administrator.
+     *
+     * @param  Menu|int  $menu
+     * @param  \DateTimeInterface|string  $date
+     * @return array<int, string>
+     */
+    public function notes($menu, $date, ?DailyMeal $excludeDay = null): array
+    {
+        $insight = $this->insight($menu, $date, $excludeDay);
+        $notes = [];
+
+        $lastUsed = $insight['last_used'];
+
+        if ($lastUsed !== null && $lastUsed['days_passed'] < self::RECENT_DAYS) {
+            $notes[] = sprintf(
+                'Gătit ultima dată pe %s (acum %d %s), la %s',
+                CarbonImmutable::parse($lastUsed['date'])->translatedFormat('j M'),
+                $lastUsed['days_passed'],
+                $lastUsed['days_passed'] === 1 ? 'zi' : 'zile',
+                $lastUsed['congregation'],
+            );
+        }
+
+        if ($insight['used_in_window'] >= self::OFTEN_COOKED_COUNT) {
+            $notes[] = sprintf(
+                'Gătit de %d ori în ultimele %d săptămâni',
+                $insight['used_in_window'],
+                self::USAGE_WINDOW_WEEKS,
+            );
+        }
+
+        $nextScheduled = $insight['next_scheduled'];
+
+        if ($nextScheduled !== null) {
+            $notes[] = sprintf(
+                'Programat și pe %s, la %s',
+                CarbonImmutable::parse($nextScheduled['date'])->translatedFormat('j M'),
+                $nextScheduled['congregation'],
+            );
+        }
+
+        return $notes;
+    }
+
+    /**
      * Zilele programate sau gatite (toate congregatiile) in care apare meniul:
      * ca fel principal, ciorba, desert sau ca fel real al unei zile gatite.
      * Zilele libere sunt ignorate.

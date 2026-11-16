@@ -142,7 +142,11 @@
                         <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="openSuggestWeek({{ $this->selectedWeek->id }})">Sugereaza meniul</button>
                         <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="openProgramPeriod({{ $this->selectedWeek->id }})">Programeaza perioada</button>
                         <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="openMoveWeek({{ $this->selectedWeek->id }})">Mută săptămâna</button>
+                        <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="openWeekChange('move')">Schimbă congregația</button>
+                        <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="openWeekChange('swap')">Interschimbă săptămâni</button>
                         <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="openDeleteWeek({{ $this->selectedWeek->id }})">Șterge săptămâna</button>
+                    @elseif (auth()->user()?->isCoordinator())
+                        <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="openWeekChangeRequest">Cere schimbarea săptămânii</button>
                     @endif
                     <a class="oms-calendar__report" href="{{ route('weekly-reports.show', $this->selectedWeek) }}" target="_blank">Raport saptamanal</a>
                     <button
@@ -203,16 +207,15 @@
                                             <select class="oms-card__select" wire:model.live="{{ $property }}.{{ $dailyMeal->id }}">
                                                 <option value="">- neales -</option>
                                                 @foreach ($options as $option)
-                                                    <option value="{{ $option->id }}">{{ $option->name }}</option>
+                                                    <option value="{{ $option->id }}">{{ $option->name }}{{ $option->is_reviewed ? '' : ' (noua, de verificat)' }}</option>
                                                 @endforeach
                                             </select>
                                             <button class="oms-card__mini oms-card__mini--save" type="button" title="Salveaza" wire:click="savePlannedMenu({{ $dailyMeal->id }}, '{{ $type }}')">✓</button>
-                                            @if (auth()->user()?->isAdmin())
-                                                <button class="oms-card__mini oms-card__mini--new" type="button" title="Fel nou" wire:click="openNewDish({{ $dailyMeal->id }}, '{{ $type }}')">+ nou</button>
-                                            @endif
+                                            <button class="oms-card__mini oms-card__mini--new" type="button" title="Fel nou" wire:click="openNewDish({{ $dailyMeal->id }}, '{{ $type }}')">+ nou</button>
                                         </div>
                                     @else
-                                        <p class="oms-card__value">{{ $dailyMeal->{['main' => 'menu', 'soup' => 'soupMenu', 'dessert' => 'dessertMenu'][$type]}?->name ?? '-' }}</p>
+                                        @php($selectedMenu = $dailyMeal->{['main' => 'menu', 'soup' => 'soupMenu', 'dessert' => 'dessertMenu'][$type]})
+                                        <p class="oms-card__value">{{ $selectedMenu?->name ?? '-' }}@if ($selectedMenu && ! $selectedMenu->is_reviewed) · nouă, de verificat @endif</p>
                                     @endif
                                 </div>
                             @endforeach
@@ -290,7 +293,7 @@
                                 @endif
                             </div>
 
-                            @if (auth()->user()?->isAdmin())
+                            @if ($this->canOrganize($dailyMeal))
                                 <div class="oms-card__cooked">
                                     <label class="oms-card__cooked-label">
                                         <input type="checkbox" wire:model="cookedFlags.{{ $dailyMeal->id }}">
@@ -661,6 +664,122 @@
                     <div class="oms-modal__buttons">
                         <button class="oms-modal__cancel" type="button" wire:click="closeSchedulingAction">Renunta</button>
                         <button class="oms-modal__confirm" type="button" wire:click="moveWeek">Mută săptămâna</button>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        @if ($weekChangeMode !== null)
+            <div class="oms-modal">
+                <div class="oms-modal__panel" style="max-width: 620px; width: 95%;">
+                    <h2 class="oms-modal__title">{{ $weekChangeMode === 'move' ? 'Schimbă congregația săptămânii' : 'Interschimbă două săptămâni' }}</h2>
+                    <p class="oms-modal__hint">Previzualizează înainte de a aplica. Persoanele și echipele de lucru se scot din zile; contribuțiile și tranzacțiile de fond rămân pe zi, cu o notă. Motivul este obligatoriu și se salvează în jurnal.</p>
+
+                    @if ($weekChangeMode === 'move')
+                        <div class="oms-modal__row">
+                            <label class="oms-modal__label" for="week-change-congregation">Congregația nouă</label>
+                            <select class="oms-card__select" id="week-change-congregation" wire:model="weekChangeTargetCongregationId">
+                                <option value="">- alege -</option>
+                                @foreach ($this->congregationOptions as $congregation)
+                                    <option value="{{ $congregation->id }}">{{ $congregation->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @else
+                        <div class="oms-modal__row">
+                            <label class="oms-modal__label" for="week-change-second-week">Săptămâna cu care se schimbă</label>
+                            <select class="oms-card__select" id="week-change-second-week" wire:model="weekChangeSecondWeekId">
+                                <option value="">- alege -</option>
+                                @foreach ($this->otherWeeks as $week)
+                                    <option value="{{ $week->id }}">Săptămâna {{ $week->week_number }} · {{ $week->periodLabel() }} · {{ $week->congregation?->name ?? 'fără congregație' }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @endif
+
+                    <button class="oms-modal__cancel" type="button" wire:click="previewWeekChange">Previzualizează</button>
+
+                    @if ($weekChangePreview)
+                        <div style="background:#f4f7f5;border-radius:8px;padding:12px;display:grid;gap:6px;font-size:13px;">
+                            <p style="margin:0;"><strong>{{ $weekChangePreview['from'] ?? 'fără congregație' }}</strong> → <strong>{{ $weekChangePreview['to'] ?? 'fără congregație' }}</strong></p>
+                            <p style="margin:0;">Zile afectate: {{ count($weekChangePreview['days']) }} · Persoane: {{ $weekChangePreview['people'] }} · Echipe: {{ $weekChangePreview['work_teams'] }} · Contribuții păstrate: {{ $weekChangePreview['contributions'] }}</p>
+                            <ul style="margin:0 0 0 18px;padding:0;">
+                                @foreach ($weekChangePreview['days'] as $day)
+                                    <li>{{ $day['date'] ?? '-' }} · {{ $day['congregation'] ?? '-' }} · {{ $day['people'] }} persoane @if ($day['cooked']) · <span style="color:#b45309;">gătit / cost real</span> @endif</li>
+                                @endforeach
+                            </ul>
+                            @if ($weekChangePreview['has_cooked'])
+                                <label class="oms-modal__radio" style="color:#b45309;">
+                                    <input type="checkbox" wire:model="weekChangeConfirmCooked">
+                                    Confirm că vreau să mut și zilele care au deja cost real sau au fost gătite.
+                                </label>
+                                @error('weekChangeConfirmCooked')<p class="oms-card__error">{{ $message }}</p>@enderror
+                            @endif
+                        </div>
+                    @endif
+
+                    <div class="oms-modal__row">
+                        <label class="oms-modal__label" for="week-change-reason">Motivul (obligatoriu)</label>
+                        <textarea class="oms-card__input" id="week-change-reason" rows="3" wire:model="weekChangeReason"></textarea>
+                        @error('weekChangeReason')<p class="oms-card__error">{{ $message }}</p>@enderror
+                    </div>
+
+                    <div class="oms-modal__buttons">
+                        <button class="oms-modal__cancel" type="button" wire:click="closeWeekChange">Renunță</button>
+                        <button class="oms-modal__confirm" type="button" wire:click="applyWeekChange">Aplică</button>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        @if ($showWeekChangeRequest)
+            <div class="oms-modal">
+                <div class="oms-modal__panel">
+                    <h2 class="oms-modal__title">Cere schimbarea săptămânii</h2>
+                    <p class="oms-modal__hint">Trimite administratorilor o cerere motivată. Poți propune o altă congregație sau o altă săptămână.</p>
+
+                    <div class="oms-modal__row">
+                        <label class="oms-modal__label" for="request-congregation">Congregația dorită (opțional)</label>
+                        <select class="oms-card__select" id="request-congregation" wire:model="weekChangeRequestPreferredCongregationId">
+                            <option value="">- fără preferință -</option>
+                            @foreach ($this->congregationOptions as $congregation)
+                                <option value="{{ $congregation->id }}">{{ $congregation->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="oms-modal__row">
+                        <label class="oms-modal__label" for="request-week">Săptămâna dorită (opțional)</label>
+                        <select class="oms-card__select" id="request-week" wire:model="weekChangeRequestPreferredWeekId">
+                            <option value="">- fără preferință -</option>
+                            @foreach ($this->otherWeeks as $week)
+                                <option value="{{ $week->id }}">Săptămâna {{ $week->week_number }} · {{ $week->periodLabel() }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="oms-modal__row">
+                        <label class="oms-modal__label" for="request-reason">Motivul (obligatoriu)</label>
+                        <textarea class="oms-card__input" id="request-reason" rows="3" wire:model="weekChangeRequestReason"></textarea>
+                        @error('weekChangeRequestReason')<p class="oms-card__error">{{ $message }}</p>@enderror
+                    </div>
+
+                    @if ($this->myWeekChangeRequests->isNotEmpty())
+                        <div style="display:grid;gap:6px;font-size:13px;">
+                            <span class="oms-modal__label">Cererile mele recente</span>
+                            @foreach ($this->myWeekChangeRequests as $request)
+                                <p style="margin:0;">
+                                    Săptămâna {{ $request->week?->week_number ?? '-' }} · {{ $request->statusLabel() }}
+                                    @if ($request->preferredCongregation) · {{ $request->preferredCongregation->name }} @endif
+                                    @if ($request->preferredWeek) · schimb cu săpt. {{ $request->preferredWeek->week_number }} @endif
+                                </p>
+                            @endforeach
+                        </div>
+                    @endif
+
+                    <div class="oms-modal__buttons">
+                        <button class="oms-modal__cancel" type="button" wire:click="closeWeekChangeRequest">Renunță</button>
+                        <button class="oms-modal__confirm" type="button" wire:click="submitWeekChangeRequest">Trimite cererea</button>
                     </div>
                 </div>
             </div>

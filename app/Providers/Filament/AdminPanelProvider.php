@@ -3,6 +3,7 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Widgets\OmsStatsOverview;
+use App\Filament\Widgets\RecentMealChanges;
 use App\Filament\Widgets\SupplyStatsOverview;
 use App\Filament\Widgets\TomorrowMealOverview;
 use App\Filament\Widgets\TomorrowMessageWidget;
@@ -11,8 +12,8 @@ use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
-use Filament\Pages\Dashboard;
 use Filament\Navigation\NavigationItem;
+use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
@@ -45,6 +46,7 @@ class AdminPanelProvider extends PanelProvider
             ->login()
             ->darkMode()
             ->themeSwitcher()
+            ->databaseNotifications()
             ->colors([
                 'primary' => Color::Emerald,
                 'gray' => Color::Zinc,
@@ -79,6 +81,7 @@ class AdminPanelProvider extends PanelProvider
                 TomorrowMessageWidget::class,
                 OmsStatsOverview::class,
                 SupplyStatsOverview::class,
+                RecentMealChanges::class,
             ])
             ->middleware([
                 EncryptCookies::class,

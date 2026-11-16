@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Database\Factories\WeekFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Week extends Model
 {
-    /** @use HasFactory<\Database\Factories\WeekFactory> */
+    /** @use HasFactory<WeekFactory> */
     use HasFactory;
 
     protected $fillable = ['week_number', 'start_date', 'include_saturday', 'congregation_id'];
@@ -27,6 +28,11 @@ class Week extends Model
     public function dailyMeals(): HasMany
     {
         return $this->hasMany(DailyMeal::class);
+    }
+
+    public function changeRequests(): HasMany
+    {
+        return $this->hasMany(WeekChangeRequest::class);
     }
 
     /**

@@ -24,6 +24,11 @@ class MenuInfolist
                 TextEntry::make('packaging_cost')
                     ->label('Cost ambalaj per portie')
                     ->money('RON'),
+                TextEntry::make('is_reviewed')
+                    ->label('Verificare')
+                    ->badge()
+                    ->formatStateUsing(fn ($state): string => $state ? 'verificata' : 'nouă, de verificat')
+                    ->color(fn ($state): string => $state ? 'success' : 'warning'),
                 IconEntry::make('is_active')
                     ->label('Meniu activ')
                     ->boolean(),

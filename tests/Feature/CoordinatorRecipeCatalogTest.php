@@ -27,7 +27,7 @@ class CoordinatorRecipeCatalogTest extends TestCase
         $this->get('/admin/menus?type=main')->assertOk();
         $this->get(MenuResource::getUrl('view', ['record' => $menu]))->assertOk();
         $this->get(MenuResource::getUrl('edit', ['record' => $menu]))->assertForbidden();
-        $this->get(MenuResource::getUrl('create'))->assertForbidden();
+        $this->get(MenuResource::getUrl('create'))->assertOk();
     }
 
     public function test_the_kitchen_links_are_hidden_from_roles_without_access(): void

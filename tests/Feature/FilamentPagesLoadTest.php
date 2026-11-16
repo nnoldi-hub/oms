@@ -2,6 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Pages\ActivitateCongregatii;
+use App\Filament\Pages\CalendarSaptamanal;
+use App\Filament\Pages\CereriSchimbareSaptamana;
+use App\Filament\Pages\ReteteDeVerificat;
 use App\Filament\Resources\DailyMeals\Pages\CreateDailyMeal;
 use App\Filament\Resources\DailyMeals\Pages\EditDailyMeal;
 use App\Filament\Resources\DailyMeals\Pages\ViewDailyMeal;
@@ -161,11 +165,33 @@ class FilamentPagesLoadTest extends TestCase
         $week = Week::factory()->for($congregation)->create();
 
         $this->actingAs($administrator)
-            ->get(\App\Filament\Pages\CalendarSaptamanal::getUrl(panel: 'admin'))
+            ->get(CalendarSaptamanal::getUrl(panel: 'admin'))
             ->assertOk();
 
         $this->actingAs($administrator)
             ->get(route('weekly-plan-pdfs.show', $week))
+            ->assertOk();
+    }
+
+    public function test_the_new_review_and_activity_pages_load_for_an_administrator(): void
+    {
+        $administrator = User::factory()->create(['role' => 'admin']);
+        $congregation = Congregation::factory()->create();
+        Menu::factory()->create([
+            'is_reviewed' => false,
+            'created_by_congregation_id' => $congregation->id,
+        ]);
+
+        $this->actingAs($administrator)
+            ->get(ReteteDeVerificat::getUrl(panel: 'admin'))
+            ->assertOk();
+
+        $this->actingAs($administrator)
+            ->get(ActivitateCongregatii::getUrl(panel: 'admin'))
+            ->assertOk();
+
+        $this->actingAs($administrator)
+            ->get(CereriSchimbareSaptamana::getUrl(panel: 'admin'))
             ->assertOk();
     }
 }

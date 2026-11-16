@@ -8,8 +8,8 @@ use App\Models\User;
 class MenuPolicy
 {
     /**
-     * Coordonatorii consulta catalogul de retete (il folosesc in calendar), dar nu il modifica:
-     * catalogul este comun tuturor congregatiilor.
+     * Coordonatorii consulta catalogul de retete si pot crea retete noi pentru
+     * congregatia lor, dar nu modifica retetele din catalog sau ale altor congregatii.
      */
     public function viewAny(User $user): bool
     {
@@ -23,20 +23,36 @@ class MenuPolicy
 
     public function create(User $user): bool
     {
-        return $this->manage($user);
+        return $this->manage($user) || $user->isCoordinator();
     }
 
     public function update(User $user, Menu $menu): bool
     {
-        return $this->manage($user);
+        if ($this->manage($user)) {
+            return true;
+        }
+
+        return $user->isCoordinator() && $menu->isEditableByCoordinator($user);
     }
 
     public function delete(User $user, Menu $menu): bool
     {
-        return $this->manage($user);
+        if ($this->manage($user)) {
+            return true;
+        }
+
+        return $user->isCoordinator() && $menu->isEditableByCoordinator($user);
     }
 
     public function deleteAny(User $user): bool
+    {
+        return $this->manage($user);
+    }
+
+    /**
+     * Verificarea si unirea retetelor propuse de coordonatori ramane la administrator.
+     */
+    public function review(User $user): bool
     {
         return $this->manage($user);
     }

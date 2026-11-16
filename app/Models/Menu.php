@@ -5,6 +5,7 @@ namespace App\Models;
 use Database\Factories\MenuFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Validation\ValidationException;
@@ -19,7 +20,10 @@ class Menu extends Model
         'Fructe cu coaja', 'Telina', 'Mustar', 'Susan', 'Sulfiti', 'Lupin', 'Moluste',
     ];
 
-    protected $fillable = ['name', 'type', 'instructions', 'ingredients', 'allergens', 'packaging_cost', 'cost_per_portion', 'is_active'];
+    protected $fillable = [
+        'name', 'type', 'instructions', 'ingredients', 'allergens', 'packaging_cost',
+        'cost_per_portion', 'is_active', 'created_by_congregation_id', 'is_reviewed',
+    ];
 
     protected function casts(): array
     {
@@ -29,6 +33,7 @@ class Menu extends Model
             'packaging_cost' => 'decimal:2',
             'cost_per_portion' => 'decimal:2',
             'is_active' => 'boolean',
+            'is_reviewed' => 'boolean',
         ];
     }
 
@@ -96,6 +101,33 @@ class Menu extends Model
     public function dailyMeals(): HasMany
     {
         return $this->hasMany(DailyMeal::class);
+    }
+
+    public function creatorCongregation(): BelongsTo
+    {
+        return $this->belongsTo(Congregation::class, 'created_by_congregation_id');
+    }
+
+    /**
+     * Reteta a fost creata de un coordonator si nu a fost inca verificata de administrator.
+     */
+    public function isNewToReview(): bool
+    {
+        return ! $this->is_reviewed;
+    }
+
+    /**
+     * Coordonatorul poate modifica doar retetele create de congregatia lui.
+     */
+    public function isEditableByCoordinator(User $user): bool
+    {
+        return $this->created_by_congregation_id !== null
+            && (int) $this->created_by_congregation_id === (int) $user->congregation_id;
+    }
+
+    public function scopePendingReview($query)
+    {
+        return $query->where('is_reviewed', false);
     }
 
     /**
