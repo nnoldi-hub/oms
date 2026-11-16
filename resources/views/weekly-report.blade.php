@@ -96,7 +96,9 @@
         </section>
 
         @foreach ($daySheets as $sheet)
-            @php($meal = $sheet['meal'])
+            @php
+                $meal = $sheet['meal'];
+            @endphp
             <section class="day-sheet">
                 <h2>{{ $meal->meal_date->translatedFormat('l, j F Y') }}</h2>
                 <p class="day-meta">
