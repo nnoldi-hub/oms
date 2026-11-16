@@ -25,7 +25,7 @@ class DailyMealPreparationSheetTest extends TestCase
         $coordinator = User::factory()->create(['role' => 'coordinator', 'congregation_id' => $congregation->id]);
 
         $this->actingAs($coordinator)
-            ->get(route('daily-meal-preparation-sheets.show', $dailyMeal))
+            ->get(route('daily-meal-preparation-sheets.show', $dailyMeal).'?costs=1')
             ->assertOk()
             ->assertSee('fișă de pregătire')
             ->assertSee('Congregatia Est')
@@ -70,7 +70,7 @@ class DailyMealPreparationSheetTest extends TestCase
         $coordinator = User::factory()->create(['role' => 'coordinator', 'congregation_id' => $congregation->id]);
 
         $response = $this->actingAs($coordinator)
-            ->get(route('daily-meal-preparation-sheets.show', $dailyMeal))
+            ->get(route('daily-meal-preparation-sheets.show', $dailyMeal).'?costs=1')
             ->assertOk()
             ->assertSee('Totaluri și de cumpărat')
             ->assertSee('Total ingrediente:')
@@ -161,5 +161,31 @@ class DailyMealPreparationSheetTest extends TestCase
             ->assertSee('0723456789')
             ->assertSee('Ora de livrare pe șantier')
             ->assertSee('11:30');
+    }
+
+    public function test_the_sheet_hides_costs_by_default_and_for_guests(): void
+    {
+        $congregation = Congregation::factory()->create();
+        $mainMenu = Menu::factory()->create([
+            'name' => 'Paine cu cascaval',
+            'ingredients' => [['name' => 'Paine', 'quantity_per_person' => 0.11, 'unit' => 'kg', 'estimated_unit_cost' => 10]],
+            'packaging_cost' => 0.5,
+        ]);
+        $dailyMeal = DailyMeal::factory()
+            ->for(Week::factory()->for($congregation))
+            ->for($congregation)
+            ->for($mainMenu)
+            ->create(['meal_date' => '2026-12-10', 'estimated_people' => 30]);
+        $coordinator = User::factory()->create(['role' => 'coordinator', 'congregation_id' => $congregation->id]);
+
+        $this->actingAs($coordinator)
+            ->get(route('daily-meal-preparation-sheets.show', $dailyMeal))
+            ->assertOk()
+            ->assertSee('De cumpărat')
+            ->assertSee('Rămâne')
+            ->assertSee('3.5 kg')
+            ->assertDontSee('RON')
+            ->assertDontSee('Cost estimat')
+            ->assertDontSee('Total ingrediente:');
     }
 }

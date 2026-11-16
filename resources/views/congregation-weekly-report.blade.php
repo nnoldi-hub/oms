@@ -1,3 +1,6 @@
+@php
+    $showCosts = request()->boolean('costs') && auth()->check();
+@endphp
 <!doctype html>
 <html lang="ro">
 <head>
@@ -27,8 +30,9 @@
         .safety h3 { color: #9f1239; font-size: 1rem; margin: 0 0 8px; }
         .safety p, .safety li { line-height: 1.45; }
         .safety ul { margin: 8px 0 0; padding-left: 20px; }
+        .toggle { color: #047857; display: inline-block; font-weight: 700; margin: 18px 0 0 14px; }
         .print { background: #047857; border: 0; color: white; cursor: pointer; font-weight: 700; margin-top: 18px; padding: 10px 16px; }
-        @media print { .print { display: none; } main { max-width: none; padding: 0; } .table-wrap { overflow: visible; } }
+        @media print { .print, .toggle { display: none; } main { max-width: none; padding: 0; } .table-wrap { overflow: visible; } }
     </style>
 </head>
 <body>
@@ -41,6 +45,9 @@
                 <div class="contact"><strong>Asistent responsabil:</strong> {{ $congregation->assistant_name }}@if ($congregation->assistant_phone), {{ $congregation->assistant_phone }}@endif@if ($congregation->assistant_email), {{ $congregation->assistant_email }}@endif</div>
             @endif
             <button class="print" type="button" onclick="window.print()">Printeaza fisa</button>
+            @auth
+                <a class="toggle" href="{{ request()->fullUrlWithQuery(['costs' => $showCosts ? null : 1]) }}">{{ $showCosts ? 'Ascunde costurile' : 'Arată costurile' }}</a>
+            @endauth
         </header>
 
         <section>
@@ -72,7 +79,7 @@
                                         -
                                     @endif
                                 </td>
-                                <td class="number">{{ $dailyMeal->estimated_people }}</td>
+                                <td class="number">{{ $dailyMeal->portions() }}@if ($dailyMeal->bufferedPortions() > $dailyMeal->portions())<br><small>({{ $dailyMeal->bufferedPortions() }} cu rezervă)</small>@endif</td>
                             </tr>
                         @empty
                             <tr><td colspan="5">Aceasta congregatie nu are zile alocate in saptamana selectata.</td></tr>
@@ -96,30 +103,45 @@
         </section>
 
         <section>
-            <h2>Lista de cumparaturi</h2>
+            <h2>Lista de cumpărături</h2>
             <div class="table-wrap">
                 <table>
-                    <thead><tr><th>Ingredient</th><th class="number">Cantitate</th><th class="number">Pret estimat</th><th class="number">Cost estimat</th></tr></thead>
+                    <thead><tr><th>Ingredient</th><th class="number">Necesar</th><th class="number">De cumpărat</th><th class="number">Rămâne</th>@if ($showCosts)<th class="number">Preț estimat</th><th class="number">Cost estimat</th>@endif</tr></thead>
                     <tbody>
                         @forelse ($shoppingList['ingredients'] as $ingredient)
-                            <tr><td>{{ $ingredient['name'] }}</td><td class="number">{{ rtrim(rtrim(number_format($ingredient['quantity'], 3, '.', ''), '0'), '.') }} {{ $ingredient['unit'] }}</td><td class="number">{{ $ingredient['has_missing_price'] ? 'De configurat' : number_format($ingredient['estimated_unit_cost'], 2, '.', ' ') . ' RON/' . $ingredient['unit'] }}</td><td class="number">{{ $ingredient['has_missing_price'] ? '-' : number_format($ingredient['estimated_cost'], 2, '.', ' ') . ' RON' }}</td></tr>
+                            @php
+                                $toBuy = $ingredient['to_buy_quantity'] ?? $ingredient['quantity'];
+                                $leftover = round($toBuy - $ingredient['quantity'], 3);
+                            @endphp
+                            <tr>
+                                <td>{{ $ingredient['name'] }}</td>
+                                <td class="number">{{ rtrim(rtrim(number_format($ingredient['quantity'], 3, '.', ''), '0'), '.') }} {{ $ingredient['unit'] }}</td>
+                                <td class="number">{{ \App\Support\PracticalQuantity::format($toBuy, $ingredient['unit']) }}</td>
+                                <td class="number">{{ $leftover > 0.0005 ? \App\Support\PracticalQuantity::format($leftover, $ingredient['unit']) : '—' }}</td>
+                                @if ($showCosts)
+                                    <td class="number">{{ $ingredient['has_missing_price'] ? 'De configurat' : number_format($ingredient['estimated_unit_cost'], 2, '.', ' ') . ' RON/' . $ingredient['unit'] }}</td>
+                                    <td class="number">{{ $ingredient['has_missing_price'] ? '-' : number_format($ingredient['estimated_cost'], 2, '.', ' ') . ' RON' }}</td>
+                                @endif
+                            </tr>
                         @empty
-                            <tr><td colspan="4">Nu exista meniuri complete pentru aceasta congregatie.</td></tr>
+                            <tr><td colspan="{{ $showCosts ? 6 : 4 }}">Nu există meniuri complete pentru această congregație.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
-            @if ($shoppingList['packaging']['total_cost'] > 0)
-                <p><strong>Ambalaje:</strong> {{ $shoppingList['packaging']['count'] }} caserole. <strong>Cost ambalaje:</strong> {{ number_format($shoppingList['packaging']['total_cost'], 2, '.', ' ') }} RON.</p>
+            <p>Cantitățile de cumpărat sunt rotunjite la pachetele din magazin. Ce rămâne după gătit rămâne la cel care a cumpărat.</p>
+            @if ($shoppingList['packaging']['count'] > 0)
+                <p><strong>Ambalaje:</strong> {{ $shoppingList['packaging']['count'] }} caserole.@if ($showCosts) <strong>Cost ambalaje:</strong> {{ number_format($shoppingList['packaging']['total_cost'], 2, '.', ' ') }} RON.@endif</p>
             @else
                 <p><strong>Ambalaje:</strong> fără ambalaj.</p>
             @endif
-            @foreach ($shoppingList['fixed_costs'] as $fixedCost)
-                <p><strong>{{ $fixedCost['label'] }}:</strong> {{ $fixedCost['has_missing_price'] ? 'De configurat' : number_format($fixedCost['estimated_cost'], 2, '.', ' ') . ' RON' }}</p>
-            @endforeach
-            <p><strong>Cost ingrediente configurat:</strong> {{ number_format($shoppingList['totals']['ingredients_cost'], 2, '.', ' ') }} RON. <strong>Total estimat configurat:</strong> {{ number_format($shoppingList['totals']['total_cost'], 2, '.', ' ') }} RON.</p>
-            @if ($shoppingList['totals']['has_missing_prices'])<p class="notice">Unele ingrediente nu au pret estimat. Totalul este partial pana la completarea preturilor.</p>@endif
+            @if ($showCosts)
+                @foreach ($shoppingList['fixed_costs'] as $fixedCost)
+                    <p><strong>{{ $fixedCost['label'] }}:</strong> {{ $fixedCost['has_missing_price'] ? 'De configurat' : number_format($fixedCost['estimated_cost'], 2, '.', ' ') . ' RON' }}</p>
+                @endforeach
+                <p><strong>Cost ingrediente configurat:</strong> {{ number_format($shoppingList['totals']['ingredients_cost'], 2, '.', ' ') }} RON. <strong>Total estimat configurat:</strong> {{ number_format($shoppingList['totals']['total_cost'], 2, '.', ' ') }} RON.</p>
+                @if ($shoppingList['totals']['has_missing_prices'])<p class="notice">Unele ingrediente nu au preț estimat. Totalul este parțial până la completarea prețurilor.</p>@endif
+            @endif
         </section>
     </main>
 </body>
-</html>

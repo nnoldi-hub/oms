@@ -1,3 +1,9 @@
+@php
+    $showCosts = request()->boolean('costs') && auth()->check();
+    $people = $dailyMeal->portions();
+    $cooked = $dailyMeal->bufferedPortions();
+    $reserve = max(0, $cooked - $people);
+@endphp
 <!doctype html>
 <html lang="ro">
 <head>
@@ -38,7 +44,8 @@
         .crew__missing { color: #be123c; font-weight: 700; }
         .delivery { background: #eef2ff; border-left: 4px solid #4338ca; line-height: 1.55; margin-top: 10px; padding: 14px 16px; }
         .print { background: #047857; border: 0; color: white; cursor: pointer; font-weight: 700; margin-top: 18px; padding: 10px 16px; }
-        @media print { .print { display: none; } main { max-width: none; padding: 0; } .table-wrap { overflow: visible; } }
+        .toggle { color: #047857; display: inline-block; font-weight: 700; margin: 18px 0 0 14px; }
+        @media print { .print, .toggle { display: none; } main { max-width: none; padding: 0; } .table-wrap { overflow: visible; } }
         @media screen and (max-width: 640px) {
             .ingredient-table thead { display: none; }
             .ingredient-table, .ingredient-table tbody, .ingredient-table tr, .ingredient-table td { display: block; width: 100%; }
@@ -57,10 +64,13 @@
             <h1>{{ $dailyMeal->meal_date->translatedFormat('l, j F Y') }}</h1>
             <p class="meta">
                 <strong>Congregație:</strong> {{ $dailyMeal->congregation?->name ?? 'Nealocată' }}<br>
-                <strong>Porții de pregătit:</strong> {{ $dailyMeal->portions() }}<br>
+                <strong>Porții de pregătit:</strong> {{ $cooked }}@if ($reserve > 0) ({{ $people }} persoane + {{ $reserve }} rezervă)@endif<br>
                 <strong>Ora de livrare pe șantier:</strong> {{ filled($dailyMeal->delivery_time) ? $dailyMeal->delivery_time : 'de stabilit' }}
             </p>
             <button class="print" type="button" onclick="window.print()">Printează fișa zilei</button>
+            @auth
+                <a class="toggle" href="{{ request()->fullUrlWithQuery(['costs' => $showCosts ? null : 1]) }}">{{ $showCosts ? 'Ascunde costurile' : 'Arată costurile' }}</a>
+            @endauth
         </header>
 
         <section>
@@ -104,78 +114,91 @@
                     </div>
                     <div class="table-wrap">
                         <table class="ingredient-table">
-                            <thead><tr><th class="check"></th><th>Ingredient</th><th class="number">Cantitate pentru {{ $dailyMeal->portions() }} porții</th><th class="number">Cost estimat</th></tr></thead>
+                            <thead><tr><th class="check"></th><th>Ingredient</th><th class="number">Cantitate pentru {{ $cooked }} porții</th>@if ($showCosts)<th class="number">Cost estimat</th>@endif</tr></thead>
                             <tbody>
                                 @foreach ($section['requirements']['ingredients'] as $ingredient)
                                     <tr>
-                                        <td class="check"><input type="checkbox" aria-label="De cumparat {{ $ingredient['name'] }}"></td>
+                                        <td class="check"><input type="checkbox" aria-label="Pregătit {{ $ingredient['name'] }}"></td>
                                         <td data-label="Ingredient">{{ $ingredient['name'] }}</td>
                                         <td class="number" data-label="Cantitate">{{ $ingredient['needs_configuration'] ? 'De configurat' : rtrim(rtrim(number_format($ingredient['quantity'], 3, '.', ''), '0'), '.') . ' ' . $ingredient['unit'] }}</td>
-                                        <td class="number" data-label="Cost estimat">{{ $ingredient['has_missing_price'] ? 'De configurat' : number_format($ingredient['estimated_cost'], 2, '.', ' ') . ' RON' }}</td>
+                                        @if ($showCosts)
+                                            <td class="number" data-label="Cost estimat">{{ $ingredient['has_missing_price'] ? 'De configurat' : number_format($ingredient['estimated_cost'], 2, '.', ' ') . ' RON' }}</td>
+                                        @endif
                                     </tr>
                                 @endforeach
                             </tbody>
                         </table>
                     </div>
-                    @foreach ($section['requirements']['fixed_costs'] as $fixedCost)
-                        <p><strong>{{ $fixedCost['label'] }}:</strong> {{ $fixedCost['has_missing_price'] ? 'De configurat' : number_format($fixedCost['estimated_cost'], 2, '.', ' ') . ' RON' }}</p>
-                    @endforeach
+                    @if ($showCosts)
+                        @foreach ($section['requirements']['fixed_costs'] as $fixedCost)
+                            <p><strong>{{ $fixedCost['label'] }}:</strong> {{ $fixedCost['has_missing_price'] ? 'De configurat' : number_format($fixedCost['estimated_cost'], 2, '.', ' ') . ' RON' }}</p>
+                        @endforeach
+                    @endif
                     <p>
                         @if ($hasPackaging)
-                            <strong>Ambalaje:</strong> {{ $packaging['count'] }} caserole. <strong>Cost ambalaje:</strong> {{ number_format($packaging['total_cost'], 2, '.', ' ') }} RON.
+                            <strong>Ambalaje:</strong> {{ $packaging['count'] }} caserole.@if ($showCosts) <strong>Cost ambalaje:</strong> {{ number_format($packaging['total_cost'], 2, '.', ' ') }} RON.@endif
                         @elseif ($componentKey === 'soup')
                             <strong>Ambalaje:</strong> fără ambalaj (ambalaj comun cu felul principal).
                         @else
                             <strong>Ambalaje:</strong> fără ambalaj.
                         @endif
                     </p>
-                    @if ($section['requirements']['totals']['has_missing_prices'])<p class="notice">Unele ingrediente nu au preț estimat; totalul este parțial.</p>@endif
+                    @if ($showCosts && $section['requirements']['totals']['has_missing_prices'])<p class="notice">Unele ingrediente nu au preț estimat; totalul este parțial.</p>@endif
                 </section>
             @endif
         @endforeach
 
         <section>
-            <h2>Totaluri și de cumpărat</h2>
-            <div class="budget">
-                <p>
-                    <strong>Total ingrediente:</strong> {{ number_format($shoppingList['totals']['ingredients_cost'], 2, '.', ' ') }} RON.
-                    <strong>Total ambalaje:</strong> {{ number_format($shoppingList['totals']['packaging_cost'], 2, '.', ' ') }} RON.
-                    <strong>Total estimat:</strong> {{ number_format($shoppingList['totals']['total_cost'], 2, '.', ' ') }} RON.
-                </p>
-                @foreach ($shoppingList['fixed_costs'] as $fixedCost)
-                    <p><strong>{{ $fixedCost['label'] }}:</strong> {{ $fixedCost['has_missing_price'] ? 'De configurat' : number_format($fixedCost['estimated_cost'], 2, '.', ' ') . ' RON' }}</p>
-                @endforeach
-                @if ($shoppingList['cost_per_portion'] !== null)
-                    <p><strong>Cost pe porție:</strong> {{ number_format($shoppingList['cost_per_portion'], 2, '.', ' ') }} RON / porție.</p>
-                @else
-                    <p class="notice">Costul pe porție este parțial: unele ingrediente nu au preț configurat.</p>
-                @endif
-            </div>
+            <h2>{{ $showCosts ? 'Totaluri și de cumpărat' : 'De cumpărat' }}</h2>
+            @if ($showCosts)
+                <div class="budget">
+                    <p>
+                        <strong>Total ingrediente:</strong> {{ number_format($shoppingList['totals']['ingredients_cost'], 2, '.', ' ') }} RON.
+                        <strong>Total ambalaje:</strong> {{ number_format($shoppingList['totals']['packaging_cost'], 2, '.', ' ') }} RON.
+                        <strong>Total estimat:</strong> {{ number_format($shoppingList['totals']['total_cost'], 2, '.', ' ') }} RON.
+                    </p>
+                    @foreach ($shoppingList['fixed_costs'] as $fixedCost)
+                        <p><strong>{{ $fixedCost['label'] }}:</strong> {{ $fixedCost['has_missing_price'] ? 'De configurat' : number_format($fixedCost['estimated_cost'], 2, '.', ' ') . ' RON' }}</p>
+                    @endforeach
+                    @if ($shoppingList['cost_per_portion'] !== null)
+                        <p><strong>Cost pe porție:</strong> {{ number_format($shoppingList['cost_per_portion'], 2, '.', ' ') }} RON / porție.</p>
+                    @else
+                        <p class="notice">Costul pe porție este parțial: unele ingrediente nu au preț configurat.</p>
+                    @endif
+                </div>
+            @endif
             <div class="table-wrap">
                 <table class="ingredient-table">
-                    <thead><tr><th class="check"></th><th>De cumpărat</th><th class="number">Cantitate</th><th class="number">Cantitate de cumpărat</th><th class="number">Preț estimat</th><th class="number">Cost estimat</th></tr></thead>
+                    <thead><tr><th class="check"></th><th>Ingredient</th><th class="number">Necesar</th><th class="number">De cumpărat</th><th class="number">Rămâne</th>@if ($showCosts)<th class="number">Preț estimat</th><th class="number">Cost estimat</th>@endif</tr></thead>
                     <tbody>
                         @forelse ($shoppingList['ingredients'] as $ingredient)
+                            @php
+                                $leftover = $ingredient['needs_configuration'] ? null : round($ingredient['to_buy_quantity'] - $ingredient['quantity'], 3);
+                            @endphp
                             <tr>
-                                <td class="check"><input type="checkbox" aria-label="De cumparat {{ $ingredient['name'] }}"></td>
-                                <td data-label="De cumpărat">{{ $ingredient['name'] }}</td>
-                                <td class="number" data-label="Cantitate">{{ $ingredient['needs_configuration'] ? 'De configurat' : rtrim(rtrim(number_format($ingredient['quantity'], 3, '.', ''), '0'), '.') . ' ' . $ingredient['unit'] }}</td>
-                                <td class="number" data-label="Cantitate de cumpărat">{{ $ingredient['needs_configuration'] ? 'De configurat' : \App\Support\PracticalQuantity::format($ingredient['to_buy_quantity'], $ingredient['unit']) }}</td>
-                                <td class="number" data-label="Preț estimat">{{ $ingredient['has_missing_price'] ? 'De configurat' : number_format($ingredient['estimated_unit_cost'], 2, '.', ' ') . ' RON/' . $ingredient['unit'] }}</td>
-                                <td class="number" data-label="Cost estimat">{{ $ingredient['has_missing_price'] ? '—' : number_format($ingredient['estimated_cost'], 2, '.', ' ') . ' RON' }}</td>
+                                <td class="check"><input type="checkbox" aria-label="Cumpărat {{ $ingredient['name'] }}"></td>
+                                <td data-label="Ingredient">{{ $ingredient['name'] }}</td>
+                                <td class="number" data-label="Necesar">{{ $ingredient['needs_configuration'] ? 'De configurat' : rtrim(rtrim(number_format($ingredient['quantity'], 3, '.', ''), '0'), '.') . ' ' . $ingredient['unit'] }}</td>
+                                <td class="number" data-label="De cumpărat">{{ $ingredient['needs_configuration'] ? 'De configurat' : \App\Support\PracticalQuantity::format($ingredient['to_buy_quantity'], $ingredient['unit']) }}</td>
+                                <td class="number" data-label="Rămâne">{{ $leftover === null ? '—' : ($leftover > 0.0005 ? \App\Support\PracticalQuantity::format($leftover, $ingredient['unit']) : '—') }}</td>
+                                @if ($showCosts)
+                                    <td class="number" data-label="Preț estimat">{{ $ingredient['has_missing_price'] ? 'De configurat' : number_format($ingredient['estimated_unit_cost'], 2, '.', ' ') . ' RON/' . $ingredient['unit'] }}</td>
+                                    <td class="number" data-label="Cost estimat">{{ $ingredient['has_missing_price'] ? '—' : number_format($ingredient['estimated_cost'], 2, '.', ' ') . ' RON' }}</td>
+                                @endif
                             </tr>
                         @empty
-                            <tr><td colspan="6">Nu există meniuri complete pentru această zi.</td></tr>
+                            <tr><td colspan="{{ $showCosts ? 7 : 5 }}">Nu există meniuri complete pentru această zi.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
-            @if ($shoppingList['totals']['has_missing_prices'])
+            <p>Cantitățile de cumpărat sunt rotunjite la pachetele din magazin. Ce rămâne după gătit rămâne la cel care a cumpărat.</p>
+            @if ($showCosts && $shoppingList['totals']['has_missing_prices'])
                 <p class="notice">Unele ingrediente nu au preț estimat. Totalul afișat este parțial până la completarea prețurilor din meniuri.</p>
             @endif
         </section>
 
-        @if ($dailyMeal->maximum_budget !== null || $dailyMeal->contributor_count !== null)
+        @if ($showCosts && ($dailyMeal->maximum_budget !== null || $dailyMeal->contributor_count !== null))
             <section>
                 <h2>Buget și contribuție</h2>
                 <div class="budget">
@@ -183,7 +206,7 @@
                         <p>Completează prețurile ingredientelor pentru a calcula bugetul și contribuția.</p>
                     @else
                         @if ($dailyMeal->portions() > 0)
-                            <p><strong>Cost estimat total:</strong> {{ number_format($dailyCost['total_cost'], 2, '.', ' ') }} RON, {{ number_format($dailyCost['total_cost'] / $dailyMeal->portions(), 2, '.', ' ') }} RON/porție.</p>
+                            <p><strong>Cost estimat total:</strong> {{ number_format($dailyCost['total_cost'], 2, '.', ' ') }} RON, {{ number_format($dailyCost['total_cost'] / $dailyMeal->portions(), 2, '.', ' ') }} RON/persoană.</p>
                         @else
                             <p><strong>Cost estimat total:</strong> {{ number_format($dailyCost['total_cost'], 2, '.', ' ') }} RON.</p>
                         @endif

@@ -43,4 +43,3 @@
                 <p class="notice">{{ $shoppingList['incomplete_meals'] }} zile nu au fel principal ales si nu sunt incluse in lista.</p>
             @endif
     </section>
-</main></body></html>

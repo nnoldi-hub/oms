@@ -64,7 +64,7 @@ class FixedCostIngredientTest extends TestCase
         $administrator = User::factory()->create(['role' => 'admin']);
 
         $this->actingAs($administrator)
-            ->get(route('daily-meal-preparation-sheets.show', $meal))
+            ->get(route('daily-meal-preparation-sheets.show', $meal).'?costs=1')
             ->assertOk()
             ->assertSee('Diverse (cost fix)')
             ->assertSee('5.00 RON')
