@@ -26,7 +26,7 @@ class MealRequirementCalculatorTest extends TestCase
 
         $this->assertSame([
             ['name' => 'Pui', 'quantity' => 10.0, 'unit' => 'kg', 'estimated_unit_cost' => 20.0, 'estimated_cost' => 200.0, 'has_missing_price' => false, 'needs_configuration' => false, 'package_quantity' => null],
-['name' => 'Orez', 'quantity' => 4.0, 'unit' => 'kg', 'estimated_unit_cost' => 5.0, 'estimated_cost' => 20.0, 'has_missing_price' => false, 'needs_configuration' => false, 'package_quantity' => null],
+            ['name' => 'Orez', 'quantity' => 4.0, 'unit' => 'kg', 'estimated_unit_cost' => 5.0, 'estimated_cost' => 20.0, 'has_missing_price' => false, 'needs_configuration' => false, 'package_quantity' => null],
         ], $requirements['ingredients']);
         $this->assertSame(['count' => 50, 'unit_cost' => 1.25, 'total_cost' => 62.5], $requirements['packaging']);
         $this->assertSame(['ingredients_cost' => 220.0, 'fixed_costs_cost' => 0.0, 'total_cost' => 282.5, 'has_missing_prices' => false], $requirements['totals']);
@@ -88,5 +88,46 @@ class MealRequirementCalculatorTest extends TestCase
         $this->assertSame(0.0, $requirements['ingredients'][0]['quantity']);
         $this->assertSame(8.5, $requirements['ingredients'][0]['estimated_unit_cost']);
         $this->assertSame(['ingredients_cost' => 0.0, 'fixed_costs_cost' => 0.0, 'total_cost' => 0.0, 'has_missing_prices' => false], $requirements['totals']);
+    }
+
+    public function test_it_can_calculate_a_single_real_portion_without_the_safety_margin(): void
+    {
+        config(['oms.portion_safety_margin' => 0.15]);
+
+        $menu = new Menu([
+            'ingredients' => [
+                ['name' => 'Pui', 'quantity_per_person' => 0.15, 'unit' => 'kg', 'estimated_unit_cost' => 20],
+                ['name' => 'Orez', 'quantity_per_person' => 0.08, 'unit' => 'kg', 'estimated_unit_cost' => 5],
+                ['name' => 'Pui', 'quantity_per_person' => 0.05, 'unit' => 'kg', 'estimated_unit_cost' => 20],
+            ],
+            'packaging_cost' => 1.25,
+        ]);
+        $dailyMeal = new DailyMeal(['estimated_people' => 1]);
+        $dailyMeal->setRelation('menu', $menu);
+
+        $requirements = app(MealRequirementCalculator::class)->calculate($dailyMeal, 1);
+
+        $this->assertEqualsWithDelta(0.2, $requirements['ingredients'][0]['quantity'], 0.0001);
+        $this->assertEqualsWithDelta(0.08, $requirements['ingredients'][1]['quantity'], 0.0001);
+        $this->assertSame(['count' => 1, 'unit_cost' => 1.25, 'total_cost' => 1.25], $requirements['packaging']);
+    }
+
+    public function test_it_applies_the_safety_margin_by_default(): void
+    {
+        config(['oms.portion_safety_margin' => 0.15]);
+
+        $menu = new Menu([
+            'ingredients' => [
+                ['name' => 'Pui', 'quantity_per_person' => 0.2, 'unit' => 'kg', 'estimated_unit_cost' => 20],
+            ],
+            'packaging_cost' => 1.25,
+        ]);
+        $dailyMeal = new DailyMeal(['estimated_people' => 40]);
+        $dailyMeal->setRelation('menu', $menu);
+
+        $requirements = app(MealRequirementCalculator::class)->calculate($dailyMeal);
+
+        $this->assertSame(46, $requirements['packaging']['count']);
+        $this->assertEqualsWithDelta(9.2, $requirements['ingredients'][0]['quantity'], 0.0001);
     }
 }

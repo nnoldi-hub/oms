@@ -13,7 +13,7 @@ class MealRequirementCalculator
     /**
      * @return array{ingredients: list<array{name: string, quantity: float, unit: string, estimated_unit_cost: ?float, estimated_cost: float, has_missing_price: bool, needs_configuration: bool, package_quantity: ?float}>, fixed_costs: list<array{name: string, quantity: float, unit: string, estimated_unit_cost: ?float, estimated_cost: float, has_missing_price: bool}>, packaging: array{count: int, unit_cost: float, total_cost: float}, totals: array{ingredients_cost: float, fixed_costs_cost: float, total_cost: float, has_missing_prices: bool}}
      */
-    public function calculate(DailyMeal $dailyMeal): array
+    public function calculate(DailyMeal $dailyMeal, ?int $portionsOverride = null): array
     {
         $menu = $dailyMeal->menu;
 
@@ -21,7 +21,7 @@ class MealRequirementCalculator
             throw new InvalidArgumentException('O zi de masa necesita un meniu pentru calcul.');
         }
 
-        $portions = $dailyMeal->bufferedPortions();
+        $portions = $portionsOverride ?? $dailyMeal->bufferedPortions();
         $requirements = [];
         $fixedRequirements = [];
         $ingredientIds = collect($menu->ingredients)->pluck('ingredient_id')->filter()->unique();
