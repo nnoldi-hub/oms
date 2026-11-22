@@ -47,7 +47,7 @@ class ProgramGeneral extends Page
             ->with([
                 'dailyMeals' => fn (HasMany $query) => $query->orderBy('meal_date')->orderBy('id'),
                 'dailyMeals.congregation',
-                'dailyMeals.congregations',
+                'dailyMeals.contributingCongregations',
                 'dailyMeals.menu',
                 'dailyMeals.soupMenu',
                 'dailyMeals.dessertMenu',
@@ -72,7 +72,7 @@ class ProgramGeneral extends Page
         return $this->selectedWeek?->dailyMeals
             ->map(fn (DailyMeal $meal): array => [
                 'date' => $meal->meal_date?->translatedFormat('l, d.m.Y') ?? '-',
-                'congregation' => $meal->congregationNames() ?: 'Nealocata',
+                'congregation' => $meal->contributingCongregationNames() ?: 'Nealocata',
                 'main' => $meal->menu?->name,
                 'soup' => $meal->soupMenu?->name,
                 'dessert' => $meal->dessertMenu?->name,

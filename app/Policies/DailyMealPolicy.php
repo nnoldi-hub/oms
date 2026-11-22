@@ -18,6 +18,11 @@ class DailyMealPolicy
         return CongregationAccess::canSeeMeal($user, $dailyMeal);
     }
 
+    public function viewFull(User $user, DailyMeal $dailyMeal): bool
+    {
+        return CongregationAccess::canViewFullMeal($user, $dailyMeal);
+    }
+
     public function create(User $user): bool
     {
         return $user->isAdmin();
@@ -27,7 +32,7 @@ class DailyMealPolicy
     {
         return $user->isAdmin()
             || $user->isConstructionTeam()
-            || ($user->isCoordinator() && CongregationAccess::canSeeMeal($user, $dailyMeal));
+            || ($user->isCoordinator() && CongregationAccess::canManageMeal($user, $dailyMeal));
     }
 
     public function delete(User $user, DailyMeal $dailyMeal): bool

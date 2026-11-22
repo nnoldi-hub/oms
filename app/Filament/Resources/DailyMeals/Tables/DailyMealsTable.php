@@ -3,6 +3,8 @@
 namespace App\Filament\Resources\DailyMeals\Tables;
 
 use App\Filament\Exports\DailyMealExporter;
+use App\Filament\Resources\DailyMeals\DailyMealResource;
+use App\Models\DailyMeal;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -45,11 +47,13 @@ class DailyMealsTable
                     ->label('Persoane estimate')
                     ->numeric()
                     ->sortable()
+                    ->visible(fn (DailyMeal $record): bool => DailyMealResource::canViewSensitiveFields($record))
                     ->visibleFrom('md'),
                 IconColumn::make('has_allergies')
                     ->label('Alergii')
                     ->boolean()
-                    ->trueColor('danger'),
+                    ->trueColor('danger')
+                    ->visible(fn (DailyMeal $record): bool => DailyMealResource::canViewSensitiveFields($record)),
                 TextColumn::make('status')
                     ->label('Stare')
                     ->searchable()
@@ -57,11 +61,13 @@ class DailyMealsTable
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->visible(fn (DailyMeal $record): bool => DailyMealResource::canViewSensitiveFields($record)),
                 TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->visible(fn (DailyMeal $record): bool => DailyMealResource::canViewSensitiveFields($record)),
             ])
             ->filters([
                 SelectFilter::make('week_id')
@@ -82,4 +88,3 @@ class DailyMealsTable
             ]);
     }
 }
-

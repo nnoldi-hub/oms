@@ -17,6 +17,7 @@ class CongregationWeeklyReportController extends Controller
         WeeklyShoppingListCalculator $calculator,
         CongregationScheduleReport $scheduleReport,
     ): View {
+        Gate::authorize('viewFull', $week);
         Gate::authorize('view', $congregation);
 
         $reportWeek = $scheduleReport->build($congregation);

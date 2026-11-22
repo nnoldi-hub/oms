@@ -145,21 +145,27 @@
                         <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="openWeekChange('move')">Schimbă congregația</button>
                         <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="openWeekChange('swap')">Interschimbă săptămâni</button>
                         <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="openDeleteWeek({{ $this->selectedWeek->id }})">Șterge săptămâna</button>
-                    @elseif (auth()->user()?->isCoordinator())
+                    @elseif (auth()->user()?->isCoordinator() && $this->canSeeWeekFinancials($this->selectedWeek))
                         <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="openWeekChangeRequest">Cere schimbarea săptămânii</button>
                     @endif
-                    <a class="oms-calendar__report" href="{{ route('weekly-reports.show', $this->selectedWeek) }}" target="_blank">Raport saptamanal</a>
-                    <button
-                        class="oms-calendar__report oms-calendar__report--secondary"
-                        type="button"
-                        x-data
-                        x-on:click="navigator.clipboard.writeText(@js($this->whatsappMessages['week'] ?? '')); $wire.call('notifyMessageCopied')"
-                    >Copiaza planul saptamanii</button>
+                    @if ($this->canSeeWeekFinancials($this->selectedWeek))
+                        <a class="oms-calendar__report" href="{{ route('weekly-reports.show', $this->selectedWeek) }}" target="_blank">Raport saptamanal</a>
+                    @endif
+                    @if ($this->canSeeWeekPeople($this->selectedWeek))
+                        <button
+                            class="oms-calendar__report oms-calendar__report--secondary"
+                            type="button"
+                            x-data
+                            x-on:click="navigator.clipboard.writeText(@js($this->whatsappMessages['week'] ?? '')); $wire.call('notifyMessageCopied')"
+                        >Copiaza planul saptamanii</button>
+                    @endif
                     @if ($this->canDownloadPlanPdf)
                         <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="openPlanPdf">Descarcă PDF planul săptămânii</button>
                     @endif
-                    @foreach ($this->selectedWeek->dailyMeals->flatMap->congregations->filter()->unique('id')->sortBy('name') as $congregation)
-                        <a class="oms-calendar__report oms-calendar__report--secondary" href="{{ route('congregation-weekly-reports.show', [$this->selectedWeek, $congregation]) }}" target="_blank">Fisa {{ $congregation->name }}</a>
+                    @foreach ($this->selectedWeek->dailyMeals->flatMap->contributingCongregations->filter()->unique('id')->sortBy('name') as $congregation)
+                        @if ($this->canSeeCongregationSheet($congregation))
+                            <a class="oms-calendar__report oms-calendar__report--secondary" href="{{ route('congregation-weekly-reports.show', [$this->selectedWeek, $congregation]) }}" target="_blank">Fisa {{ $congregation->name }}</a>
+                        @endif
                     @endforeach
                 </div>
             </div>
@@ -189,15 +195,19 @@
                         @endif
                         <div class="oms-card__content">
                             <div>
-                                <p class="oms-card__label">Congregatii</p>
-                                <p class="oms-card__value">{{ $dailyMeal->congregationNames() ?: 'Nealocata' }}</p>
+                                <p class="oms-card__label">Gateste</p>
+                                <p class="oms-card__value">{{ $dailyMeal->cookingCongregation?->name ?? 'Nealocata' }}</p>
+                                <p class="oms-card__label">Contribuie</p>
+                                <p class="oms-card__value">{{ $dailyMeal->contributingCongregations->pluck('name')->implode(', ') ?: 'Nealocata' }}</p>
                                 @if (auth()->user()?->isAdmin())
-                                    <select class="oms-card__select" multiple size="3" aria-label="Congregatiile zilei" wire:model="dayCongregations.{{ $dailyMeal->id }}">
-                                        @foreach ($this->congregationOptions as $congregation)
-                                            <option value="{{ $congregation->id }}">{{ $congregation->name }}</option>
+                                    <select class="oms-card__select" multiple size="3" aria-label="Congregatiile contribuitoare" wire:model="dayCongregations.{{ $dailyMeal->id }}">
+                                        @foreach ($this->contributorOptions as $congregation)
+                                            @if ((int) $congregation->id !== (int) $dailyMeal->congregation_id)
+                                                <option value="{{ $congregation->id }}">{{ $congregation->name }}</option>
+                                            @endif
                                         @endforeach
                                     </select>
-                                    <button class="oms-card__mini oms-card__mini--save" type="button" title="Salveaza congregatiile" wire:click="saveDayCongregations({{ $dailyMeal->id }})">✓</button>
+                                    <button class="oms-card__mini oms-card__mini--save" type="button" title="Salveaza congregatiile contribuitoare" wire:click="saveDayCongregations({{ $dailyMeal->id }})">✓</button>
                                 @endif
                             </div>
 
@@ -205,6 +215,8 @@
                             @if ($canPlan && auth()->user()?->isCoordinator())
                                 <button class="oms-card__mini" type="button" wire:click="openDayChange({{ $dailyMeal->id }}, 'replace')">Schimba congregatia</button>
                                 <button class="oms-card__mini" type="button" wire:click="openDayChange({{ $dailyMeal->id }}, 'swap')">Interschimba cu alta zi</button>
+                            @elseif ($this->canChangeContribution($dailyMeal) && ! auth()->user()?->isAdmin())
+                                <button class="oms-card__mini" type="button" wire:click="openDayChange({{ $dailyMeal->id }}, 'replace')">Schimba contributia mea</button>
                             @endif
                             @php($mealSections = [
                                 ['main', 'Fel principal', 'plannedMenus', $this->menuOptions['main']],
@@ -272,6 +284,7 @@
                             @else
                                 <p class="oms-card__count">{{ $dailyMeal->estimated_people }}</p>
                             @endif
+                            @if ($this->canSeeFinancials($dailyMeal))
                             <div class="oms-card__budget">
                                 <p class="oms-card__label">Buget estimat, cost si contributii</p>
                                 @if ($this->canOrganize($dailyMeal))
@@ -304,6 +317,7 @@
                                     </p>
                                 @endif
                             </div>
+                            @endif
 
                             @if ($this->canOrganize($dailyMeal))
                                 <div class="oms-card__cooked">
@@ -330,6 +344,7 @@
                             @php($donationsForDay = $this->donationsByDate[$dailyMeal->meal_date->toDateString()] ?? null)
                             @php($uncovered = $this->uncoveredRoles[$dailyMeal->meal_date->toDateString()] ?? null)
 
+                            @if ($this->canSeePeople($dailyMeal))
                             @if ($teams !== [])
                                 <div>
                                     <p class="oms-card__label">Echipe</p>
@@ -379,27 +394,30 @@
                                     </p>
                                 </div>
                             @endif
+                            @endif
 
                             <div class="oms-card__actions">
                                 @if ($this->canOrganize($dailyMeal))
                                     <button class="oms-card__action" type="button" wire:click="openPeople({{ $dailyMeal->id }})">Persoane ({{ count($people) }})</button>
                                     <button class="oms-card__action" type="button" wire:click="openTeams({{ $dailyMeal->id }})">Echipe ({{ count($teams) }})</button>
                                 @endif
-                                <button
-                                    class="oms-card__action"
-                                    type="button"
-                                    x-data
-                                    x-on:click="navigator.clipboard.writeText(@js($this->whatsappMessages['days'][$dailyMeal->id] ?? '')); $wire.call('notifyMessageCopied')"
-                                >Copiaza mesajul</button>
-                                <a
-                                    class="oms-card__action"
-                                    href="https://wa.me/?text={{ rawurlencode($this->whatsappMessages['days'][$dailyMeal->id] ?? '') }}"
-                                    target="_blank"
-                                    rel="noopener"
-                                >WhatsApp</a>
+                                @if ($this->canSeePeople($dailyMeal))
+                                    <button
+                                        class="oms-card__action"
+                                        type="button"
+                                        x-data
+                                        x-on:click="navigator.clipboard.writeText(@js($this->whatsappMessages['days'][$dailyMeal->id] ?? '')); $wire.call('notifyMessageCopied')"
+                                    >Copiaza mesajul</button>
+                                    <a
+                                        class="oms-card__action"
+                                        href="https://wa.me/?text={{ rawurlencode($this->whatsappMessages['days'][$dailyMeal->id] ?? '') }}"
+                                        target="_blank"
+                                        rel="noopener"
+                                    >WhatsApp</a>
+                                @endif
                             </div>
 
-                            @if ($dailyMeal->lastEditor() !== null)
+                            @if ($dailyMeal->lastEditor() !== null && $this->canSeeFinancials($dailyMeal))
                                 @php($editor = $dailyMeal->lastEditor())
                                 <p class="oms-card__budget-result">
                                     <strong>Modificat de:</strong>
@@ -407,7 +425,9 @@
                                     · {{ $dailyMeal->updated_at?->translatedFormat('d M Y H:i') }}
                                 </p>
                             @endif
-                            <a class="oms-card__print" href="{{ route('daily-meal-preparation-sheets.show', $dailyMeal) }}" target="_blank">Printeaza ziua</a>
+                            @if ($this->canViewFullMeal($dailyMeal))
+                                <a class="oms-card__print" href="{{ route('daily-meal-preparation-sheets.show', $dailyMeal) }}" target="_blank">Printeaza ziua</a>
+                            @endif
                             @if (auth()->user()?->isAdmin())
                                 <div class="oms-card__actions">
                                     <button class="oms-card__action" type="button" wire:click="openMoveDay({{ $dailyMeal->id }})">Mută ziua</button>
@@ -419,6 +439,7 @@
                 @endforeach
             </div>
 
+            @if ($this->canSeeWeekFinancials($this->selectedWeek))
             @php($weekTotal = collect($this->dailyCosts)->sum('total_cost'))
             @php($weekMissing = collect($this->dailyCosts)->where('has_missing_prices', true)->count())
             <div class="oms-card" style="margin-top:20px;min-height:0;">
@@ -438,6 +459,7 @@
                     </p>
                 </footer>
             </div>
+            @endif
         @else
             <div class="oms-calendar__empty">Nu exista saptamani disponibile pentru acest cont.</div>
         @endif
@@ -827,21 +849,23 @@
             <div class="oms-modal">
                 <div class="oms-modal__panel">
                     <h2 class="oms-modal__title">Cere schimbarea congregației zilei</h2>
-                    <p class="oms-modal__hint">Cererea este aprobată de administrator. Ziua rămâne neschimbată până la aprobare.</p>
+                    <p class="oms-modal__hint">Cererea este aprobată de administrator. Se schimbă doar congregațiile contribuitoare, nu congregația care gătește.</p>
 
-                    <div class="oms-modal__row">
-                        <label class="oms-modal__label" for="day-change-type">Tipul schimbării</label>
-                        <select class="oms-card__select" id="day-change-type" wire:model="dayChangeType">
-                            <option value="replace">Înlocuiește o congregație</option>
-                            <option value="swap">Interschimbă cu altă zi</option>
-                        </select>
-                    </div>
+                    @if (! $this->dayChangeIsContributorOnly())
+                        <div class="oms-modal__row">
+                            <label class="oms-modal__label" for="day-change-type">Tipul schimbării</label>
+                            <select class="oms-card__select" id="day-change-type" wire:model="dayChangeType">
+                                <option value="replace">Înlocuiește o congregație</option>
+                                <option value="swap">Interschimbă cu altă zi</option>
+                            </select>
+                        </div>
+                    @endif
 
                     <div class="oms-modal__row">
                         <label class="oms-modal__label" for="day-change-from">Congregația de înlocuit</label>
                         <select class="oms-card__select" id="day-change-from" wire:model="dayChangeFromCongregationId">
                             <option value="">- alege -</option>
-                            @foreach ($this->congregationOptions as $congregation)
+                            @foreach ($this->dayChangeFromOptions as $congregation)
                                 <option value="{{ $congregation->id }}">{{ $congregation->name }}</option>
                             @endforeach
                         </select>
@@ -863,7 +887,7 @@
                             <label class="oms-modal__label" for="day-change-second-congregation">Congregația din ziua a doua</label>
                             <select class="oms-card__select" id="day-change-second-congregation" wire:model="dayChangeSecondCongregationId">
                                 <option value="">- alege -</option>
-                                @foreach ($this->congregationOptions as $congregation)
+                                @foreach ($this->dayChangeToOptions as $congregation)
                                     <option value="{{ $congregation->id }}">{{ $congregation->name }}</option>
                                 @endforeach
                             </select>
@@ -874,7 +898,7 @@
                             <label class="oms-modal__label" for="day-change-to">Congregația nouă</label>
                             <select class="oms-card__select" id="day-change-to" wire:model="dayChangeToCongregationId">
                                 <option value="">- alege -</option>
-                                @foreach ($this->congregationOptions as $congregation)
+                                @foreach ($this->dayChangeToOptions as $congregation)
                                     <option value="{{ $congregation->id }}">{{ $congregation->name }}</option>
                                 @endforeach
                             </select>

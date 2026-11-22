@@ -46,10 +46,10 @@ class DailyMessageBuilder
 
     public function dayMessage(DailyMeal $meal, bool $includeDonationInvitation = true): string
     {
-        $meal->loadMissing(['menu', 'soupMenu', 'dessertMenu', 'congregations', 'workTeams', 'volunteers']);
+        $meal->loadMissing(['menu', 'soupMenu', 'dessertMenu', 'contributingCongregations', 'workTeams', 'volunteers']);
 
         $lines = [
-            $meal->meal_date->translatedFormat('D, d M Y').' – '.($meal->congregationNames() ?: 'nealocata').' – '.($meal->menu?->name ?? '— fara meniu —').'… – '.($meal->soupMenu?->name ?? '-').' – '.($meal->dessertMenu?->name ?? '-').' – '.$meal->portions().' portii',
+            $meal->meal_date->translatedFormat('D, d M Y').' – '.($meal->contributingCongregationNames() ?: 'nealocata').' – '.($meal->menu?->name ?? '— fara meniu —').'… – '.($meal->soupMenu?->name ?? '-').' – '.($meal->dessertMenu?->name ?? '-').' – '.$meal->portions().' portii',
         ];
 
         $teams = $meal->workTeams
@@ -90,7 +90,7 @@ class DailyMessageBuilder
         $lines = ['Planul saptamanii '.$weekNumber.' ('.$rangeLabel.')'];
 
         foreach ($meals as $meal) {
-            $meal->loadMissing(['menu', 'soupMenu', 'dessertMenu', 'congregations', 'workTeams', 'volunteers']);
+            $meal->loadMissing(['menu', 'soupMenu', 'dessertMenu', 'contributingCongregations', 'workTeams', 'volunteers']);
             $lines[] = '';
             $lines[] = $builder->dayMessage($meal, false);
         }

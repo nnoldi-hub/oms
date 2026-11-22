@@ -11,6 +11,7 @@ class DailyShoppingListCalculator
         private DailyMealComponents $components,
         private DailyMealCostSnapshotService $snapshotService,
         private DonationSummaryService $donationSummary,
+        private DonationDeductionService $donationDeduction,
     ) {}
 
     /**
@@ -66,6 +67,12 @@ class DailyShoppingListCalculator
 
         usort($ingredients, fn (array $left, array $right): int => strcasecmp($left['name'], $right['name']));
 
+        $deduction = $this->donationDeduction->apply(
+            $ingredients,
+            $this->donationSummary->forDailyMeal($dailyMeal)->get(),
+        );
+        $ingredients = $deduction['ingredients'];
+
         $fixedCosts = array_values($fixedCosts);
         usort($fixedCosts, fn (array $left, array $right): int => strcasecmp($left['name'], $right['name']));
 
@@ -97,6 +104,7 @@ class DailyShoppingListCalculator
                 $totalCost,
                 $this->donationSummary->forDailyMeal($dailyMeal),
             ),
+            'donation_deductions' => $deduction['deductions'],
         ];
     }
 

@@ -52,6 +52,13 @@ class DailyMealResource extends Resource
         return DailyMealsTable::configure($table);
     }
 
+    public static function canViewSensitiveFields(DailyMeal $record): bool
+    {
+        $user = auth()->user();
+
+        return $user !== null && CongregationAccess::canViewFullMeal($user, $record);
+    }
+
     public static function getEloquentQuery(): Builder
     {
         $query = parent::getEloquentQuery();

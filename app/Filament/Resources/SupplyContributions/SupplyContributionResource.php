@@ -9,8 +9,8 @@ use Filament\Actions\EditAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
@@ -21,10 +21,15 @@ use Illuminate\Database\Eloquent\Builder;
 class SupplyContributionResource extends Resource
 {
     protected static ?string $model = SupplyContribution::class;
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedTruck;
+
     protected static ?string $navigationLabel = 'Contributii congregatii';
+
     protected static string|\UnitEnum|null $navigationGroup = 'Aprovizionare';
+
     protected static ?string $modelLabel = 'contributie';
+
     protected static ?string $pluralModelLabel = 'contributii';
 
     public static function canAccess(): bool
@@ -41,12 +46,29 @@ class SupplyContributionResource extends Resource
 
     public static function canEdit($record): bool
     {
-        return auth()->user()?->canManageContributions() ?? false;
+        return self::canManageRecord($record);
     }
 
     public static function canDelete($record): bool
     {
-        return auth()->user()?->canManageContributions() ?? false;
+        return self::canManageRecord($record);
+    }
+
+    private static function canManageRecord(?SupplyContribution $record): bool
+    {
+        $user = auth()->user();
+
+        if ($user === null) {
+            return false;
+        }
+
+        if ($user->isAdmin() || $user->canManageSupply()) {
+            return true;
+        }
+
+        return $record !== null
+            && $user->congregation_id !== null
+            && (int) $record->congregation_id === (int) $user->congregation_id;
     }
 
     public static function getEloquentQuery(): Builder

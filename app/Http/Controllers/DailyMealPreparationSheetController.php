@@ -19,9 +19,9 @@ class DailyMealPreparationSheetController extends Controller
         DailyShoppingListCalculator $shoppingListCalculator,
         DailyMessageBuilder $messageBuilder,
     ): View {
-        Gate::authorize('view', $dailyMeal);
+        Gate::authorize('viewFull', $dailyMeal);
 
-        $dailyMeal->load(['congregation', 'congregations', 'menu', 'soupMenu', 'dessertMenu', 'volunteers']);
+        $dailyMeal->load(['congregation', 'contributingCongregations', 'menu', 'soupMenu', 'dessertMenu', 'volunteers']);
 
         $roles = collect($messageBuilder->rolesFor($dailyMeal))
             ->map(fn (array $people, string $role): array => [

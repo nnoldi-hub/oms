@@ -18,6 +18,11 @@ class WeekPolicy
         return CongregationAccess::canSeeWeek($user, $week);
     }
 
+    public function viewFull(User $user, Week $week): bool
+    {
+        return CongregationAccess::canViewFullWeek($user, $week);
+    }
+
     public function create(User $user): bool
     {
         return $user->isAdmin();
@@ -34,8 +39,7 @@ class WeekPolicy
      */
     public function downloadPlan(User $user, Week $week): bool
     {
-        return $user->isAdmin()
-            || ($user->isCoordinator() && CongregationAccess::canSeeWeek($user, $week));
+        return CongregationAccess::canViewFullWeek($user, $week);
     }
 
     public function delete(User $user, Week $week): bool

@@ -106,7 +106,7 @@ class WeekChangeRequest extends Model
                 ->orWhere('user_id', $user->id)
                 ->orWhereHas('dailyMeal', fn (Builder $meal) => $meal->where(function (Builder $participant) use ($congregationId): void {
                     $participant->where('daily_meals.congregation_id', $congregationId)
-                        ->orWhereHas('congregations', fn (Builder $pivot) => $pivot->whereKey($congregationId));
+                        ->orWhereHas('contributingCongregations', fn (Builder $pivot) => $pivot->whereKey($congregationId));
                 }));
         });
     }

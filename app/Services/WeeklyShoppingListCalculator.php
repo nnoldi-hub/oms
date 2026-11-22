@@ -12,6 +12,7 @@ class WeeklyShoppingListCalculator
         private MealRequirementCalculator $mealRequirementCalculator,
         private DailyMealCostSnapshotService $snapshotService,
         private DonationSummaryService $donationSummary,
+        private DonationDeductionService $donationDeduction,
     ) {}
 
     /**
@@ -131,6 +132,12 @@ class WeeklyShoppingListCalculator
 
         usort($ingredients, fn (array $left, array $right): int => strcasecmp($left['name'], $right['name']));
 
+        $deduction = $this->donationDeduction->apply(
+            $ingredients,
+            $this->donationSummary->forWeek($week)->get(),
+        );
+        $ingredients = $deduction['ingredients'];
+
         $fixedCosts = array_values($fixedCosts);
         usort($fixedCosts, fn (array $left, array $right): int => strcasecmp($left['name'], $right['name']));
 
@@ -153,6 +160,7 @@ class WeeklyShoppingListCalculator
                 (float) array_sum(array_column($dailyCosts, 'total_cost')),
                 $this->donationSummary->forWeek($week),
             ),
+            'donation_deductions' => $deduction['deductions'],
         ];
     }
 

@@ -21,12 +21,19 @@ class Week extends Model
     }
 
     /**
-     * @deprecated Saptamanile nu mai apartin unei congregatii. Coloana este pastrata
-     * doar pentru datele vechi si pentru compatibilitate temporara.
+     * Congregatia saptamanii, care pregateste masa in toate zilele acesteia.
+     */
+    public function cookingCongregation(): BelongsTo
+    {
+        return $this->belongsTo(Congregation::class, 'congregation_id');
+    }
+
+    /**
+     * Alias pentru compatibilitate cu codul existent pe coloana congregation_id.
      */
     public function congregation(): BelongsTo
     {
-        return $this->belongsTo(Congregation::class);
+        return $this->cookingCongregation();
     }
 
     public function dailyMeals(): HasMany

@@ -13,7 +13,7 @@ class WeeklyPlanPdfController extends Controller
 {
     public function __invoke(Request $request, Week $week, WeeklyPlanReportBuilder $builder): Response
     {
-        Gate::authorize('downloadPlan', $week);
+        Gate::authorize('viewFull', $week);
 
         $includePhones = $request->boolean('include_phones', true);
 

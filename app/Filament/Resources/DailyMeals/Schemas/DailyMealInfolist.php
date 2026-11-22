@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\DailyMeals\Schemas;
 
+use App\Filament\Resources\DailyMeals\DailyMealResource;
 use App\Models\DailyMeal;
 use Filament\Infolists\Components\IconEntry;
 use Filament\Infolists\Components\TextEntry;
@@ -29,7 +30,8 @@ class DailyMealInfolist
                     ->placeholder('-'),
                 TextEntry::make('estimated_people')
                     ->label('Numar estimat persoane')
-                    ->numeric(),
+                    ->numeric()
+                    ->visible(fn (DailyMeal $record): bool => DailyMealResource::canViewSensitiveFields($record)),
                 IconEntry::make('is_cooked')
                     ->label('S-a gatit')
                     ->boolean()
@@ -40,26 +42,31 @@ class DailyMealInfolist
                 TextEntry::make('actual_cost')
                     ->label('Cost real al zilei (RON)')
                     ->money('RON')
-                    ->placeholder('-'),
+                    ->placeholder('-')
+                    ->visible(fn (DailyMeal $record): bool => DailyMealResource::canViewSensitiveFields($record)),
                 IconEntry::make('has_allergies')
                     ->label('Alergii declarate')
                     ->state(fn (DailyMeal $record): bool => $record->volunteers()->where('has_allergies', true)->exists())
                     ->boolean()
-                    ->trueColor('danger'),
+                    ->trueColor('danger')
+                    ->visible(fn (DailyMeal $record): bool => DailyMealResource::canViewSensitiveFields($record)),
                 TextEntry::make('notes')
                     ->label('Observatii')
                     ->placeholder('-')
-                    ->columnSpanFull(),
+                    ->columnSpanFull()
+                    ->visible(fn (DailyMeal $record): bool => DailyMealResource::canViewSensitiveFields($record)),
                 TextEntry::make('status')
                     ->label('Stare'),
                 TextEntry::make('created_at')
                     ->label('Creat la')
                     ->dateTime()
-                    ->placeholder('-'),
+                    ->placeholder('-')
+                    ->visible(fn (DailyMeal $record): bool => DailyMealResource::canViewSensitiveFields($record)),
                 TextEntry::make('updated_at')
                     ->label('Actualizat la')
                     ->dateTime()
-                    ->placeholder('-'),
+                    ->placeholder('-')
+                    ->visible(fn (DailyMeal $record): bool => DailyMealResource::canViewSensitiveFields($record)),
             ]);
     }
 }

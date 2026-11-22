@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Congregation;
+use App\Models\DailyMeal;
 use App\Models\Week;
 use Carbon\CarbonImmutable;
 
@@ -14,8 +15,10 @@ class CongregationScheduleReport
 {
     public function build(Congregation $congregation): Week
     {
-        $meals = $congregation->scheduledDailyMeals()
-            ->with(['menu', 'soupMenu', 'dessertMenu', 'congregations', 'costSnapshot'])
+        $meals = DailyMeal::query()
+            ->involvingCongregation((int) $congregation->id)
+            ->with(['menu', 'soupMenu', 'dessertMenu', 'contributingCongregations', 'costSnapshot'])
+            ->orderBy('meal_date')
             ->get();
 
         $week = new Week([

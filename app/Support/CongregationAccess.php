@@ -12,9 +12,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * Reguli comune de vizibilitate pe congregatii.
  *
- * O zi de masa apartine celor trei congregatii din pivot.Coloana veche
- * daily_meals.congregation_id este pastrata numai ca fallback pentru datele
- * care inca nu au fost migrate.
+ * Congregatia care gatesc este in daily_meals.congregation_id (si
+ * weeks.congregation_id). Congregatiile din pivot aduc alimente si au acces
+ * doar la programul zilelor in care contribuie, nu la date financiare.
  */
 class CongregationAccess
 {
@@ -28,8 +28,86 @@ class CongregationAccess
             return false;
         }
 
-        return $meal->hasCongregation((int) $user->congregation_id)
-            || (int) $meal->congregation_id === (int) $user->congregation_id;
+        return $meal->hasCookingCongregation((int) $user->congregation_id)
+            || $meal->hasContributingCongregation((int) $user->congregation_id);
+    }
+
+    public static function canManageMeal(User $user, DailyMeal $meal): bool
+    {
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        if (! self::hasCongregation($user)) {
+            return false;
+        }
+
+        return $meal->hasCookingCongregation((int) $user->congregation_id);
+    }
+
+    public static function isContributorOnly(User $user, DailyMeal $meal): bool
+    {
+        return self::hasCongregation($user)
+            && ! $meal->hasCookingCongregation((int) $user->congregation_id)
+            && $meal->hasContributingCongregation((int) $user->congregation_id);
+    }
+
+    /**
+     * Un coordonator care nu gateste nicio saptamana are doar rol de contribuitor:
+     * nu vede date financiare, nici rapoartele complete.
+     */
+    public static function isContributorOnlyUser(User $user): bool
+    {
+        if (! $user->isCoordinator() || ! self::hasCongregation($user)) {
+            return false;
+        }
+
+        $congregationId = (int) $user->congregation_id;
+
+        return ! Week::query()->where('congregation_id', $congregationId)->exists()
+            && ! DailyMeal::query()->where('congregation_id', $congregationId)->exists();
+    }
+
+    /**
+     * Detaliile complete ale zilei (meniu, oameni, costuri, lista de cumparaturi)
+     * apartin congregatiei care gatesc. Contribuitorii vad doar programul zilei.
+     */
+    public static function canViewFullMeal(User $user, DailyMeal $meal): bool
+    {
+        return $user->isAdmin() || self::canManageMeal($user, $meal);
+    }
+
+    /**
+     * Congregatia care gatesc saptamana poate deschide rapoartele complete.
+     */
+    public static function cooksInWeek(User $user, Week $week): bool
+    {
+        if (! self::hasCongregation($user)) {
+            return false;
+        }
+
+        $congregationId = (int) $user->congregation_id;
+
+        if ((int) $week->congregation_id === $congregationId) {
+            return true;
+        }
+
+        return $week->dailyMeals()->where('daily_meals.congregation_id', $congregationId)->exists();
+    }
+
+    public static function canViewFullWeek(User $user, Week $week): bool
+    {
+        return $user->isAdmin()
+            || ($user->isCoordinator() && self::cooksInWeek($user, $week));
+    }
+
+    /**
+     * Un coordonator contribuitor poate cere doar inlocuirea propriei participari.
+     */
+    public static function canChangeContribution(User $user, DailyMeal $meal): bool
+    {
+        return $user->isAdmin()
+            || ($user->isCoordinator() && self::isContributorOnly($user, $meal));
     }
 
     public static function canSeeWeek(User $user, Week $week): bool
@@ -47,7 +125,7 @@ class CongregationAccess
         return (int) $week->congregation_id === $congregationId
             || $week->dailyMeals()->where(function (Builder $query) use ($congregationId): void {
                 $query->where('congregation_id', $congregationId)
-                    ->orWhereHas('congregations', fn (Builder $pivot) => $pivot->whereKey($congregationId));
+                    ->orWhereHas('contributingCongregations', fn (Builder $pivot) => $pivot->whereKey($congregationId));
             })->exists();
     }
 
@@ -61,7 +139,7 @@ class CongregationAccess
 
         return $query->where(function (Builder $scoped) use ($congregationId): void {
             $scoped->where('daily_meals.congregation_id', $congregationId)
-                ->orWhereHas('congregations', fn (Builder $pivot) => $pivot->whereKey($congregationId));
+                ->orWhereHas('contributingCongregations', fn (Builder $pivot) => $pivot->whereKey($congregationId));
         });
     }
 
@@ -75,7 +153,7 @@ class CongregationAccess
 
         $query->where(function (Builder $scoped) use ($congregationId): void {
             $scoped->where('daily_meals.congregation_id', $congregationId)
-                ->orWhereHas('congregations', fn (Builder $pivot) => $pivot->whereKey($congregationId));
+                ->orWhereHas('contributingCongregations', fn (Builder $pivot) => $pivot->whereKey($congregationId));
         });
 
         return $query;
@@ -93,7 +171,7 @@ class CongregationAccess
             $scoped->where('weeks.congregation_id', $congregationId)
                 ->orWhereHas('dailyMeals', fn (Builder $meals) => $meals->where(function (Builder $meal) use ($congregationId): void {
                     $meal->where('daily_meals.congregation_id', $congregationId)
-                        ->orWhereHas('congregations', fn (Builder $pivot) => $pivot->whereKey($congregationId));
+                        ->orWhereHas('contributingCongregations', fn (Builder $pivot) => $pivot->whereKey($congregationId));
                 }));
         });
     }

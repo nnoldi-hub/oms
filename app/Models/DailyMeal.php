@@ -6,6 +6,7 @@ use App\Services\MenuSchedulingValidator;
 use App\Support\CongregationAccess;
 use Database\Factories\DailyMealFactory;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -31,6 +32,7 @@ class DailyMeal extends Model
         'maximum_budget',
         'contributor_count',
         'notes',
+        'contribution_notes',
         'delivery_time',
         'public_token',
         'status',
@@ -57,15 +59,6 @@ class DailyMeal extends Model
     {
         static::creating(function (DailyMeal $dailyMeal): void {
             $dailyMeal->public_token ??= (string) Str::uuid();
-        });
-
-        // Compatibilitate: codul care scrie inca doar coloana veche primeste
-        // automat prima congregatie in pivot.
-        static::created(function (DailyMeal $dailyMeal): void {
-            if ($dailyMeal->congregation_id !== null && ! $dailyMeal->congregations()->exists()) {
-                $dailyMeal->congregations()->attach($dailyMeal->congregation_id, ['position' => 0]);
-                $dailyMeal->unsetRelation('congregations');
-            }
         });
 
         static::saving(function (DailyMeal $dailyMeal): void {
@@ -96,18 +89,18 @@ class DailyMeal extends Model
                     throw new AuthorizationException('Echipa de constructii poate modifica doar numarul de persoane.');
                 }
 
-                // 2. Restricții pentru Coordonatorul de Congregație: organizeaza zilele in care
-                // congregatia lui este una dintre cele trei (retete, portii, buget, observatii),
-                // dar nu muta zilele si nu schimba congregatiile.
+                // 2. Restricții pentru Coordonatorul de Congregație: organizeaza doar zilele
+                // congregatiei care gatesc (retete, portii, buget, observatii), fara a le muta
+                // si fara a schimba congregatiile.
                 if ($user?->isCoordinator()) {
-                    if (! CongregationAccess::canSeeMeal($user, $dailyMeal) || $dailyMeal->isDirty([
+                    if (! CongregationAccess::canManageMeal($user, $dailyMeal) || $dailyMeal->isDirty([
                         'meal_date',
                         'week_id',
                         'congregation_id',
                         'public_token',
                         'status',
                     ])) {
-                        throw new AuthorizationException('Coordonatorul poate organiza doar zilele congregatiei sale, fara a le muta.');
+                        throw new AuthorizationException('Coordonatorul poate organiza doar zilele congregatiei care gatesc, fara a le muta.');
                     }
                 }
             }
@@ -126,17 +119,26 @@ class DailyMeal extends Model
     }
 
     /**
-     * @deprecated Foloseste congregations(); coloana este pastrata doar pentru datele vechi.
+     * Congregatia saptamanii: pregateste masa si ramane coloana principala a zilei.
      */
-    public function congregation(): BelongsTo
+    public function cookingCongregation(): BelongsTo
     {
-        return $this->belongsTo(Congregation::class);
+        return $this->belongsTo(Congregation::class, 'congregation_id');
     }
 
     /**
-     * Cele trei congregatii ale zilei, in ordinea stabilita la programare.
+     * Alias pentru compatibilitate cu codul existent pe coloana congregation_id.
      */
-    public function congregations(): BelongsToMany
+    public function congregation(): BelongsTo
+    {
+        return $this->cookingCongregation();
+    }
+
+    /**
+     * Congregatiile care aduc alimente in ziua respectiva, in ordinea din program.
+     * Congregatia care gatesc nu face parte din aceasta lista.
+     */
+    public function contributingCongregations(): BelongsToMany
     {
         return $this->belongsToMany(Congregation::class, 'congregation_daily_meal')
             ->withPivot('position')
@@ -146,59 +148,87 @@ class DailyMeal extends Model
     }
 
     /** @return list<int> */
-    public function congregationIds(): array
+    public function contributingCongregationIds(): array
     {
-        return $this->congregations->pluck('id')->map(fn ($id): int => (int) $id)->values()->all();
+        return $this->contributingCongregations
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
+            ->values()
+            ->all();
     }
 
-    public function congregationNames(): string
+    public function contributingCongregationNames(): string
     {
-        return $this->congregations->pluck('name')->implode(', ');
+        $names = $this->contributingCongregations->pluck('name')->implode(', ');
+
+        // Compatibilitate pentru zilele care inca nu au contribuitori inregistrati:
+        // se afiseaza congregatia care gatesc, fara a o adauga in pivot.
+        return $names !== '' ? $names : ($this->cookingCongregation?->name ?? '');
     }
 
-    public function otherCongregationNames(Congregation $congregation): string
+    public function otherContributingCongregationNames(Congregation $congregation): string
     {
-        return $this->congregations
+        return $this->contributingCongregations
             ->reject(fn (Congregation $candidate): bool => (int) $candidate->id === (int) $congregation->id)
             ->pluck('name')
             ->implode(', ');
     }
 
     /**
-     * Inlocuieste complet congregatiile zilei, pastrand ordinea.
+     * Inlocuieste complet congregatiile contribuitoare ale zilei, pastrand ordinea.
+     * Congregatia care gatesc este intotdeauna exclusa si coloana congregation_id nu se modifica.
      *
      * @param  list<int>  $congregationIds
      */
-    public function syncCongregations(array $congregationIds, ?User $actor = null): void
+    public function syncContributingCongregations(array $congregationIds, ?User $actor = null): void
     {
+        $cookingId = $this->congregation_id === null ? null : (int) $this->congregation_id;
+
         $ids = collect($congregationIds)
             ->filter(fn ($id): bool => $id !== null && $id !== '')
             ->map(fn ($id): int => (int) $id)
+            ->reject(fn (int $id): bool => $id === $cookingId)
             ->unique()
             ->values()
             ->all();
 
-        $this->congregations()->sync(
+        $this->contributingCongregations()->sync(
             collect($ids)->mapWithKeys(fn (int $id, int $position): array => [$id => ['position' => $position]])->all(),
         );
 
-        $this->congregation_id = $ids[0] ?? null;
-
         if ($actor !== null) {
             $this->updated_by = $actor->id;
+            $this->saveQuietly();
         }
 
-        $this->saveQuietly();
-        $this->unsetRelation('congregations');
+        $this->unsetRelation('contributingCongregations');
     }
 
-    public function hasCongregation(?int $congregationId): bool
+    public function hasContributingCongregation(?int $congregationId): bool
     {
         if ($congregationId === null) {
             return false;
         }
 
-        return $this->congregations->contains(fn (Congregation $congregation): bool => (int) $congregation->id === $congregationId);
+        return $this->contributingCongregations->contains(
+            fn (Congregation $congregation): bool => (int) $congregation->id === $congregationId,
+        );
+    }
+
+    public function hasCookingCongregation(?int $congregationId): bool
+    {
+        return $congregationId !== null && (int) $this->congregation_id === $congregationId;
+    }
+
+    /**
+     * Zilele in care o congregatie gatesc sau contribuie.
+     */
+    public function scopeInvolvingCongregation(Builder $query, int $congregationId): Builder
+    {
+        return $query->where(function (Builder $scoped) use ($congregationId): void {
+            $scoped->where('daily_meals.congregation_id', $congregationId)
+                ->orWhereHas('contributingCongregations', fn (Builder $pivot) => $pivot->whereKey($congregationId));
+        });
     }
 
     public function updatedBy(): BelongsTo
@@ -244,6 +274,11 @@ class DailyMeal extends Model
     public function costSnapshot(): HasOne
     {
         return $this->hasOne(DailyMealCostSnapshot::class);
+    }
+
+    public function donations(): HasMany
+    {
+        return $this->hasMany(Donation::class);
     }
 
     public function workTeams(): HasMany

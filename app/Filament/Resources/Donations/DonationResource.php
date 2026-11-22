@@ -43,6 +43,10 @@ class DonationResource extends Resource
     {
         $user = auth()->user();
 
+        if ($user !== null && CongregationAccess::isContributorOnlyUser($user)) {
+            return false;
+        }
+
         return ($user?->canManageContributions() ?? false) || ($user?->isProjectSupervisor() ?? false);
     }
 
@@ -83,8 +87,15 @@ class DonationResource extends Resource
             Select::make('status')->label('Stare')->options([
                 Donation::STATUS_PROMISED => 'Promisă',
                 Donation::STATUS_RECEIVED => 'Primită',
+                Donation::STATUS_USED => 'Folosită',
+                Donation::STATUS_CANCELLED => 'Anulată',
             ])->default(Donation::STATUS_PROMISED)->required(),
-            DatePicker::make('donation_date')->label('Data')->default(today())->required(),
+            Select::make('kind')->label('Felul donației')->options([
+                Donation::KIND_FOOD => 'Alimente',
+                Donation::KIND_MONEY => 'Bani',
+                Donation::KIND_OTHER => 'Altele',
+            ])->default(Donation::KIND_FOOD)->required(),
+            DatePicker::make('date')->label('Data')->default(today())->required(),
             Select::make('congregation_id')
                 ->label('Congregatie')
                 ->options(fn (): array => Congregation::query()->orderBy('name')->pluck('name', 'id')->all())
@@ -93,6 +104,12 @@ class DonationResource extends Resource
                 ->dehydrated()
                 ->searchable()
                 ->preload(),
+            Select::make('donor_congregation_id')
+                ->label('Congregatia donatoare')
+                ->options(fn (): array => Congregation::query()->orderBy('name')->pluck('name', 'id')->all())
+                ->searchable()
+                ->preload()
+                ->nullable(),
             Select::make('daily_meal_id')
                 ->label('Ziua de masa (optional)')
                 ->options(function (): array {
@@ -118,10 +135,10 @@ class DonationResource extends Resource
                 'gustari_sarate' => 'Gustări sărate',
                 'altele' => 'Altele',
             ])->nullable()->searchable(),
-            TextInput::make('description')->label('Descriere')->maxLength(160),
+            TextInput::make('description')->label('Descriere / ingredient')->helperText('Pentru alimente, foloseste exact denumirea ingredientului din reteta.'),
             TextInput::make('quantity')->label('Cantitate')->numeric()->minValue(0),
             TextInput::make('unit')->label('Unitate')->maxLength(20)->placeholder('kg, buc, cutie'),
-            TextInput::make('estimated_value')->label('Valoare estimată')->numeric()->minValue(0)->prefix('RON')->default(0)->required(),
+            TextInput::make('amount_ron')->label('Valoare (RON)')->numeric()->minValue(0)->prefix('RON')->default(0)->required(),
             TextInput::make('donor_name')->label('Donator')->maxLength(160),
             TextInput::make('donor_phone')->label('Telefon donator')->tel()->maxLength(40),
             Textarea::make('notes')->label('Observații')->columnSpanFull(),
@@ -131,16 +148,16 @@ class DonationResource extends Resource
     public static function table(Table $table): Table
     {
         return $table->columns([
-            TextColumn::make('donation_date')->label('Data')->date()->sortable(),
+            TextColumn::make('date')->label('Data')->date()->sortable(),
             TextColumn::make('status')->label('Stare')->badge()->formatStateUsing(fn (Donation $record): string => $record->statusLabel()),
-            TextColumn::make('estimated_value')->label('Valoare')->money('RON')->sortable(),
-            TextColumn::make('food_type')->label('Tip')->placeholder('-')->sortable(),
-            TextColumn::make('description')->label('Descriere')->limit(40)->searchable(),
+            TextColumn::make('kind')->label('Fel')->badge()->formatStateUsing(fn (Donation $record): string => $record->kindLabel())->sortable(),
+            TextColumn::make('amount_ron')->label('Valoare')->money('RON')->sortable(),
+            TextColumn::make('description')->label('Descriere / ingredient')->limit(40)->searchable(),
             TextColumn::make('quantity')->label('Cantitate')->placeholder('-'),
             TextColumn::make('unit')->label('Unitate')->placeholder('-'),
+            TextColumn::make('donorCongregation.name')->label('Congregatia donatoare')->placeholder('-')->sortable(),
             TextColumn::make('congregation.name')->label('Congregatie')->placeholder('-')->sortable(),
-            TextColumn::make('donor_name')->label('Donator')->placeholder('-')->searchable(),
-        ])->defaultSort('donation_date', 'desc')->recordActions([
+        ])->defaultSort('date', 'desc')->recordActions([
             EditAction::make(),
             DeleteAction::make(),
         ]);

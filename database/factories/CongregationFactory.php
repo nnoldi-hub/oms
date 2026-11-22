@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Congregation;
+use App\Support\CongregationRole;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -19,6 +20,7 @@ class CongregationFactory extends Factory
     {
         return [
             'name' => fake()->unique()->company(),
+            'type' => CongregationRole::CONTRIBUTES,
             'assistant_name' => fake()->name(),
             'assistant_phone' => fake()->phoneNumber(),
             'assistant_email' => fake()->safeEmail(),

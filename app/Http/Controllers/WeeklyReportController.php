@@ -16,7 +16,7 @@ class WeeklyReportController extends Controller
         WeeklyShoppingListCalculator $calculator,
         WeeklyDaySheets $daySheets,
     ): View {
-        Gate::authorize('view', $week);
+        Gate::authorize('viewFull', $week);
 
         $week->load([
             'congregation',
@@ -25,7 +25,7 @@ class WeeklyReportController extends Controller
             'dailyMeals.soupMenu',
             'dailyMeals.dessertMenu',
             'dailyMeals.congregation',
-            'dailyMeals.congregations',
+            'dailyMeals.contributingCongregations',
         ]);
 
         $sheets = $daySheets->for($week);

@@ -4,42 +4,41 @@ namespace App\Services;
 
 use App\Models\Congregation;
 use App\Models\DailyMeal;
-use App\Models\FoodFundTransaction;
 use App\Models\MealChangeLog;
-use App\Models\PublicCongregationWeekLink;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Schimbari la nivel de zi: inlocuirea unei congregatii din cele trei sau
- * interschimbarea a doua congregatii intre doua zile.
+ * Schimbari la nivel de zi: inlocuirea unei congregatii contribuitoare sau
+ * interschimbarea a doua congregatii contribuitoare intre doua zile.
+ * Congregatia care gateceste (congregation_id) NU se modifica aici; schimbarea
+ * ei ramane la nivel de saptamana.
  */
 class DayCongregationChanger
 {
     public function replace(DailyMeal $meal, Congregation $from, Congregation $to, string $reason, User $user): MealChangeLog
     {
-        if (! $meal->hasCongregation((int) $from->id)) {
+        if (! $meal->hasContributingCongregation((int) $from->id)) {
             throw ValidationException::withMessages([
-                'dayChangeFromCongregationId' => 'Congregatia selectionata nu participa la ziua aleasa.',
+                'dayChangeFromCongregationId' => 'Congregatia selectionata nu contribuie la ziua aleasa.',
+            ]);
+        }
+
+        if ($meal->hasCookingCongregation((int) $to->id)) {
+            throw ValidationException::withMessages([
+                'dayChangeToCongregationId' => 'Congregatia care pregateste masa nu poate fi adaugata si ca contribuitoare.',
             ]);
         }
 
         return DB::transaction(function () use ($meal, $from, $to, $reason, $user): MealChangeLog {
-            $ids = collect($meal->congregationIds())
+            $ids = collect($meal->contributingCongregationIds())
                 ->map(fn (int $id): int => (int) $id === (int) $from->id ? (int) $to->id : $id)
                 ->unique()
                 ->values()
                 ->all();
 
-            $meal->syncCongregations($ids, $user);
-
-            if ((int) $meal->congregation_id === (int) $from->id) {
-                $meal->congregation_id = (int) $to->id;
-                $meal->saveQuietly();
-            }
-
-            $this->relinkFinancialData($meal, $from, $to, $reason);
+            $meal->syncContributingCongregations($ids, $user);
 
             return $this->log($meal, $user, 'congregation_replaced', $from->name, $to->name, $reason);
         });
@@ -53,7 +52,7 @@ class DayCongregationChanger
         string $reason,
         User $user,
     ): MealChangeLog {
-        if (! $first->hasCongregation((int) $firstCongregation->id) || ! $second->hasCongregation((int) $secondCongregation->id)) {
+        if (! $first->hasContributingCongregation((int) $firstCongregation->id) || ! $second->hasContributingCongregation((int) $secondCongregation->id)) {
             throw ValidationException::withMessages([
                 'dayChangeSecondMealId' => 'Congregatiile alese trebuie sa participe la zilele selectate.',
             ]);
@@ -72,26 +71,6 @@ class DayCongregationChanger
                 $reason,
             );
         });
-    }
-
-    private function relinkFinancialData(DailyMeal $meal, Congregation $from, Congregation $to, string $reason): void
-    {
-        if ((int) $meal->congregation_id === (int) $from->id) {
-            PublicCongregationWeekLink::query()
-                ->where('week_id', $meal->week_id)
-                ->where('congregation_id', $from->id)
-                ->update(['congregation_id' => $to->id]);
-        }
-
-        FoodFundTransaction::query()
-            ->where('daily_meal_id', $meal->id)
-            ->where('congregation_id', $from->id)
-            ->get()
-            ->each(function (FoodFundTransaction $transaction) use ($to, $reason): void {
-                $transaction->congregation_id = $to->id;
-                $transaction->description = trim(($transaction->description ? $transaction->description."\n" : '').'['.$reason.']');
-                $transaction->save();
-            });
     }
 
     private function log(

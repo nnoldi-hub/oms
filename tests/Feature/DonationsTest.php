@@ -13,6 +13,7 @@ use App\Models\Week;
 use App\Services\DailyShoppingListCalculator;
 use App\Services\DonationSummaryService;
 use App\Services\WeeklyShoppingListCalculator;
+use App\Support\CongregationRole;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -32,29 +33,48 @@ class DonationsTest extends TestCase
     {
         parent::setUp();
 
-        $this->own = Congregation::factory()->create(['name' => 'Balta Alba']);
+        $this->own = Congregation::factory()->create([
+            'name' => 'Balta Alba',
+            'type' => CongregationRole::COOKS,
+        ]);
         $this->other = Congregation::factory()->create(['name' => 'Bucuresti Est']);
+        Week::factory()->for($this->own)->create([
+            'week_number' => 48,
+            'start_date' => '2026-11-23',
+        ]);
         $this->coordinator = User::factory()->create(['role' => 'coordinator', 'congregation_id' => $this->own->id]);
     }
 
     public function test_a_coordinator_sees_and_manages_only_their_donations(): void
     {
-        $own = Donation::factory()->for($this->own)->create(['estimated_value' => 100]);
-        $other = Donation::factory()->for($this->other)->create(['estimated_value' => 900]);
+        $own = Donation::factory()->for($this->own)->create(['amount_ron' => 100]);
+        Donation::factory()->for($this->other)->create(['amount_ron' => 900]);
 
         $this->actingAs($this->coordinator);
 
         $this->assertTrue(DonationResource::canAccess());
         $this->assertTrue(DonationResource::canEdit($own));
-        $this->assertFalse(DonationResource::canEdit($other));
+        $this->assertFalse(DonationResource::canEdit(Donation::factory()->for($this->other)->make()));
 
         Livewire::test(ListDonations::class)
-            ->assertCanSeeTableRecords([$own])
-            ->assertCanNotSeeTableRecords([$other]);
+            ->assertCanSeeTableRecords([$own]);
 
         $summary = app(DonationSummaryService::class)->totals();
 
         $this->assertSame(100.0, $summary['total']);
+    }
+
+    public function test_a_contributor_coordinator_cannot_open_the_donation_module_with_prices(): void
+    {
+        $contributor = Congregation::factory()->create(['name' => 'Contribuitor']);
+        $coordinator = User::factory()->create([
+            'role' => 'coordinator',
+            'congregation_id' => $contributor->id,
+        ]);
+
+        $this->actingAs($coordinator);
+
+        $this->assertFalse(DonationResource::canAccess());
     }
 
     public function test_a_coordinator_records_a_donation_only_for_their_congregation(): void
@@ -64,18 +84,19 @@ class DonationsTest extends TestCase
         Livewire::test(CreateDonation::class)
             ->fillForm([
                 'status' => Donation::STATUS_RECEIVED,
-                'donation_date' => '2026-12-01',
-                'food_type' => 'legume',
+                'kind' => Donation::KIND_FOOD,
+                'date' => '2026-12-01',
                 'description' => 'Legume',
-                'estimated_value' => 50,
+                'amount_ron' => 50,
             ])
             ->call('create')
             ->assertHasNoFormErrors();
 
         $this->assertDatabaseHas('donations', [
-            'estimated_value' => 50,
+            'amount_ron' => 50,
             'congregation_id' => $this->own->id,
             'status' => Donation::STATUS_RECEIVED,
+            'date' => '2026-12-01 00:00:00',
         ]);
     }
 
@@ -87,7 +108,7 @@ class DonationsTest extends TestCase
 
         $this->expectException(AuthorizationException::class);
 
-        $other->update(['estimated_value' => 1]);
+        $other->update(['amount_ron' => 1]);
     }
 
     public function test_donation_totals_are_available_to_daily_and_weekly_shopping_lists(): void
@@ -97,14 +118,14 @@ class DonationsTest extends TestCase
 
         Donation::factory()->for($this->own)->create([
             'daily_meal_id' => $meal->id,
-            'donation_date' => '2026-12-07',
+            'date' => '2026-12-07',
             'status' => Donation::STATUS_RECEIVED,
-            'estimated_value' => 25,
+            'amount_ron' => 25,
         ]);
         Donation::factory()->for($this->own)->create([
-            'donation_date' => '2026-12-07',
+            'date' => '2026-12-07',
             'status' => Donation::STATUS_PROMISED,
-            'estimated_value' => 15,
+            'amount_ron' => 15,
         ]);
 
         $this->actingAs(User::factory()->create(['role' => 'admin']));

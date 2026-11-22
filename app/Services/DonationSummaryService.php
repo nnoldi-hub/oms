@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\DailyMeal;
 use App\Models\Donation;
 use App\Models\Week;
-use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -20,10 +19,10 @@ class DonationSummaryService
     public function totals(?Builder $query = null): array
     {
         $donations = ($query ?? Donation::query()->visibleTo(auth()->user()))
-            ->get(['status', 'estimated_value']);
+            ->get(['status', 'amount_ron']);
 
-        $received = (float) $donations->where('status', Donation::STATUS_RECEIVED)->sum('estimated_value');
-        $promised = (float) $donations->where('status', Donation::STATUS_PROMISED)->sum('estimated_value');
+        $received = (float) $donations->whereIn('status', [Donation::STATUS_RECEIVED, Donation::STATUS_USED])->sum('amount_ron');
+        $promised = (float) $donations->where('status', Donation::STATUS_PROMISED)->sum('amount_ron');
 
         return [
             'received' => round($received, 2),
@@ -59,6 +58,7 @@ class DonationSummaryService
             ->visibleTo(auth()->user())
             ->where(function (Builder $query) use ($meal, $date): void {
                 $query->where('daily_meal_id', $meal->id)
+                    ->orWhereDate('date', $date)
                     ->orWhereDate('donation_date', $date);
             });
     }
@@ -73,9 +73,7 @@ class DonationSummaryService
 
         return Donation::query()
             ->visibleTo(auth()->user())
-            ->whereBetween('donation_date', [
-                CarbonImmutable::parse($start)->startOfDay(),
-                CarbonImmutable::parse($end)->endOfDay(),
-            ]);
+            ->whereDate('date', '>=', $start)
+            ->whereDate('date', '<=', $end);
     }
 }

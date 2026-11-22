@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CongregationSupportReportController;
 use App\Http\Controllers\CongregationWeeklyReportController;
 use App\Http\Controllers\DailyMealPreparationSheetController;
 use App\Http\Controllers\MenuCostReportController;
@@ -28,6 +29,12 @@ Route::middleware('auth')->get('/rapoarte/saptamani/{week}', WeeklyReportControl
 
 Route::middleware('auth')->get('/rapoarte/saptamani/{week}/congregatii/{congregation}', CongregationWeeklyReportController::class)
     ->name('congregation-weekly-reports.show');
+
+Route::middleware('auth')->get('/rapoarte/sprijin-congregatii', [CongregationSupportReportController::class, 'show'])
+    ->name('congregation-support-reports.show');
+
+Route::middleware('auth')->get('/rapoarte/sprijin-congregatii/pdf', [CongregationSupportReportController::class, 'pdf'])
+    ->name('congregation-support-reports.pdf');
 
 Route::middleware('auth')->get('/rapoarte/saptamani/{week}/plan-pdf', WeeklyPlanPdfController::class)
     ->name('weekly-plan-pdfs.show');

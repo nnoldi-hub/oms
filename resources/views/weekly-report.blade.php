@@ -82,7 +82,7 @@
                         @foreach ($week->dailyMeals as $dailyMeal)
                             <tr>
                                 <td>{{ $dailyMeal->meal_date->translatedFormat('D, j M') }}</td>
-                                <td>{{ $dailyMeal->congregationNames() ?: '-' }}</td>
+                                <td>{{ $dailyMeal->contributingCongregationNames() ?: '-' }}</td>
                                 <td>{{ $dailyMeal->menu?->name ?? '— fără meniu —' }}</td>
                                 <td>{{ $dailyMeal->soupMenu?->name ?? '-' }}</td>
                                 <td>{{ $dailyMeal->dessertMenu?->name ?? '-' }}</td>
@@ -102,7 +102,7 @@
             <section class="day-sheet">
                 <h2>{{ $meal->meal_date->translatedFormat('l, j F Y') }}</h2>
                 <p class="day-meta">
-                    <strong>Congregatii:</strong> {{ $meal->congregationNames() ?: 'Nealocata' }}<br>
+                    <strong>Congregatii:</strong> {{ $meal->contributingCongregationNames() ?: 'Nealocata' }}<br>
                     <strong>{{ $sheet['portions_label'] }}:</strong> {{ $sheet['portions'] }}
                 </p>
 

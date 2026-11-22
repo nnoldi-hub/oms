@@ -16,15 +16,12 @@ class DonationFactory extends Factory
         return [
             'congregation_id' => Congregation::factory(),
             'status' => Donation::STATUS_PROMISED,
-            'donation_date' => fake()->dateTimeBetween('-1 month', '+1 month')->format('Y-m-d'),
-            'food_type' => 'legume',
+            'kind' => Donation::KIND_FOOD,
+            'date' => fake()->dateTimeBetween('-1 month', '+1 month')->format('Y-m-d'),
             'description' => fake()->words(3, true),
             'quantity' => fake()->randomFloat(2, 1, 50),
             'unit' => 'kg',
-            'estimated_value' => fake()->randomFloat(2, 10, 500),
-            'donor_name' => fake()->optional()->name(),
-            'donor_phone' => fake()->optional()->phoneNumber(),
-            'notes' => fake()->optional()->sentence(),
+            'amount_ron' => fake()->randomFloat(2, 10, 500),
         ];
     }
 
@@ -32,6 +29,20 @@ class DonationFactory extends Factory
     {
         return $this->state(fn (array $attributes): array => [
             'status' => Donation::STATUS_RECEIVED,
+        ]);
+    }
+
+    public function used(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'status' => Donation::STATUS_USED,
+        ]);
+    }
+
+    public function cancelled(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'status' => Donation::STATUS_CANCELLED,
         ]);
     }
 }

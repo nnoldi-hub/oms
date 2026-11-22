@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Support\CongregationRole;
 use Database\Factories\CongregationFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -14,7 +16,34 @@ class Congregation extends Model
     /** @use HasFactory<CongregationFactory> */
     use HasFactory;
 
-    protected $fillable = ['name', 'assistant_name', 'assistant_phone', 'assistant_email'];
+    protected $fillable = [
+        'name',
+        'type',
+        'support_notes',
+        'assistant_name',
+        'assistant_phone',
+        'assistant_email',
+    ];
+
+    public function isCooking(): bool
+    {
+        return $this->type === CongregationRole::COOKS;
+    }
+
+    public function isContributing(): bool
+    {
+        return $this->type === CongregationRole::CONTRIBUTES;
+    }
+
+    public function scopeCooking(Builder $query): Builder
+    {
+        return $query->where('type', CongregationRole::COOKS);
+    }
+
+    public function scopeContributing(Builder $query): Builder
+    {
+        return $query->where('type', CongregationRole::CONTRIBUTES);
+    }
 
     public function users(): HasMany
     {
@@ -27,7 +56,7 @@ class Congregation extends Model
     }
 
     /**
-     * @deprecated O zi are trei congregatii; foloseste scheduledDailyMeals().
+     * Zilele pe care aceasta congregatie le pregateste (congregatia saptamanii).
      */
     public function dailyMeals(): HasMany
     {
@@ -35,7 +64,7 @@ class Congregation extends Model
     }
 
     /**
-     * Toate zilele in care congregatia este una dintre cele trei programate.
+     * Zilele in care congregatia gatesc sau contribuie (uz in fisele publice).
      */
     public function scheduledDailyMeals(): BelongsToMany
     {
@@ -59,6 +88,26 @@ class Congregation extends Model
     public function supplyContributions(): HasMany
     {
         return $this->hasMany(SupplyContribution::class);
+    }
+
+    /**
+     * Zilele in care congregatia aduce gustari, fructe, cafea sau ceai.
+     */
+    public function contributingDailyMeals(): BelongsToMany
+    {
+        return $this->belongsToMany(DailyMeal::class, 'congregation_daily_meal')
+            ->withPivot('position')
+            ->withTimestamps();
+    }
+
+    public function donations(): HasMany
+    {
+        return $this->hasMany(Donation::class);
+    }
+
+    public function donorDonations(): HasMany
+    {
+        return $this->hasMany(Donation::class, 'donor_congregation_id');
     }
 
     protected static function booted(): void

@@ -63,7 +63,7 @@
             <p class="kicker">Organizare masă pentru șantier - fișă de pregătire</p>
             <h1>{{ $dailyMeal->meal_date->translatedFormat('l, j F Y') }}</h1>
             <p class="meta">
-                <strong>Congregații:</strong> {{ $dailyMeal->congregationNames() ?: 'Nealocată' }}<br>
+                <strong>Congregații:</strong> {{ $dailyMeal->contributingCongregationNames() ?: 'Nealocată' }}<br>
                 <strong>Porții de pregătit:</strong> {{ $cooked }}@if ($reserve > 0) ({{ $people }} persoane + {{ $reserve }} rezervă)@endif<br>
                 <strong>Ora de livrare pe șantier:</strong> {{ filled($dailyMeal->delivery_time) ? $dailyMeal->delivery_time : 'de stabilit' }}
             </p>
