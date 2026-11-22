@@ -47,7 +47,6 @@ class ResponsiveUiTest extends TestCase
             'weekly-report.blade.php',
             'daily-meal-preparation-sheet.blade.php',
             'congregation-weekly-report.blade.php',
-            'public-congregation-week-sheet.blade.php',
         ] as $view) {
             $contents = (string) file_get_contents(resource_path('views/'.$view));
 

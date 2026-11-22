@@ -96,7 +96,7 @@ class Congregation extends Model
     public function contributingDailyMeals(): BelongsToMany
     {
         return $this->belongsToMany(DailyMeal::class, 'congregation_daily_meal')
-            ->withPivot('position')
+            ->withPivot(['position', 'contact_status', 'contacted_at', 'contact_notes'])
             ->withTimestamps();
     }
 

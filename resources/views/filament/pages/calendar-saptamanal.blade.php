@@ -145,6 +145,7 @@
                         <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="openWeekChange('move')">Schimbă congregația</button>
                         <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="openWeekChange('swap')">Interschimbă săptămâni</button>
                         <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="openDeleteWeek({{ $this->selectedWeek->id }})">Șterge săptămâna</button>
+                        <a class="oms-calendar__report oms-calendar__report--secondary" href="{{ route('filament.admin.pages.plan-sprijin', ['week' => $this->selectedWeek->id]) }}">Plan sprijin</a>
                     @elseif (auth()->user()?->isCoordinator() && $this->canSeeWeekFinancials($this->selectedWeek))
                         <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="openWeekChangeRequest">Cere schimbarea săptămânii</button>
                     @endif
@@ -162,11 +163,9 @@
                     @if ($this->canDownloadPlanPdf)
                         <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="openPlanPdf">Descarcă PDF planul săptămânii</button>
                     @endif
-                    @foreach ($this->selectedWeek->dailyMeals->flatMap->contributingCongregations->filter()->unique('id')->sortBy('name') as $congregation)
-                        @if ($this->canSeeCongregationSheet($congregation))
-                            <a class="oms-calendar__report oms-calendar__report--secondary" href="{{ route('congregation-weekly-reports.show', [$this->selectedWeek, $congregation]) }}" target="_blank">Fisa {{ $congregation->name }}</a>
-                        @endif
-                    @endforeach
+                    @if ($this->selectedWeek->congregation && $this->canSeeCongregationSheet($this->selectedWeek->congregation))
+                        <a class="oms-calendar__report oms-calendar__report--secondary" href="{{ route('congregation-weekly-reports.show', [$this->selectedWeek, $this->selectedWeek->congregation]) }}" target="_blank">Fisa congregatiei care gateste</a>
+                    @endif
                 </div>
             </div>
 

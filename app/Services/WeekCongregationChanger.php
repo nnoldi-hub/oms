@@ -6,7 +6,6 @@ use App\Models\Congregation;
 use App\Models\DailyMeal;
 use App\Models\DailyMealCostSnapshot;
 use App\Models\FoodFundTransaction;
-use App\Models\PublicCongregationWeekLink;
 use App\Models\User;
 use App\Models\Week;
 use App\Models\WeekChangeLog;
@@ -127,7 +126,6 @@ class WeekCongregationChanger
         );
 
         $mealIds = $meals->pluck('id');
-        $weekIds = $meals->pluck('week_id')->filter()->unique();
 
         foreach ($meals as $meal) {
             $meal->volunteers()->delete();
@@ -140,10 +138,6 @@ class WeekCongregationChanger
 
         DailyMealCostSnapshot::query()
             ->whereIn('daily_meal_id', $mealIds)
-            ->update(['congregation_id' => $target?->id]);
-
-        PublicCongregationWeekLink::query()
-            ->whereIn('week_id', $weekIds)
             ->update(['congregation_id' => $target?->id]);
 
         FoodFundTransaction::query()

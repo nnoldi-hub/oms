@@ -28,6 +28,24 @@ class Donation extends Model
 
     public const KIND_OTHER = 'altele';
 
+    public const KIND_SWEET_SNACK = 'gustari_dulci';
+
+    public const KIND_SAVORY_SNACK = 'gustari_sarate';
+
+    public const KIND_FRUIT = 'fructe';
+
+    public const KIND_DRINK = 'cafea_ceai';
+
+    /** Categoriile folosite in Planul de sprijin si in rezumatul antiduplicare. */
+    public const CONTRIBUTION_CATEGORIES = [
+        self::KIND_SWEET_SNACK => 'Gustări dulci',
+        self::KIND_SAVORY_SNACK => 'Gustări sărate',
+        self::KIND_FRUIT => 'Fructe',
+        self::KIND_DRINK => 'Cafea/ceai',
+        self::KIND_FOOD => 'Alimente',
+        self::KIND_OTHER => 'Altele',
+    ];
+
     protected $fillable = [
         'congregation_id',
         'donor_congregation_id',
@@ -180,8 +198,19 @@ class Donation extends Model
     {
         return match ($this->kind) {
             self::KIND_MONEY => 'Bani',
+            self::KIND_SWEET_SNACK => 'Gustări dulci',
+            self::KIND_SAVORY_SNACK => 'Gustări sărate',
+            self::KIND_FRUIT => 'Fructe',
+            self::KIND_DRINK => 'Cafea/ceai',
             self::KIND_OTHER => 'Altele',
             default => 'Alimente',
         };
+    }
+
+    public function contributionCategory(): ?string
+    {
+        return array_key_exists($this->kind, self::CONTRIBUTION_CATEGORIES)
+            ? (string) $this->kind
+            : null;
     }
 }

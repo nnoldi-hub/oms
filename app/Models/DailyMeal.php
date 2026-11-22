@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Services\MenuSchedulingValidator;
 use App\Support\CongregationAccess;
+use App\Support\ContactStatus;
 use Database\Factories\DailyMealFactory;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
@@ -141,7 +142,7 @@ class DailyMeal extends Model
     public function contributingCongregations(): BelongsToMany
     {
         return $this->belongsToMany(Congregation::class, 'congregation_daily_meal')
-            ->withPivot('position')
+            ->withPivot(['position', 'contact_status', 'contacted_at', 'contact_notes'])
             ->withTimestamps()
             ->orderBy('congregation_daily_meal.position')
             ->orderBy('congregations.id');
@@ -201,6 +202,32 @@ class DailyMeal extends Model
             $this->saveQuietly();
         }
 
+        $this->unsetRelation('contributingCongregations');
+    }
+
+    public function updateContributorContact(
+        int $congregationId,
+        string $status,
+        ?string $notes = null,
+        bool $markContactedNow = false,
+    ): void {
+        if (! array_key_exists($status, ContactStatus::options()) || ! $this->hasContributingCongregation($congregationId)) {
+            return;
+        }
+
+        $attributes = ['contact_status' => $status];
+
+        if ($notes !== null) {
+            $attributes['contact_notes'] = mb_substr(trim($notes), 0, 500) ?: null;
+        }
+
+        if ($status === ContactStatus::NOT_CONTACTED) {
+            $attributes['contacted_at'] = null;
+        } elseif ($markContactedNow || $this->contributingCongregations()->whereKey($congregationId)->first()?->pivot->contacted_at === null) {
+            $attributes['contacted_at'] = now();
+        }
+
+        $this->contributingCongregations()->updateExistingPivot($congregationId, $attributes);
         $this->unsetRelation('contributingCongregations');
     }
 

@@ -8,7 +8,6 @@ use App\Models\DailyMeal;
 use App\Models\DailyMealCostSnapshot;
 use App\Models\FoodFundTransaction;
 use App\Models\Menu;
-use App\Models\PublicCongregationWeekLink;
 use App\Models\User;
 use App\Models\Volunteer;
 use App\Models\Week;
@@ -48,7 +47,6 @@ class WeekCongregationChangeTest extends TestCase
             'cost_per_portion' => 5,
             'has_missing_prices' => false,
         ]);
-        $link = PublicCongregationWeekLink::create(['week_id' => $week->id, 'congregation_id' => $from->id]);
         $transaction = FoodFundTransaction::create([
             'type' => 'income',
             'transaction_date' => '2026-12-07',
@@ -72,7 +70,6 @@ class WeekCongregationChangeTest extends TestCase
         $this->assertSame(0, Volunteer::query()->where('daily_meal_id', $meal->id)->count());
         $this->assertSame(0, WorkTeam::query()->where('daily_meal_id', $meal->id)->count());
         $this->assertSame($to->id, $snapshot->fresh()->congregation_id);
-        $this->assertSame($to->id, $link->fresh()->congregation_id);
 
         $transaction->refresh();
         $this->assertSame($to->id, $transaction->congregation_id);

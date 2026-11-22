@@ -25,7 +25,7 @@ class WeeklyPlanReportBuilder
      *
      * @return array<string, mixed>
      */
-    public function build(Week $week, bool $includePhones = true): array
+    public function build(Week $week, bool $includePhones = true, bool $includeContacts = true): array
     {
         $this->snapshotService->snapshotWeekIfClosed($week);
         $week->loadMissing(['congregation', 'dailyMeals', 'dailyMeals.contributingCongregations', 'dailyMeals.costSnapshot']);
@@ -53,7 +53,7 @@ class WeeklyPlanReportBuilder
                     ? round($totalCost / $totalPortions, 2)
                     : null,
             ],
-            'contacts' => $this->contacts($week, $includePhones),
+            'contacts' => $includeContacts ? $this->contacts($week, $includePhones) : [],
             'allergens' => $this->allergens($days),
             'generated_at' => now(),
         ];

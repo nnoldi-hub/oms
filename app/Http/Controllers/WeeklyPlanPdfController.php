@@ -15,10 +15,11 @@ class WeeklyPlanPdfController extends Controller
     {
         Gate::authorize('viewFull', $week);
 
-        $includePhones = $request->boolean('include_phones', true);
+        $isAdmin = auth()->user()?->isAdmin() ?? false;
+        $includePhones = $isAdmin && $request->boolean('include_phones', true);
 
         $pdf = Pdf::loadView('weekly-plan-report', [
-            'report' => $builder->build($week, $includePhones),
+            'report' => $builder->build($week, $includePhones, $isAdmin),
         ])
             ->setPaper('a4', 'landscape')
             ->setOption('defaultFont', 'DejaVu Sans')
