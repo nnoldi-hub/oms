@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\User;
 use App\Models\Volunteer;
+use App\Support\CongregationAccess;
 
 class VolunteerPolicy
 {
@@ -15,7 +16,7 @@ class VolunteerPolicy
     public function view(User $user, Volunteer $volunteer): bool
     {
         return $user->isAdmin()
-            || ($user->isCoordinator() && $user->congregation_id === $volunteer->dailyMeal->congregation_id);
+            || ($user->isCoordinator() && CongregationAccess::canSeeMeal($user, $volunteer->dailyMeal));
     }
 
     public function create(User $user): bool

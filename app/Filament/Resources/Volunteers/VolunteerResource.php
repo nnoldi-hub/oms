@@ -10,12 +10,13 @@ use App\Filament\Resources\Volunteers\Schemas\VolunteerForm;
 use App\Filament\Resources\Volunteers\Schemas\VolunteerInfolist;
 use App\Filament\Resources\Volunteers\Tables\VolunteersTable;
 use App\Models\Volunteer;
+use App\Support\CongregationAccess;
 use BackedEnum;
-use Illuminate\Database\Eloquent\Builder;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class VolunteerResource extends Resource
 {
@@ -56,7 +57,7 @@ class VolunteerResource extends Resource
         $user = auth()->user();
 
         if ($user?->isCoordinator()) {
-            $query->whereHas('dailyMeal', fn (Builder $mealQuery) => $mealQuery->where('congregation_id', $user->congregation_id));
+            $query->whereHas('dailyMeal', fn (Builder $mealQuery) => CongregationAccess::scopeMeals($mealQuery, $user));
         }
 
         return $query;
@@ -73,7 +74,7 @@ class VolunteerResource extends Resource
         );
 
         if ($user?->isCoordinator()) {
-            $query->whereHas('dailyMeal', fn (Builder $mealQuery) => $mealQuery->where('congregation_id', $user->congregation_id));
+            $query->whereHas('dailyMeal', fn (Builder $mealQuery) => CongregationAccess::scopeMeals($mealQuery, $user));
         }
 
         return (string) $query->count();

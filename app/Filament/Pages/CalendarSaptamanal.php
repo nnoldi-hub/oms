@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use App\Console\Commands\FillMenus;
 use App\Models\Congregation;
 use App\Models\DailyMeal;
+use App\Models\Donation;
 use App\Models\FoodFundTransaction;
 use App\Models\Menu;
 use App\Models\SupplyContribution;
@@ -14,17 +15,18 @@ use App\Models\WeekChangeRequest;
 use App\Models\WorkTeam;
 use App\Services\DailyMealCostCalculator;
 use App\Services\DailyMessageBuilder;
+use App\Services\DonationSummaryService;
 use App\Services\MealChangeNotifier;
 use App\Services\MenuSchedulingValidator;
 use App\Services\MenuUsageInsight;
 use App\Services\PeriodProgramPlanner;
 use App\Services\WeekChangeRequestService;
 use App\Services\WeekCongregationChanger;
+use App\Support\CongregationAccess;
 use Carbon\CarbonImmutable;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -67,6 +69,9 @@ class CalendarSaptamanal extends Page
 
     /** @var array<string, bool> data (Y-m-d) => bifat */
     public array $workingDayDates = [];
+
+    /** @var array<int, list<int>> */
+    public array $dayCongregations = [];
 
     /** @var array<int, int|null> */
     public array $plannedMenus = [];
@@ -200,6 +205,20 @@ class CalendarSaptamanal extends Page
 
     public ?int $weekChangeRequestPreferredWeekId = null;
 
+    public ?int $dayChangeMealId = null;
+
+    public string $dayChangeType = 'replace';
+
+    public ?int $dayChangeFromCongregationId = null;
+
+    public ?int $dayChangeToCongregationId = null;
+
+    public ?int $dayChangeSecondMealId = null;
+
+    public ?int $dayChangeSecondCongregationId = null;
+
+    public string $dayChangeReason = '';
+
     public function mount(): void
     {
         $this->weekId = $this->weeks->first()?->id;
@@ -222,11 +241,7 @@ class CalendarSaptamanal extends Page
         $user = auth()->user();
 
         if ($user?->isCoordinator()) {
-            $query->where(function (Builder $scopedQuery) use ($user): void {
-                $scopedQuery
-                    ->where('congregation_id', $user->congregation_id)
-                    ->orWhereHas('dailyMeals', fn (Builder $mealQuery) => $mealQuery->where('congregation_id', $user->congregation_id));
-            });
+            CongregationAccess::scopeWeeks($query, $user);
         }
 
         return $query->get();
@@ -239,6 +254,8 @@ class CalendarSaptamanal extends Page
         return $week?->load([
             'dailyMeals' => fn (HasMany $query) => $this->scopeDailyMealsForUser($query)->orderBy('meal_date'),
             'dailyMeals.congregation',
+            'dailyMeals.congregations',
+            'dailyMeals.updatedBy',
             'dailyMeals.menu',
             'dailyMeals.soupMenu',
             'dailyMeals.dessertMenu',
@@ -281,7 +298,7 @@ class CalendarSaptamanal extends Page
         $user = auth()->user();
 
         if ($user?->isCoordinator()) {
-            $query->where('congregation_id', $user->congregation_id);
+            CongregationAccess::scopeMealsRelation($query, $user);
         }
 
         return $query;
@@ -622,6 +639,115 @@ class CalendarSaptamanal extends Page
         Notification::make()->title('Cererea a fost trimisa administratorilor.')->success()->send();
     }
 
+    public function saveDayCongregations(int $mealId): void
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        $meal = DailyMeal::query()->whereKey($mealId)->where('week_id', $this->weekId)->firstOrFail();
+        $ids = collect($this->dayCongregations[$mealId] ?? [])
+            ->filter(fn ($id): bool => $id !== null && $id !== '')
+            ->map(fn ($id): int => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        abort_if($ids !== [] && Congregation::query()->whereKey($ids)->count() !== count($ids), 422);
+
+        $meal->syncCongregations($ids, auth()->user());
+        $this->loadCalendarValues();
+
+        if (count($ids) !== 3) {
+            Notification::make()
+                ->title('Congregatiile au fost salvate.')
+                ->body('Atentie: ziua nu are exact trei congregatii ('.count($ids).' selectate).')
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        Notification::make()->title('Cele trei congregatii au fost salvate.')->success()->send();
+    }
+
+    public function openDayChange(int $mealId, string $type): void
+    {
+        $meal = DailyMeal::query()->whereKey($mealId)->where('week_id', $this->weekId)->firstOrFail();
+        abort_unless($this->canOrganize($meal), 403);
+        abort_unless(in_array($type, ['replace', 'swap'], true), 422);
+
+        $this->dayChangeMealId = $mealId;
+        $this->dayChangeType = $type;
+        $this->dayChangeFromCongregationId = null;
+        $this->dayChangeToCongregationId = null;
+        $this->dayChangeSecondMealId = null;
+        $this->dayChangeSecondCongregationId = null;
+        $this->dayChangeReason = '';
+    }
+
+    public function closeDayChange(): void
+    {
+        $this->dayChangeMealId = null;
+        $this->dayChangeType = 'replace';
+        $this->dayChangeFromCongregationId = null;
+        $this->dayChangeToCongregationId = null;
+        $this->dayChangeSecondMealId = null;
+        $this->dayChangeSecondCongregationId = null;
+        $this->dayChangeReason = '';
+        $this->resetErrorBag();
+    }
+
+    public function submitDayChange(): void
+    {
+        $meal = DailyMeal::query()->whereKey((int) $this->dayChangeMealId)->where('week_id', $this->weekId)->firstOrFail();
+        abort_unless($this->canOrganize($meal), 403);
+
+        $rules = [
+            'dayChangeReason' => ['required', 'string', 'min:3', 'max:500'],
+            'dayChangeFromCongregationId' => ['required', 'integer', 'exists:congregations,id'],
+        ];
+
+        if ($this->dayChangeType === 'swap') {
+            $rules['dayChangeSecondMealId'] = ['required', 'integer', 'exists:daily_meals,id'];
+            $rules['dayChangeSecondCongregationId'] = ['required', 'integer', 'exists:congregations,id'];
+        } else {
+            $rules['dayChangeToCongregationId'] = ['required', 'integer', 'exists:congregations,id'];
+        }
+
+        $this->validate($rules, [], [
+            'dayChangeReason' => 'motivul',
+            'dayChangeFromCongregationId' => 'congregatia de inlocuit',
+            'dayChangeToCongregationId' => 'congregatia noua',
+            'dayChangeSecondMealId' => 'ziua a doua',
+            'dayChangeSecondCongregationId' => 'congregatia din ziua a doua',
+        ]);
+
+        $from = Congregation::query()->findOrFail((int) $this->dayChangeFromCongregationId);
+        $targetMeal = null;
+        $targetFrom = null;
+        $to = null;
+
+        if ($this->dayChangeType === 'swap') {
+            $targetMeal = DailyMeal::query()->findOrFail((int) $this->dayChangeSecondMealId);
+            $targetFrom = Congregation::query()->findOrFail((int) $this->dayChangeSecondCongregationId);
+        } else {
+            $to = Congregation::query()->findOrFail((int) $this->dayChangeToCongregationId);
+        }
+
+        app(WeekChangeRequestService::class)->createDayRequest(
+            $meal,
+            auth()->user(),
+            $this->dayChangeReason,
+            $from,
+            $to,
+            $targetMeal,
+            $targetFrom,
+        );
+
+        $this->closeDayChange();
+
+        Notification::make()->title('Cererea a fost trimisa administratorilor.')->success()->send();
+    }
+
     /**
      * @return Collection<int, WeekChangeRequest>
      */
@@ -657,7 +783,7 @@ class CalendarSaptamanal extends Page
         $user = auth()->user();
 
         return (bool) ($user?->isAdmin()
-            || ($user?->isCoordinator() && (int) $user->congregation_id === (int) $meal->congregation_id));
+            || ($user?->isCoordinator() && CongregationAccess::canSeeMeal($user, $meal)));
     }
 
     private function organizerMeal(int $mealId): DailyMeal
@@ -833,6 +959,7 @@ class CalendarSaptamanal extends Page
         unset($this->selectedWeek, $this->weeks);
 
         $dailyMeals = $this->selectedWeek?->dailyMeals ?? collect();
+        $this->dayCongregations = $dailyMeals->mapWithKeys(fn (DailyMeal $dailyMeal): array => [$dailyMeal->id => $dailyMeal->congregationIds()])->all();
         $this->estimatedPeople = $dailyMeals->mapWithKeys(fn (DailyMeal $dailyMeal): array => [$dailyMeal->id => $dailyMeal->estimated_people])->all();
         $this->maximumBudget = $dailyMeals->mapWithKeys(fn (DailyMeal $dailyMeal): array => [$dailyMeal->id => $dailyMeal->maximum_budget])->all();
         $this->contributorCount = $dailyMeals->mapWithKeys(fn (DailyMeal $dailyMeal): array => [$dailyMeal->id => $dailyMeal->contributor_count])->all();
@@ -1432,7 +1559,7 @@ class CalendarSaptamanal extends Page
         $options = [];
 
         foreach ($week->dailyMeals->sortBy('meal_date') as $meal) {
-            $options[$meal->id] = 'Ziua '.$this->workingDayPosition($meal->id).' · '.$meal->meal_date->translatedFormat('D, d M').' ('.($meal->congregation?->name ?? 'nealocata').')';
+            $options[$meal->id] = 'Ziua '.$this->workingDayPosition($meal->id).' · '.$meal->meal_date->translatedFormat('D, d M').' ('.($meal->congregationNames() ?: 'nealocata').')';
         }
 
         return $options;
@@ -1540,6 +1667,48 @@ class CalendarSaptamanal extends Page
             });
 
         return $summary;
+    }
+
+    /**
+     * Donatiile primite/promise pe fiecare zi a saptamanii selectate.
+     * Nu contine date personale ale donatorilor si respecta scope-ul de congregatie.
+     *
+     * @return array<string, array{received: float, promised: float, total: float}>
+     */
+    public function getDonationsByDateProperty(DonationSummaryService $summary): array
+    {
+        $week = $this->selectedWeek;
+
+        if ($week === null) {
+            return [];
+        }
+
+        return $summary->forWeek($week)
+            ->get(['donation_date', 'status', 'estimated_value'])
+            ->groupBy(fn ($donation): string => $donation->donation_date->toDateString())
+            ->map(fn ($donations): array => [
+                'received' => round((float) $donations->where('status', 'received')->sum('estimated_value'), 2),
+                'promised' => round((float) $donations->where('status', 'promised')->sum('estimated_value'), 2),
+                'total' => round((float) $donations->sum('estimated_value'), 2),
+            ])
+            ->all();
+    }
+
+    /**
+     * Acoperirea prin donatii a costului estimat al saptamanii selectate.
+     *
+     * @return array{received: float, promised: float, total: float, items: int, estimated_cost: float, net_cost: float, remaining: float, coverage_percent: float}
+     */
+    public function getWeeklyDonationsProperty(DonationSummaryService $summary): array
+    {
+        $week = $this->selectedWeek;
+        $estimatedCost = (float) collect($this->dailyCosts)->sum('total_cost');
+
+        if ($week === null) {
+            return $summary->coverage($estimatedCost, Donation::query()->whereKey(null));
+        }
+
+        return $summary->coverage($estimatedCost, $summary->forWeek($week));
     }
 
     /**
@@ -1909,7 +2078,7 @@ class CalendarSaptamanal extends Page
 
         $user = auth()->user();
 
-        if ($user?->isCoordinator() && $user->congregation_id !== $meal->congregation_id) {
+        if ($user?->isCoordinator() && ! CongregationAccess::canSeeMeal($user, $meal)) {
             abort(403);
         }
 

@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\User;
 use App\Models\Week;
+use App\Support\CongregationAccess;
 
 class WeekPolicy
 {
@@ -14,12 +15,7 @@ class WeekPolicy
 
     public function view(User $user, Week $week): bool
     {
-        return $user->isAdmin()
-            || $user->isConstructionTeam()
-            || ($user->isCoordinator() && (
-                $user->congregation_id === $week->congregation_id
-                || $week->dailyMeals()->where('congregation_id', $user->congregation_id)->exists()
-            ));
+        return CongregationAccess::canSeeWeek($user, $week);
     }
 
     public function create(User $user): bool
@@ -34,18 +30,12 @@ class WeekPolicy
 
     /**
      * Descarcarea raportului PDF al planului saptamanii este rezervata
-     * administratorului si coordonatorilor congregatiei respective.
+     * administratorului si coordonatorilor congregatiilor prezente in saptamana.
      */
     public function downloadPlan(User $user, Week $week): bool
     {
-        if ($user->isAdmin()) {
-            return true;
-        }
-
-        return $user->isCoordinator() && (
-            $user->congregation_id === $week->congregation_id
-            || $week->dailyMeals()->where('congregation_id', $user->congregation_id)->exists()
-        );
+        return $user->isAdmin()
+            || ($user->isCoordinator() && CongregationAccess::canSeeWeek($user, $week));
     }
 
     public function delete(User $user, Week $week): bool

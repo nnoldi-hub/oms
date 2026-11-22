@@ -3,22 +3,20 @@
 namespace App\Http\Controllers;
 
 use App\Models\PublicCongregationWeekLink;
+use App\Services\CongregationScheduleReport;
 use App\Services\WeeklyShoppingListCalculator;
 use Illuminate\Contracts\View\View;
 
 class PublicCongregationWeekSheetController extends Controller
 {
-    public function __invoke(PublicCongregationWeekLink $publicCongregationWeekLink, WeeklyShoppingListCalculator $calculator): View
-    {
-        $publicCongregationWeekLink->load(['week', 'congregation']);
-        $week = $publicCongregationWeekLink->week;
+    public function __invoke(
+        PublicCongregationWeekLink $publicCongregationWeekLink,
+        WeeklyShoppingListCalculator $calculator,
+        CongregationScheduleReport $scheduleReport,
+    ): View {
+        $publicCongregationWeekLink->loadMissing('congregation');
         $congregation = $publicCongregationWeekLink->congregation;
-        $week->load([
-            'dailyMeals' => fn ($query) => $query->where('congregation_id', $congregation->id)->orderBy('meal_date'),
-            'dailyMeals.menu',
-            'dailyMeals.soupMenu',
-            'dailyMeals.dessertMenu',
-        ]);
+        $week = $scheduleReport->build($congregation);
 
         return view('public-congregation-week-sheet', [
             'week' => $week,

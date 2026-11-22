@@ -25,12 +25,12 @@ class ViewWeek extends ViewRecord
                 ->form([
                     Select::make('congregation_id')
                         ->label('Congregatie')
-                        ->options(fn (): array => $this->record->dailyMeals()->with('congregation')->get()->pluck('congregation.name', 'congregation_id')->filter()->unique()->all())
+                        ->options(fn (): array => Congregation::query()->orderBy('name')->pluck('name', 'id')->all())
                         ->required(),
                 ])
                 ->action(function (array $data): void {
                     $link = PublicCongregationWeekLink::firstOrCreate([
-                        'week_id' => $this->record->id,
+                        'week_id' => null,
                         'congregation_id' => $data['congregation_id'],
                     ]);
 

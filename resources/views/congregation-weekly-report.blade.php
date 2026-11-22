@@ -6,7 +6,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Fisa {{ $congregation->name }} - Saptamana {{ $week->week_number }}</title>
+    <title>Fisa {{ $congregation->name }} - Program mese</title>
     <style>
         :root { color: #183c32; background: #f6f6f3; font-family: Arial, sans-serif; }
         * { box-sizing: border-box; }

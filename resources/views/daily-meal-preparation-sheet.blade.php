@@ -63,7 +63,7 @@
             <p class="kicker">Organizare masă pentru șantier - fișă de pregătire</p>
             <h1>{{ $dailyMeal->meal_date->translatedFormat('l, j F Y') }}</h1>
             <p class="meta">
-                <strong>Congregație:</strong> {{ $dailyMeal->congregation?->name ?? 'Nealocată' }}<br>
+                <strong>Congregații:</strong> {{ $dailyMeal->congregationNames() ?: 'Nealocată' }}<br>
                 <strong>Porții de pregătit:</strong> {{ $cooked }}@if ($reserve > 0) ({{ $people }} persoane + {{ $reserve }} rezervă)@endif<br>
                 <strong>Ora de livrare pe șantier:</strong> {{ filled($dailyMeal->delivery_time) ? $dailyMeal->delivery_time : 'de stabilit' }}
             </p>
@@ -198,7 +198,7 @@
             @endif
         </section>
 
-        @if ($showCosts && ($dailyMeal->maximum_budget !== null || $dailyMeal->contributor_count !== null))
+        @if ($showCosts && ($dailyMeal->maximum_budget !== null || $dailyMeal->contributor_count !== null || $shoppingList['donations']['items'] > 0))
             <section>
                 <h2>Buget și contribuție</h2>
                 <div class="budget">
@@ -215,6 +215,11 @@
                         @endif
                         @if ($dailyMeal->contributor_count)
                             <p><strong>Contribuție recomandată:</strong> {{ number_format($dailyCost['total_cost'] / $dailyMeal->contributor_count, 2, '.', ' ') }} RON pentru fiecare dintre cele {{ $dailyMeal->contributor_count }} persoane.</p>
+                        @endif
+                        @if ($shoppingList['donations']['items'] > 0)
+                            <p><strong>Donații primite:</strong> {{ number_format($shoppingList['donations']['received'], 2, '.', ' ') }} RON ·
+                                <strong>Donații promise:</strong> {{ number_format($shoppingList['donations']['promised'], 2, '.', ' ') }} RON ·
+                                <strong>Acoverire cost estimat:</strong> {{ number_format($shoppingList['donations']['coverage_percent'], 1, '.', ' ') }}%</p>
                         @endif
                     @endif
                 </div>

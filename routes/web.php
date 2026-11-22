@@ -1,15 +1,16 @@
 <?php
 
-use App\Http\Controllers\PublicDailyMealController;
-use App\Http\Controllers\PublicCongregationWeekSheetController;
 use App\Http\Controllers\CongregationWeeklyReportController;
 use App\Http\Controllers\DailyMealPreparationSheetController;
 use App\Http\Controllers\MenuCostReportController;
+use App\Http\Controllers\PublicCongregationWeekSheetController;
+use App\Http\Controllers\PublicDailyMealController;
+use App\Http\Controllers\PublicDonationsController;
 use App\Http\Controllers\WeeklyPlanPdfController;
 use App\Http\Controllers\WeeklyReportController;
 use Illuminate\Support\Facades\Route;
 
-Route::redirect('/', '/admin'); 
+Route::redirect('/', '/admin');
 
 Route::middleware('throttle:60,1')->group(function (): void {
     Route::get('/mese/{dailyMeal:public_token}', PublicDailyMealController::class)
@@ -17,6 +18,9 @@ Route::middleware('throttle:60,1')->group(function (): void {
 
     Route::get('/fise/{publicCongregationWeekLink:token}', PublicCongregationWeekSheetController::class)
         ->name('public-congregation-week-sheets.show');
+
+    Route::get('/donatii', PublicDonationsController::class)
+        ->name('public-donations.show');
 });
 
 Route::middleware('auth')->get('/rapoarte/saptamani/{week}', WeeklyReportController::class)

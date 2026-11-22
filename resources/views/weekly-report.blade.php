@@ -77,12 +77,12 @@
             <h2>Planificarea meselor</h2>
             <div class="table-wrap">
                 <table>
-                    <thead><tr><th>Data</th><th>Congregatie</th><th>Fel principal</th><th>Ciorba</th><th>Desert / gustare</th><th>Stare / fel gatit</th><th class="number">Portii</th></tr></thead>
+                    <thead><tr><th>Data</th><th>Congregatii</th><th>Fel principal</th><th>Ciorba</th><th>Desert / gustare</th><th>Stare / fel gatit</th><th class="number">Portii</th></tr></thead>
                     <tbody>
                         @foreach ($week->dailyMeals as $dailyMeal)
                             <tr>
                                 <td>{{ $dailyMeal->meal_date->translatedFormat('D, j M') }}</td>
-                                <td>{{ $dailyMeal->congregation?->name ?? '-' }}</td>
+                                <td>{{ $dailyMeal->congregationNames() ?: '-' }}</td>
                                 <td>{{ $dailyMeal->menu?->name ?? '— fără meniu —' }}</td>
                                 <td>{{ $dailyMeal->soupMenu?->name ?? '-' }}</td>
                                 <td>{{ $dailyMeal->dessertMenu?->name ?? '-' }}</td>
@@ -102,7 +102,7 @@
             <section class="day-sheet">
                 <h2>{{ $meal->meal_date->translatedFormat('l, j F Y') }}</h2>
                 <p class="day-meta">
-                    <strong>Congregatie:</strong> {{ $meal->congregation?->name ?? 'Nealocata' }}<br>
+                    <strong>Congregatii:</strong> {{ $meal->congregationNames() ?: 'Nealocata' }}<br>
                     <strong>{{ $sheet['portions_label'] }}:</strong> {{ $sheet['portions'] }}
                 </p>
 

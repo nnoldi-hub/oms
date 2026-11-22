@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\DailyMeal;
 use App\Models\User;
+use App\Support\CongregationAccess;
 
 class DailyMealPolicy
 {
@@ -14,9 +15,7 @@ class DailyMealPolicy
 
     public function view(User $user, DailyMeal $dailyMeal): bool
     {
-        return $user->isAdmin()
-            || $user->isConstructionTeam()
-            || ($user->isCoordinator() && $user->congregation_id === $dailyMeal->congregation_id);
+        return CongregationAccess::canSeeMeal($user, $dailyMeal);
     }
 
     public function create(User $user): bool
@@ -28,7 +27,7 @@ class DailyMealPolicy
     {
         return $user->isAdmin()
             || $user->isConstructionTeam()
-            || ($user->isCoordinator() && $user->congregation_id === $dailyMeal->congregation_id);
+            || ($user->isCoordinator() && CongregationAccess::canSeeMeal($user, $dailyMeal));
     }
 
     public function delete(User $user, DailyMeal $dailyMeal): bool

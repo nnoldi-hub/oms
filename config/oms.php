@@ -24,4 +24,16 @@ return [
     |
     */
     'portion_safety_margin' => env('OMS_PORTION_SAFETY_MARGIN', 0.1),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Contact pentru donatii
+    |--------------------------------------------------------------------------
+    |
+    | Numele si telefonul persoanei care primeste donatiile de alimente.
+    | Valorile reale se pastreaza doar in .env sau in configurarea serverului.
+    |
+    */
+    'donations_contact_name' => env('OMS_DONATIONS_CONTACT_NAME', ''),
+    'donations_contact_phone' => env('OMS_DONATIONS_CONTACT_PHONE', ''),
 ];

@@ -10,13 +10,14 @@ class DailyShoppingListCalculator
     public function __construct(
         private DailyMealComponents $components,
         private DailyMealCostSnapshotService $snapshotService,
+        private DonationSummaryService $donationSummary,
     ) {}
 
     /**
      * Lista de cumparaturi a unei zile: ingredientele din toate felurile zilei,
      * cantitatile rotunjite practic si totalurile (ingrediente, ambalaje, cost pe portie).
      *
-     * @return array{ingredients: list<array{name: string, quantity: float, to_buy_quantity: float, unit: string, estimated_unit_cost: ?float, estimated_cost: float, has_missing_price: bool, needs_configuration: bool}>, fixed_costs: list<array{name: string, quantity: float, unit: string, estimated_unit_cost: ?float, estimated_cost: float, has_missing_price: bool}>, packaging: array{count: int, total_cost: float}, totals: array{ingredients_cost: float, fixed_costs_cost: float, packaging_cost: float, total_cost: float, has_missing_prices: bool}, cost_per_portion: float|null}
+     * @return array{ingredients: list<array{name: string, quantity: float, to_buy_quantity: float, unit: string, estimated_unit_cost: ?float, estimated_cost: float, has_missing_price: bool, needs_configuration: bool}>, fixed_costs: list<array{name: string, quantity: float, unit: string, estimated_unit_cost: ?float, estimated_cost: float, has_missing_price: bool}>, packaging: array{count: int, total_cost: float}, totals: array{ingredients_cost: float, fixed_costs_cost: float, packaging_cost: float, total_cost: float, has_missing_prices: bool}, cost_per_portion: float|null, donations: array{received: float, promised: float, total: float, items: int, estimated_cost: float, net_cost: float, remaining: float, coverage_percent: float}}
      */
     public function for(DailyMeal $dailyMeal): array
     {
@@ -92,6 +93,10 @@ class DailyShoppingListCalculator
             'cost_per_portion' => $portions > 0 && ! $hasMissingPrices
                 ? round($totalCost / $portions, 2)
                 : null,
+            'donations' => $this->donationSummary->coverage(
+                $totalCost,
+                $this->donationSummary->forDailyMeal($dailyMeal),
+            ),
         ];
     }
 

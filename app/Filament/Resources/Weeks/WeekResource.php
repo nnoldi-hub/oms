@@ -10,12 +10,13 @@ use App\Filament\Resources\Weeks\Schemas\WeekForm;
 use App\Filament\Resources\Weeks\Schemas\WeekInfolist;
 use App\Filament\Resources\Weeks\Tables\WeeksTable;
 use App\Models\Week;
+use App\Support\CongregationAccess;
 use BackedEnum;
-use Illuminate\Database\Eloquent\Builder;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class WeekResource extends Resource
 {
@@ -57,11 +58,7 @@ class WeekResource extends Resource
         $user = auth()->user();
 
         if ($user?->isCoordinator()) {
-            $query->where(function (Builder $scopedQuery) use ($user): void {
-                $scopedQuery
-                    ->where('congregation_id', $user->congregation_id)
-                    ->orWhereHas('dailyMeals', fn (Builder $mealQuery) => $mealQuery->where('congregation_id', $user->congregation_id));
-            });
+            CongregationAccess::scopeWeeks($query, $user);
         }
 
         return $query;

@@ -21,7 +21,7 @@ class DailyMealPreparationSheetController extends Controller
     ): View {
         Gate::authorize('view', $dailyMeal);
 
-        $dailyMeal->load(['congregation', 'menu', 'soupMenu', 'dessertMenu', 'volunteers']);
+        $dailyMeal->load(['congregation', 'congregations', 'menu', 'soupMenu', 'dessertMenu', 'volunteers']);
 
         $roles = collect($messageBuilder->rolesFor($dailyMeal))
             ->map(fn (array $people, string $role): array => [

@@ -11,10 +11,11 @@ class WeeklyShoppingListCalculator
     public function __construct(
         private MealRequirementCalculator $mealRequirementCalculator,
         private DailyMealCostSnapshotService $snapshotService,
+        private DonationSummaryService $donationSummary,
     ) {}
 
     /**
-     * @return array{ingredients: list<array{name: string, quantity: float, to_buy_quantity: float, unit: string, estimated_unit_cost: ?float, estimated_cost: float, has_missing_price: bool}>, fixed_costs: list<array{name: string, quantity: float, unit: string, estimated_unit_cost: ?float, estimated_cost: float, has_missing_price: bool}>, packaging: array{count: int, total_cost: float}, daily_costs: list<array{daily_meal_id: int, ingredients_cost: float, fixed_costs_cost: float, packaging_cost: float, total_cost: float, has_missing_prices: bool}>, totals: array{ingredients_cost: float, fixed_costs_cost: float, total_cost: float, has_missing_prices: bool}, incomplete_meals: int}
+     * @return array{ingredients: list<array{name: string, quantity: float, to_buy_quantity: float, unit: string, estimated_unit_cost: ?float, estimated_cost: float, has_missing_price: bool}>, fixed_costs: list<array{name: string, quantity: float, unit: string, estimated_unit_cost: ?float, estimated_cost: float, has_missing_price: bool}>, packaging: array{count: int, total_cost: float}, daily_costs: list<array{daily_meal_id: int, ingredients_cost: float, fixed_costs_cost: float, packaging_cost: float, total_cost: float, has_missing_prices: bool}>, totals: array{ingredients_cost: float, fixed_costs_cost: float, total_cost: float, has_missing_prices: bool}, incomplete_meals: int, donations: array{received: float, promised: float, total: float, items: int, estimated_cost: float, net_cost: float, remaining: float, coverage_percent: float}}
      */
     public function calculate(Week $week): array
     {
@@ -148,6 +149,10 @@ class WeeklyShoppingListCalculator
                 'has_missing_prices' => collect($dailyCosts)->contains('has_missing_prices', true),
             ],
             'incomplete_meals' => $incompleteMeals,
+            'donations' => $this->donationSummary->coverage(
+                (float) array_sum(array_column($dailyCosts, 'total_cost')),
+                $this->donationSummary->forWeek($week),
+            ),
         ];
     }
 

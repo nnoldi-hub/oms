@@ -7,6 +7,8 @@ use App\Models\FoodFundTransaction;
 use App\Models\SupplyItem;
 use App\Models\Week;
 use App\Services\DailyMealCostCalculator;
+use App\Services\DonationSummaryService;
+use App\Support\CongregationAccess;
 use Carbon\CarbonImmutable;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
@@ -17,9 +19,13 @@ use Illuminate\Support\Collection;
 class CosturiBuget extends Page
 {
     protected string $view = 'filament.pages.costuri-buget';
+
     protected static string|\BackedEnum|null $navigationIcon = Heroicon::OutlinedBanknotes;
+
     protected static ?string $navigationLabel = 'Costuri & buget';
+
     protected static string|\UnitEnum|null $navigationGroup = 'Aprovizionare';
+
     protected static ?int $navigationSort = 4;
 
     public ?int $weekId = null;
@@ -51,11 +57,7 @@ class CosturiBuget extends Page
         $congregationId = $this->congregationScope();
 
         return Week::query()
-            ->when($congregationId !== null, fn (Builder $query) => $query->where(
-                fn (Builder $scoped) => $scoped
-                    ->where('congregation_id', $congregationId)
-                    ->orWhereHas('dailyMeals', fn (Builder $meals) => $meals->where('congregation_id', $congregationId)),
-            ))
+            ->when($congregationId !== null, fn (Builder $query) => CongregationAccess::scopeWeeks($query, auth()->user()))
             ->with($this->mealRelations());
     }
 
@@ -67,7 +69,10 @@ class CosturiBuget extends Page
         $congregationId = $this->congregationScope();
 
         return [
-            'dailyMeals' => fn (HasMany $query) => $query->when($congregationId !== null, fn ($meals) => $meals->where('congregation_id', $congregationId)),
+            'dailyMeals' => fn (HasMany $query) => $query->when(
+                $congregationId !== null,
+                fn ($meals) => CongregationAccess::scopeMealsRelation($meals, auth()->user()),
+            ),
             'dailyMeals.menu',
             'dailyMeals.soupMenu',
             'dailyMeals.dessertMenu',
@@ -102,6 +107,33 @@ class CosturiBuget extends Page
                 'missing' => $cost['has_missing_prices'],
             ];
         }) ?? collect();
+    }
+
+    /**
+     * Acoperirea prin donatii a costului estimat al saptamanii selectate.
+     * Nu contine date personale ale donatorilor si respecta scope-ul de congregatie.
+     *
+     * @return array{received: float, promised: float, total: float, items: int, estimated_cost: float, net_cost: float, remaining: float, coverage_percent: float}
+     */
+    public function getDonationsProperty(DonationSummaryService $summary): array
+    {
+        $estimatedCost = (float) $this->costs->sum('cost');
+        $week = $this->week;
+
+        if ($week === null) {
+            return [
+                'received' => 0.0,
+                'promised' => 0.0,
+                'total' => 0.0,
+                'items' => 0,
+                'estimated_cost' => round($estimatedCost, 2),
+                'net_cost' => round($estimatedCost, 2),
+                'remaining' => round($estimatedCost, 2),
+                'coverage_percent' => 0.0,
+            ];
+        }
+
+        return $summary->coverage($estimatedCost, $summary->forWeek($week));
     }
 
     public function getSupplyCostProperty(): float

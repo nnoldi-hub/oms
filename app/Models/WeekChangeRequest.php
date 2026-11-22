@@ -16,9 +16,13 @@ class WeekChangeRequest extends Model
 
     protected $fillable = [
         'week_id',
+        'daily_meal_id',
+        'target_daily_meal_id',
         'congregation_id',
+        'from_congregation_id',
         'user_id',
         'reason',
+        'change_type',
         'preferred_week_id',
         'preferred_congregation_id',
         'status',
@@ -42,6 +46,21 @@ class WeekChangeRequest extends Model
     public function congregation(): BelongsTo
     {
         return $this->belongsTo(Congregation::class);
+    }
+
+    public function dailyMeal(): BelongsTo
+    {
+        return $this->belongsTo(DailyMeal::class);
+    }
+
+    public function targetDailyMeal(): BelongsTo
+    {
+        return $this->belongsTo(DailyMeal::class, 'target_daily_meal_id');
+    }
+
+    public function fromCongregation(): BelongsTo
+    {
+        return $this->belongsTo(Congregation::class, 'from_congregation_id');
     }
 
     public function user(): BelongsTo
@@ -75,10 +94,20 @@ class WeekChangeRequest extends Model
 
     public function scopeVisibleTo(Builder $query, ?User $user): Builder
     {
-        if ($user?->isCoordinator()) {
-            $query->where('congregation_id', $user->congregation_id);
+        if (! $user?->isCoordinator() || $user->congregation_id === null) {
+            return $query;
         }
 
-        return $query;
+        $congregationId = (int) $user->congregation_id;
+
+        return $query->where(function (Builder $scoped) use ($congregationId, $user): void {
+            $scoped->where('congregation_id', $congregationId)
+                ->orWhere('from_congregation_id', $congregationId)
+                ->orWhere('user_id', $user->id)
+                ->orWhereHas('dailyMeal', fn (Builder $meal) => $meal->where(function (Builder $participant) use ($congregationId): void {
+                    $participant->where('daily_meals.congregation_id', $congregationId)
+                        ->orWhereHas('congregations', fn (Builder $pivot) => $pivot->whereKey($congregationId));
+                }));
+        });
     }
 }

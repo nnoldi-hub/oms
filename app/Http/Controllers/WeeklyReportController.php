@@ -25,6 +25,7 @@ class WeeklyReportController extends Controller
             'dailyMeals.soupMenu',
             'dailyMeals.dessertMenu',
             'dailyMeals.congregation',
+            'dailyMeals.congregations',
         ]);
 
         $sheets = $daySheets->for($week);

@@ -28,7 +28,7 @@ class WeeklyPlanReportBuilder
     public function build(Week $week, bool $includePhones = true): array
     {
         $this->snapshotService->snapshotWeekIfClosed($week);
-        $week->loadMissing(['congregation', 'dailyMeals', 'dailyMeals.costSnapshot']);
+        $week->loadMissing(['congregation', 'dailyMeals', 'dailyMeals.congregations', 'dailyMeals.costSnapshot']);
 
         $days = $this->daySheets->for($week)
             ->map(fn (array $sheet): array => $this->day($sheet, $includePhones))
@@ -77,7 +77,7 @@ class WeeklyPlanReportBuilder
             'weekday' => $this->weekdayLabel($meal->meal_date),
             'date' => $meal->meal_date->format('d.m.Y'),
             'short_label' => $this->shortLabel($meal->meal_date),
-            'congregation' => $meal->congregation?->name,
+            'congregation' => $meal->congregationNames() ?: 'Nealocată',
             'is_free_day' => $isFreeDay,
             'main' => $this->menuName($components->get('main')),
             'soup' => $this->menuName($components->get('soup')),
@@ -133,13 +133,9 @@ class WeeklyPlanReportBuilder
     {
         $congregations = collect();
 
-        if ($week->congregation !== null) {
-            $congregations->push($week->congregation);
-        }
-
         foreach ($week->dailyMeals as $meal) {
-            if ($meal->congregation !== null) {
-                $congregations->push($meal->congregation);
+            foreach ($meal->congregations as $congregation) {
+                $congregations->push($congregation);
             }
         }
 

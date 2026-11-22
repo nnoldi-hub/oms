@@ -37,8 +37,8 @@ class ProgramGeneral extends Page
 
     /**
      * Query propriu acestei pagini, nescopat pe congregatia coordonatorului:
-     * pagina este strict pentru citire, iar resursa DailyMeal isi pastreaza
-     * restrictiile existente.
+     * pagina contine doar date de programare, fara costuri, portii, persoane
+     * sau date de contact.
      */
     public function getWeeksProperty(): Collection
     {
@@ -47,6 +47,7 @@ class ProgramGeneral extends Page
             ->with([
                 'dailyMeals' => fn (HasMany $query) => $query->orderBy('meal_date')->orderBy('id'),
                 'dailyMeals.congregation',
+                'dailyMeals.congregations',
                 'dailyMeals.menu',
                 'dailyMeals.soupMenu',
                 'dailyMeals.dessertMenu',
@@ -71,7 +72,7 @@ class ProgramGeneral extends Page
         return $this->selectedWeek?->dailyMeals
             ->map(fn (DailyMeal $meal): array => [
                 'date' => $meal->meal_date?->translatedFormat('l, d.m.Y') ?? '-',
-                'congregation' => $meal->congregation?->name ?? 'Nealocata',
+                'congregation' => $meal->congregationNames() ?: 'Nealocata',
                 'main' => $meal->menu?->name,
                 'soup' => $meal->soupMenu?->name,
                 'dessert' => $meal->dessertMenu?->name,

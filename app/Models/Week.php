@@ -20,6 +20,10 @@ class Week extends Model
         return ['start_date' => 'date', 'include_saturday' => 'boolean'];
     }
 
+    /**
+     * @deprecated Saptamanile nu mai apartin unei congregatii. Coloana este pastrata
+     * doar pentru datele vechi si pentru compatibilitate temporara.
+     */
     public function congregation(): BelongsTo
     {
         return $this->belongsTo(Congregation::class);

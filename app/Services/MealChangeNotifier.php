@@ -29,7 +29,7 @@ class MealChangeNotifier
 
         $body = sprintf(
             '%s: %s schimbat de la „%s” la „%s”.',
-            $meal->congregation?->name ?? 'Congregatie',
+            $meal->congregationNames() ?: 'Congregatie',
             self::typeLabel($type),
             $oldName,
             $newName,
@@ -56,7 +56,7 @@ class MealChangeNotifier
 
         $body = sprintf(
             '%s: s-a gatit „%s” in loc de „%s” (%s).',
-            $meal->congregation?->name ?? 'Congregatie',
+            $meal->congregationNames() ?: 'Congregatie',
             $actualName,
             $plannedName,
             $meal->meal_date?->translatedFormat('d M Y') ?? '-',
@@ -105,7 +105,7 @@ class MealChangeNotifier
 
         $body = sprintf(
             '%s: costul real (%s RON) depaseste cu %d%% costul estimat (%s RON) pentru ziua %s.',
-            $meal->congregation?->name ?? 'Congregatie',
+            $meal->congregationNames() ?: 'Congregatie',
             number_format($actual, 2, '.', ' '),
             $percent,
             number_format($estimated, 2, '.', ' '),

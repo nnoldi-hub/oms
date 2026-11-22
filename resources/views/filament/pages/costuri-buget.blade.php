@@ -60,6 +60,8 @@
             @foreach ([
                 ['icon' => '📊', 'label' => 'Cost estimat saptamana', 'value' => number_format($weeklyTotal, 2, '.', ' ').' RON', 'class' => 'budget-kpi--primary'],
                 ['icon' => '💸', 'label' => 'Cheltuit real in saptamana', 'value' => number_format($this->spentThisWeek, 2, '.', ' ').' RON', 'class' => 'budget-kpi--spent'],
+                ['icon' => '🎁', 'label' => 'Donații primite (săptămână)', 'value' => number_format($this->donations['received'], 2, '.', ' ').' RON', 'class' => ''],
+                ['icon' => '📈', 'label' => 'Acoperire prin donații', 'value' => number_format($this->donations['coverage_percent'], 1, '.', ' ').'%', 'class' => ''],
                 ['icon' => '📅', 'label' => 'Cost mediu / zi', 'value' => number_format($this->costs->avg('cost') ?: 0, 2, '.', ' ').' RON', 'class' => ''],
                 ['icon' => '👥', 'label' => 'Cost mediu / voluntar', 'value' => number_format($peopleTotal > 0 ? $weeklyTotal / $peopleTotal : 0, 2, '.', ' ').' RON', 'class' => ''],
                 ['icon' => '⚖️', 'label' => 'Diferenta estimat / real', 'value' => ($this->weekIsClosed && $this->spentThisWeek > 0 ? number_format($weeklyTotal - $this->spentThisWeek, 2, '.', ' ') : 'In curs') . ' RON', 'class' => ''],

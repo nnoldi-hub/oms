@@ -9,18 +9,36 @@
                 <article wire:key="week-change-request-{{ $request->id }}" style="background:#fff;border:1px solid #d8e0dc;border-radius:8px;padding:16px;display:grid;gap:8px;">
                     <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:baseline;">
                         <strong style="font-size:15px;">
-                            Saptamana {{ $request->week?->week_number ?? '-' }} · {{ $request->week?->periodLabel() ?? '-' }}
+                            @if ($request->daily_meal_id !== null)
+                                Ziua {{ $request->dailyMeal?->meal_date?->translatedFormat('D, d M Y') ?? '-' }}
+                            @else
+                                Saptamana {{ $request->week?->week_number ?? '-' }} · {{ $request->week?->periodLabel() ?? '-' }}
+                            @endif
                         </strong>
                         <span style="font-size:12px;font-weight:700;text-transform:uppercase;color:{{ $request->status === 'pending' ? '#b45309' : ($request->status === 'approved' ? '#047857' : '#be123c') }};">
                             {{ $request->statusLabel() }}
                         </span>
                     </div>
                     <p style="font-size:13px;margin:0;">
-                        Congregatie: <strong>{{ $request->congregation?->name ?? '-' }}</strong>
+                        @if ($request->daily_meal_id !== null)
+                            De inlocuit: <strong>{{ $request->fromCongregation?->name ?? '-' }}</strong>
+                        @else
+                            Congregatie: <strong>{{ $request->congregation?->name ?? '-' }}</strong>
+                        @endif
                         · cerut de {{ $request->user?->name ?? '-' }}
                         · {{ $request->created_at?->translatedFormat('d M Y H:i') }}
                     </p>
-                    @if ($request->preferredCongregation || $request->preferredWeek)
+                    @if ($request->daily_meal_id !== null)
+                        <p style="font-size:13px;margin:0;color:#166534;">
+                            Propunere:
+                            @if ($request->change_type === 'swap')
+                                schimb cu ziua {{ $request->targetDailyMeal?->meal_date?->translatedFormat('d M Y') ?? '-' }} ({{ $request->congregation?->name ?? '-' }})
+                            @else
+                                inlocuire cu {{ $request->preferredCongregation?->name ?? '-' }}
+                            @endif
+                        </p>
+                    @endif
+                    @if ($request->daily_meal_id === null && ($request->preferredCongregation || $request->preferredWeek))
                         <p style="font-size:13px;margin:0;color:#166534;">
                             Propunere:
                             @if ($request->preferredCongregation) mutare la {{ $request->preferredCongregation->name }} @endif

@@ -77,7 +77,7 @@ class FixedCostIngredientTest extends TestCase
         $administrator = User::factory()->create(['role' => 'admin']);
 
         $this->actingAs($administrator)
-            ->get(route('weekly-reports.show', $week))
+            ->get(route('weekly-reports.show', $week).'?costs=1')
             ->assertOk()
             ->assertSee('Diverse (cost fix)')
             ->assertDontSee('Diverse (sare, ulei de gatit, condimente)');

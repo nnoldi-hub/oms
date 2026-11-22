@@ -58,7 +58,7 @@ class WeeklyReportTest extends TestCase
         $this->actingAs($coordinator)
             ->get(route('weekly-reports.show', $week))
             ->assertOk()
-            ->assertSee('Lista de cumparaturi bruta')
+            ->assertSee('Lista de cumpărături')
             ->assertSee('Planificarea meselor')
             ->assertSee($congregation->name)
             ->assertDontSee('Fara gluten');
@@ -144,7 +144,7 @@ class WeeklyReportTest extends TestCase
         $this->actingAs($administrator)
             ->get(route('weekly-reports.show', $week))
             ->assertOk()
-            ->assertSee('2 zile au meniu fara ingrediente sau cost configurat.')
+            ->assertSee('2 zile au meniu fără ingrediente configurate.')
             ->assertDontSee('nu au meniu ales si nu sunt incluse in total');
     }
 
@@ -173,7 +173,7 @@ class WeeklyReportTest extends TestCase
         $administrator = User::factory()->create(['role' => 'admin']);
 
         $this->actingAs($administrator)
-            ->get(route('weekly-reports.show', $week))
+            ->get(route('weekly-reports.show', $week).'?costs=1')
             ->assertOk()
             ->assertSee('class="day-sheet"', false)
             ->assertSee('Mancare de cartofi')
@@ -182,7 +182,7 @@ class WeeklyReportTest extends TestCase
             ->assertSee('Ciorbă: Ciorba de legume')
             ->assertSee('Portii confirmate:')
             ->assertSee('Telina')
-            ->assertSee('De cumparat')
+            ->assertSee('De cumpărat')
             ->assertSee('2.10 RON / portie')
             ->assertSee('Media saptamanii:');
     }
@@ -202,7 +202,7 @@ class WeeklyReportTest extends TestCase
         $administrator = User::factory()->create(['role' => 'admin']);
 
         $this->actingAs($administrator)
-            ->get(route('weekly-reports.show', $week))
+            ->get(route('weekly-reports.show', $week).'?costs=1')
             ->assertOk()
             ->assertSee('Portii estimate:')
             ->assertDontSee('Portii confirmate:')

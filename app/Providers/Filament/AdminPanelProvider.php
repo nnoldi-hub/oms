@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Widgets\DonationStatsOverview;
 use App\Filament\Widgets\OmsStatsOverview;
 use App\Filament\Widgets\RecentMealChanges;
 use App\Filament\Widgets\SupplyStatsOverview;
@@ -81,6 +82,7 @@ class AdminPanelProvider extends PanelProvider
                 TomorrowMessageWidget::class,
                 OmsStatsOverview::class,
                 SupplyStatsOverview::class,
+                DonationStatsOverview::class,
                 RecentMealChanges::class,
             ])
             ->middleware([

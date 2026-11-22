@@ -158,7 +158,7 @@
                     @if ($this->canDownloadPlanPdf)
                         <button class="oms-calendar__report oms-calendar__report--secondary" type="button" wire:click="openPlanPdf">Descarcă PDF planul săptămânii</button>
                     @endif
-                    @foreach ($this->selectedWeek->dailyMeals->pluck('congregation')->filter()->unique('id') as $congregation)
+                    @foreach ($this->selectedWeek->dailyMeals->flatMap->congregations->filter()->unique('id')->sortBy('name') as $congregation)
                         <a class="oms-calendar__report oms-calendar__report--secondary" href="{{ route('congregation-weekly-reports.show', [$this->selectedWeek, $congregation]) }}" target="_blank">Fisa {{ $congregation->name }}</a>
                     @endforeach
                 </div>
@@ -189,11 +189,23 @@
                         @endif
                         <div class="oms-card__content">
                             <div>
-                                <p class="oms-card__label">Congregatie</p>
-                                <p class="oms-card__value">{{ $dailyMeal->congregation?->name ?? 'Nealocata' }}</p>
+                                <p class="oms-card__label">Congregatii</p>
+                                <p class="oms-card__value">{{ $dailyMeal->congregationNames() ?: 'Nealocata' }}</p>
+                                @if (auth()->user()?->isAdmin())
+                                    <select class="oms-card__select" multiple size="3" aria-label="Congregatiile zilei" wire:model="dayCongregations.{{ $dailyMeal->id }}">
+                                        @foreach ($this->congregationOptions as $congregation)
+                                            <option value="{{ $congregation->id }}">{{ $congregation->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    <button class="oms-card__mini oms-card__mini--save" type="button" title="Salveaza congregatiile" wire:click="saveDayCongregations({{ $dailyMeal->id }})">✓</button>
+                                @endif
                             </div>
 
                             @php($canPlan = $this->canOrganize($dailyMeal))
+                            @if ($canPlan && auth()->user()?->isCoordinator())
+                                <button class="oms-card__mini" type="button" wire:click="openDayChange({{ $dailyMeal->id }}, 'replace')">Schimba congregatia</button>
+                                <button class="oms-card__mini" type="button" wire:click="openDayChange({{ $dailyMeal->id }}, 'swap')">Interschimba cu alta zi</button>
+                            @endif
                             @php($mealSections = [
                                 ['main', 'Fel principal', 'plannedMenus', $this->menuOptions['main']],
                                 ['soup', 'Ciorba', 'plannedSoups', $this->menuOptions['soup']],
@@ -315,6 +327,7 @@
                             @php($teams = $this->teamsByMeal[$dailyMeal->id] ?? [])
                             @php($people = $this->volunteersByMeal[$dailyMeal->id] ?? [])
                             @php($fund = $this->foodFundByDate[$dailyMeal->meal_date->toDateString()] ?? null)
+                            @php($donationsForDay = $this->donationsByDate[$dailyMeal->meal_date->toDateString()] ?? null)
                             @php($uncovered = $this->uncoveredRoles[$dailyMeal->meal_date->toDateString()] ?? null)
 
                             @if ($teams !== [])
@@ -356,6 +369,17 @@
                                 </div>
                             @endif
 
+                            @if ($donationsForDay !== null)
+                                <div>
+                                    <p class="oms-card__label">Donații (ziua)</p>
+                                    <p class="oms-card__budget-result">
+                                        Primite: {{ number_format($donationsForDay['received'], 2, '.', ' ') }} RON ·
+                                        Promise: {{ number_format($donationsForDay['promised'], 2, '.', ' ') }} RON ·
+                                        <strong>Total: {{ number_format($donationsForDay['total'], 2, '.', ' ') }} RON</strong>
+                                    </p>
+                                </div>
+                            @endif
+
                             <div class="oms-card__actions">
                                 @if ($this->canOrganize($dailyMeal))
                                     <button class="oms-card__action" type="button" wire:click="openPeople({{ $dailyMeal->id }})">Persoane ({{ count($people) }})</button>
@@ -375,6 +399,14 @@
                                 >WhatsApp</a>
                             </div>
 
+                            @if ($dailyMeal->lastEditor() !== null)
+                                @php($editor = $dailyMeal->lastEditor())
+                                <p class="oms-card__budget-result">
+                                    <strong>Modificat de:</strong>
+                                    {{ auth()->user()?->isAdmin() ? $editor->name : ($editor->isCoordinator() ? 'coordonator' : $editor->role) }}
+                                    · {{ $dailyMeal->updated_at?->translatedFormat('d M Y H:i') }}
+                                </p>
+                            @endif
                             <a class="oms-card__print" href="{{ route('daily-meal-preparation-sheets.show', $dailyMeal) }}" target="_blank">Printeaza ziua</a>
                             @if (auth()->user()?->isAdmin())
                                 <div class="oms-card__actions">
@@ -397,6 +429,12 @@
                         @if ($weekMissing > 0)
                             · {{ $weekMissing }} {{ $weekMissing === 1 ? 'zi are' : 'zile au' }} preturi lipsa (cost partial)
                         @endif
+                    </p>
+                    <p class="oms-card__budget-result">
+                        <strong>Donații primite:</strong> {{ number_format($this->weeklyDonations['received'], 2, '.', ' ') }} RON ·
+                        <strong>Donații promise:</strong> {{ number_format($this->weeklyDonations['promised'], 2, '.', ' ') }} RON ·
+                        <strong>Acoverire:</strong> {{ number_format($this->weeklyDonations['coverage_percent'], 1, '.', ' ') }}% ·
+                        <strong>Rămas de acoperit:</strong> {{ number_format($this->weeklyDonations['remaining'], 2, '.', ' ') }} RON
                     </p>
                 </footer>
             </div>
@@ -780,6 +818,79 @@
                     <div class="oms-modal__buttons">
                         <button class="oms-modal__cancel" type="button" wire:click="closeWeekChangeRequest">Renunță</button>
                         <button class="oms-modal__confirm" type="button" wire:click="submitWeekChangeRequest">Trimite cererea</button>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        @if ($dayChangeMealId !== null)
+            <div class="oms-modal">
+                <div class="oms-modal__panel">
+                    <h2 class="oms-modal__title">Cere schimbarea congregației zilei</h2>
+                    <p class="oms-modal__hint">Cererea este aprobată de administrator. Ziua rămâne neschimbată până la aprobare.</p>
+
+                    <div class="oms-modal__row">
+                        <label class="oms-modal__label" for="day-change-type">Tipul schimbării</label>
+                        <select class="oms-card__select" id="day-change-type" wire:model="dayChangeType">
+                            <option value="replace">Înlocuiește o congregație</option>
+                            <option value="swap">Interschimbă cu altă zi</option>
+                        </select>
+                    </div>
+
+                    <div class="oms-modal__row">
+                        <label class="oms-modal__label" for="day-change-from">Congregația de înlocuit</label>
+                        <select class="oms-card__select" id="day-change-from" wire:model="dayChangeFromCongregationId">
+                            <option value="">- alege -</option>
+                            @foreach ($this->congregationOptions as $congregation)
+                                <option value="{{ $congregation->id }}">{{ $congregation->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('dayChangeFromCongregationId')<p class="oms-card__error">{{ $message }}</p>@enderror
+                    </div>
+
+                    @if ($dayChangeType === 'swap')
+                        <div class="oms-modal__row">
+                            <label class="oms-modal__label" for="day-change-second-day">Ziua cu care se face schimbul</label>
+                            <select class="oms-card__select" id="day-change-second-day" wire:model="dayChangeSecondMealId">
+                                <option value="">- alege -</option>
+                                @foreach ($this->applyToDayOptions as $id => $label)
+                                    <option value="{{ $id }}">{{ $label }}</option>
+                                @endforeach
+                            </select>
+                            @error('dayChangeSecondMealId')<p class="oms-card__error">{{ $message }}</p>@enderror
+                        </div>
+                        <div class="oms-modal__row">
+                            <label class="oms-modal__label" for="day-change-second-congregation">Congregația din ziua a doua</label>
+                            <select class="oms-card__select" id="day-change-second-congregation" wire:model="dayChangeSecondCongregationId">
+                                <option value="">- alege -</option>
+                                @foreach ($this->congregationOptions as $congregation)
+                                    <option value="{{ $congregation->id }}">{{ $congregation->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('dayChangeSecondCongregationId')<p class="oms-card__error">{{ $message }}</p>@enderror
+                        </div>
+                    @else
+                        <div class="oms-modal__row">
+                            <label class="oms-modal__label" for="day-change-to">Congregația nouă</label>
+                            <select class="oms-card__select" id="day-change-to" wire:model="dayChangeToCongregationId">
+                                <option value="">- alege -</option>
+                                @foreach ($this->congregationOptions as $congregation)
+                                    <option value="{{ $congregation->id }}">{{ $congregation->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('dayChangeToCongregationId')<p class="oms-card__error">{{ $message }}</p>@enderror
+                        </div>
+                    @endif
+
+                    <div class="oms-modal__row">
+                        <label class="oms-modal__label" for="day-change-reason">Motivul (obligatoriu)</label>
+                        <textarea class="oms-card__input" id="day-change-reason" rows="3" wire:model="dayChangeReason"></textarea>
+                        @error('dayChangeReason')<p class="oms-card__error">{{ $message }}</p>@enderror
+                    </div>
+
+                    <div class="oms-modal__buttons">
+                        <button class="oms-modal__cancel" type="button" wire:click="closeDayChange">Renunță</button>
+                        <button class="oms-modal__confirm" type="button" wire:click="submitDayChange">Trimite cererea</button>
                     </div>
                 </div>
             </div>

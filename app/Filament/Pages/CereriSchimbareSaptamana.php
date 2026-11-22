@@ -44,7 +44,7 @@ class CereriSchimbareSaptamana extends Page
     {
         return WeekChangeRequest::query()
             ->visibleTo(auth()->user())
-            ->with(['week', 'congregation', 'user', 'preferredCongregation', 'preferredWeek', 'resolvedBy'])
+            ->with(['week', 'dailyMeal', 'targetDailyMeal', 'congregation', 'fromCongregation', 'user', 'preferredCongregation', 'preferredWeek', 'resolvedBy'])
             ->orderByRaw("case when status = 'pending' then 0 else 1 end")
             ->orderByDesc('created_at')
             ->get();

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\DailyMeal;
 use App\Models\Volunteer;
+use App\Support\DonationInvitation;
 use Illuminate\Support\Collection;
 
 class DailyMessageBuilder
@@ -43,12 +44,12 @@ class DailyMessageBuilder
         'Donatii' => 'Donații',
     ];
 
-    public function dayMessage(DailyMeal $meal): string
+    public function dayMessage(DailyMeal $meal, bool $includeDonationInvitation = true): string
     {
-        $meal->loadMissing(['menu', 'soupMenu', 'dessertMenu', 'congregation', 'workTeams', 'volunteers']);
+        $meal->loadMissing(['menu', 'soupMenu', 'dessertMenu', 'congregations', 'workTeams', 'volunteers']);
 
         $lines = [
-            $meal->meal_date->translatedFormat('D, d M Y').' – '.($meal->congregation?->name ?? 'nealocata').' – '.($meal->menu?->name ?? '— fara meniu —').'… – '.($meal->soupMenu?->name ?? '-').' – '.($meal->dessertMenu?->name ?? '-').' – '.$meal->portions().' portii',
+            $meal->meal_date->translatedFormat('D, d M Y').' – '.($meal->congregationNames() ?: 'nealocata').' – '.($meal->menu?->name ?? '— fara meniu —').'… – '.($meal->soupMenu?->name ?? '-').' – '.($meal->dessertMenu?->name ?? '-').' – '.$meal->portions().' portii',
         ];
 
         $teams = $meal->workTeams
@@ -72,6 +73,10 @@ class DailyMessageBuilder
             $lines[] = 'Roluri neacoperite: '.$uncovered;
         }
 
+        if ($includeDonationInvitation) {
+            $lines[] = DonationInvitation::render();
+        }
+
         return implode("\n", $lines);
     }
 
@@ -85,10 +90,13 @@ class DailyMessageBuilder
         $lines = ['Planul saptamanii '.$weekNumber.' ('.$rangeLabel.')'];
 
         foreach ($meals as $meal) {
-            $meal->loadMissing(['menu', 'soupMenu', 'dessertMenu', 'congregation', 'workTeams', 'volunteers']);
+            $meal->loadMissing(['menu', 'soupMenu', 'dessertMenu', 'congregations', 'workTeams', 'volunteers']);
             $lines[] = '';
-            $lines[] = $builder->dayMessage($meal);
+            $lines[] = $builder->dayMessage($meal, false);
         }
+
+        $lines[] = '';
+        $lines[] = DonationInvitation::render();
 
         return ltrim(implode("\n", $lines));
     }

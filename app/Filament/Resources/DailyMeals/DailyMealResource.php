@@ -10,12 +10,13 @@ use App\Filament\Resources\DailyMeals\Schemas\DailyMealForm;
 use App\Filament\Resources\DailyMeals\Schemas\DailyMealInfolist;
 use App\Filament\Resources\DailyMeals\Tables\DailyMealsTable;
 use App\Models\DailyMeal;
+use App\Support\CongregationAccess;
 use BackedEnum;
-use Illuminate\Database\Eloquent\Builder;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class DailyMealResource extends Resource
 {
@@ -61,7 +62,7 @@ class DailyMealResource extends Resource
         ]);
 
         if ($user?->isCoordinator()) {
-            $query->where('congregation_id', $user->congregation_id);
+            CongregationAccess::scopeMeals($query, $user);
         }
 
         return $query;
