@@ -27,7 +27,7 @@
 
         <div class="oms-week-summary__head">
             <p class="oms-week-summary__title">Rezumat program</p>
-            <p class="oms-week-summary__hint">Toate săptămânile · zilele se calculează din program</p>
+            <p class="oms-week-summary__hint">{{ $hint }}</p>
         </div>
 
         <div class="oms-week-summary__scroll">

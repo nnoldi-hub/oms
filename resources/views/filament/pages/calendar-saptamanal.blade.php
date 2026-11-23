@@ -120,6 +120,7 @@
             @include('filament.partials.weekly-schedule-summary', [
                 'weeks' => $this->scheduleSummary,
                 'selectedWeekId' => $this->weekId,
+                'hint' => 'Săptămâna în curs și următoarea · zilele se calculează din program',
             ])
         @endif
 

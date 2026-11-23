@@ -30,7 +30,33 @@ class WeekScheduleSummaryService
     }
 
     /**
-     * @return Collection<int, array{week_id: int, week_number: int, period: string, working_days: string, cooking: string, contributors: string, contributors_count: int, contributors_by_day: list<array{day: string, names: list<string>}>, days_count: int}>
+     * Pentru Calendar: doar saptamana in curs si urmatoarea, ca tabloul sa
+     * ramana scurt pe telefon. Dashboardul pastreaza toate saptamanile.
+     *
+     * @return Collection<int, array{week_id: int, week_number: int, start_date: string, end_date: string, period: string, working_days: string, cooking: string, contributors: string, contributors_count: int, contributors_by_day: list<array{day: string, names: list<string>}>, days_count: int}>
+     */
+    public function upcoming(int $limit = 2, ?CarbonImmutable $today = null): Collection
+    {
+        $today = ($today ?? CarbonImmutable::now())->toDateString();
+
+        $summaries = $this->summaries();
+
+        $upcoming = $summaries
+            ->filter(fn (array $week): bool => $week['end_date'] >= $today)
+            ->take($limit);
+
+        if ($upcoming->isEmpty()) {
+            $upcoming = $summaries
+                ->sortByDesc(fn (array $week): string => $week['start_date'])
+                ->take($limit)
+                ->sortBy(fn (array $week): string => $week['start_date']);
+        }
+
+        return $upcoming->values();
+    }
+
+    /**
+     * @return Collection<int, array{week_id: int, week_number: int, start_date: string, end_date: string, period: string, working_days: string, cooking: string, contributors: string, contributors_count: int, contributors_by_day: list<array{day: string, names: list<string>}>, days_count: int}>
      */
     public function summaries(): Collection
     {
@@ -48,7 +74,7 @@ class WeekScheduleSummaryService
             ->values();
     }
 
-    /** @return array{week_id: int, week_number: int, period: string, working_days: string, cooking: string, contributors: string, contributors_count: int, contributors_by_day: list<array{day: string, names: list<string>}>, days_count: int} */
+    /** @return array{week_id: int, week_number: int, start_date: string, end_date: string, period: string, working_days: string, cooking: string, contributors: string, contributors_count: int, contributors_by_day: list<array{day: string, names: list<string>}>, days_count: int} */
     private function summarize(Week $week): array
     {
         $dates = $week->dailyMeals
@@ -99,6 +125,8 @@ class WeekScheduleSummaryService
         return [
             'week_id' => (int) $week->id,
             'week_number' => (int) $week->week_number,
+            'start_date' => $start->toDateString(),
+            'end_date' => $end->toDateString(),
             'period' => $start->format('d.m').' – '.$end->format('d.m.Y'),
             'working_days' => $this->workingDaysLabel($dates),
             'cooking' => $cookingNames === [] ? 'Nealocata' : implode(', ', $cookingNames),

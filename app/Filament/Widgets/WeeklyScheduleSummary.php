@@ -14,7 +14,7 @@ class WeeklyScheduleSummary extends Widget
 
     protected int|string|array $columnSpan = 'full';
 
-    /** @return Collection<int, array{week_id: int, week_number: int, period: string, working_days: string, cooking: string, contributors: string, contributors_count: int, contributors_by_day: list<array{day: string, names: list<string>}>, days_count: int}> */
+    /** @return Collection<int, array{week_id: int, week_number: int, start_date: string, end_date: string, period: string, working_days: string, cooking: string, contributors: string, contributors_count: int, contributors_by_day: list<array{day: string, names: list<string>}>, days_count: int}> */
     public function getWeeksProperty(): Collection
     {
         return app(WeekScheduleSummaryService::class)->summaries();

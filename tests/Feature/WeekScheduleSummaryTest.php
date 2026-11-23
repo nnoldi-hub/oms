@@ -9,6 +9,7 @@ use App\Models\DailyMeal;
 use App\Models\User;
 use App\Models\Week;
 use App\Services\WeekScheduleSummaryService;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -144,6 +145,60 @@ class WeekScheduleSummaryTest extends TestCase
         $this->get('/admin')
             ->assertOk()
             ->assertDontSee('weekly-schedule-summary');
+    }
+
+    public function test_calendar_limits_the_summary_to_the_current_and_next_week(): void
+    {
+        $cooks = Congregation::factory()->create(['name' => 'Bucuresti Est']);
+
+        foreach ([
+            [1, '2026-11-30'],
+            [2, '2026-12-07'],
+            [3, '2026-12-14'],
+        ] as [$number, $date]) {
+            $week = Week::factory()->for($cooks)->create([
+                'week_number' => $number,
+                'start_date' => $date,
+            ]);
+            foreach (range(0, 4) as $offset) {
+                DailyMeal::factory()->for($week)->for($cooks)->create([
+                    'meal_date' => CarbonImmutable::parse($date)->addDays($offset)->toDateString(),
+                ]);
+            }
+        }
+
+        $service = app(WeekScheduleSummaryService::class);
+
+        $this->assertSame(
+            [1, 2],
+            $service->upcoming(2, CarbonImmutable::parse('2026-11-23'))->pluck('week_number')->all(),
+        );
+        $this->assertSame(
+            [2, 3],
+            $service->upcoming(2, CarbonImmutable::parse('2026-12-08'))->pluck('week_number')->all(),
+        );
+        $this->assertSame(
+            [2, 3],
+            $service->upcoming(2, CarbonImmutable::parse('2027-01-15'))->pluck('week_number')->all(),
+        );
+
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-11-23'));
+
+        try {
+            $coordinator = User::factory()->create([
+                'role' => 'coordinator',
+                'congregation_id' => $cooks->id,
+            ]);
+
+            Livewire::actingAs($coordinator)
+                ->test(CalendarSaptamanal::class)
+                ->assertSee('Săptămâna în curs și următoarea')
+                ->assertSee('Săptămâna 1')
+                ->assertSee('Săptămâna 2')
+                ->assertDontSee('Săptămâna 3');
+        } finally {
+            CarbonImmutable::setTestNow();
+        }
     }
 
     public function test_calendar_shows_summary_only_to_cooking_congregations(): void
