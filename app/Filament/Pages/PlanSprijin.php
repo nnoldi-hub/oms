@@ -4,7 +4,9 @@ namespace App\Filament\Pages;
 
 use App\Models\DailyMeal;
 use App\Models\Donation;
+use App\Models\Ingredient;
 use App\Models\Week;
+use App\Services\IngredientCoverageService;
 use App\Services\SupportPlanService;
 use App\Support\ContactStatus;
 use Carbon\CarbonImmutable;
@@ -41,6 +43,16 @@ class PlanSprijin extends Page
 
     public string $newUnit = '';
 
+    public ?int $newIngredientId = null;
+
+    public string $newStorage = '';
+
+    public string $newDeliveryUntil = '';
+
+    public ?int $allocationDonationId = null;
+
+    public ?int $allocationMealId = null;
+
     public function mount(): void
     {
         $requested = request()->query('week');
@@ -67,7 +79,17 @@ class PlanSprijin extends Page
     public function updatedWeekFilter(): void
     {
         $this->closeAddContribution();
+        $this->closeAllocate();
         $this->loadContactNotes();
+    }
+
+    public function updatedNewKind(): void
+    {
+        if ($this->newKind !== Donation::KIND_FOOD) {
+            $this->newIngredientId = null;
+            $this->newStorage = '';
+            $this->newDeliveryUntil = '';
+        }
     }
 
     /** @return array<string, string> */
@@ -104,6 +126,56 @@ class PlanSprijin extends Page
     public function getKindOptionsProperty(): array
     {
         return Donation::CONTRIBUTION_CATEGORIES;
+    }
+
+    /** @return array<string, string> */
+    public function getIngredientOptionsProperty(): array
+    {
+        return Ingredient::query()
+            ->where(function ($query): void {
+                $query->where('is_active', true)->orWhereNull('is_active');
+            })
+            ->orderBy('name')
+            ->get()
+            ->mapWithKeys(fn (Ingredient $ingredient): array => [
+                (string) $ingredient->id => $ingredient->name.' ('.$ingredient->unit.')',
+            ])
+            ->all();
+    }
+
+    /** @return array<string, string> */
+    public function getStorageOptionsProperty(): array
+    {
+        return Donation::STORAGE_OPTIONS;
+    }
+
+    /** @return array{name: string, unit: string, need: float, covered: float, remaining: float, label: string}|null */
+    public function getIngredientCoverageProperty(): ?array
+    {
+        if ($this->addingMealId === null || $this->newIngredientId === null) {
+            return null;
+        }
+
+        $meal = DailyMeal::query()->find($this->addingMealId);
+        $ingredient = Ingredient::query()->find($this->newIngredientId);
+
+        if ($meal === null || $ingredient === null) {
+            return null;
+        }
+
+        return app(IngredientCoverageService::class)->forIngredient($meal, $ingredient);
+    }
+
+    public function getOfferWarningProperty(): ?string
+    {
+        if ($this->newKind !== Donation::KIND_FOOD || $this->newQuantity === '') {
+            return null;
+        }
+
+        return app(IngredientCoverageService::class)->overOffer(
+            $this->ingredientCoverage,
+            (float) $this->newQuantity,
+        );
     }
 
     /** @return array<string, string> */
@@ -158,6 +230,9 @@ class PlanSprijin extends Page
         $this->newDescription = '';
         $this->newQuantity = '';
         $this->newUnit = '';
+        $this->newIngredientId = null;
+        $this->newStorage = '';
+        $this->newDeliveryUntil = '';
     }
 
     public function closeAddContribution(): void
@@ -174,12 +249,25 @@ class PlanSprijin extends Page
             'addingMealId' => ['required', 'integer', 'exists:daily_meals,id'],
             'addingCongregationId' => ['required', 'integer', 'exists:congregations,id'],
             'newKind' => ['required', 'in:'.implode(',', array_keys(Donation::CONTRIBUTION_CATEGORIES))],
-            'newDescription' => ['required', 'string', 'max:255'],
+            'newDescription' => ['nullable', 'string', 'max:255'],
             'newQuantity' => ['nullable', 'numeric', 'min:0'],
             'newUnit' => ['nullable', 'string', 'max:20'],
+            'newIngredientId' => ['nullable', 'exists:ingredients,id'],
+            'newStorage' => ['nullable', 'in:'.implode(',', array_keys(Donation::STORAGE_OPTIONS))],
+            'newDeliveryUntil' => ['nullable', 'date'],
         ]);
 
         $meal = DailyMeal::query()->findOrFail($this->addingMealId);
+        $ingredient = $this->newIngredientId === null
+            ? null
+            : Ingredient::query()->findOrFail($this->newIngredientId);
+        $description = trim($ingredient?->name ?? $this->newDescription);
+
+        if ($description === '') {
+            $this->addError('newDescription', 'Alege un ingredient sau scrie ce aduce congregația.');
+
+            return;
+        }
 
         Donation::query()->create([
             'congregation_id' => $this->addingCongregationId,
@@ -188,9 +276,15 @@ class PlanSprijin extends Page
             'date' => $meal->meal_date?->toDateString(),
             'kind' => $this->newKind,
             'status' => Donation::STATUS_PROMISED,
-            'description' => trim($this->newDescription),
+            'description' => $description,
+            'food_type' => $ingredient?->name,
+            'ingredient_id' => $ingredient?->id,
             'quantity' => $this->newQuantity !== '' ? (float) $this->newQuantity : null,
-            'unit' => $this->newUnit !== '' ? $this->newUnit : null,
+            'unit' => $ingredient?->unit ?? ($this->newUnit !== '' ? $this->newUnit : null),
+            'storage_method' => $this->newStorage !== '' ? $this->newStorage : null,
+            'delivery_until' => $this->newDeliveryUntil !== ''
+                ? CarbonImmutable::parse($this->newDeliveryUntil)->toDateTimeString()
+                : null,
             'recorded_by' => auth()->id(),
         ]);
 
@@ -198,6 +292,9 @@ class PlanSprijin extends Page
         $this->newDescription = '';
         $this->newQuantity = '';
         $this->newUnit = '';
+        $this->newIngredientId = null;
+        $this->newStorage = '';
+        $this->newDeliveryUntil = '';
 
         Notification::make()->title('Contribuția a fost adăugată ca promisă.')->success()->send();
     }
@@ -214,6 +311,50 @@ class PlanSprijin extends Page
         }
 
         Notification::make()->title('Contribuția a fost marcată primită.')->success()->send();
+    }
+
+    public function openAllocate(int $donationId): void
+    {
+        $this->authorizeAdmin();
+
+        $donation = Donation::query()->findOrFail($donationId);
+        $date = $donation->date?->toDateString() ?? $donation->donation_date?->toDateString();
+
+        $suggested = $date === null
+            ? null
+            : DailyMeal::query()->whereDate('meal_date', $date)->value('id');
+        $firstDay = collect($this->plan['allocation_days'])->first();
+
+        $this->allocationDonationId = $donationId;
+        $this->allocationMealId = (int) ($suggested ?? $firstDay['id'] ?? 0) ?: null;
+    }
+
+    public function closeAllocate(): void
+    {
+        $this->allocationDonationId = null;
+        $this->allocationMealId = null;
+    }
+
+    public function allocateDonation(): void
+    {
+        $this->authorizeAdmin();
+
+        $this->validate([
+            'allocationDonationId' => ['required', 'integer', 'exists:donations,id'],
+            'allocationMealId' => ['required', 'integer', 'exists:daily_meals,id'],
+        ]);
+
+        $donation = Donation::query()->findOrFail($this->allocationDonationId);
+        $meal = DailyMeal::query()->findOrFail($this->allocationMealId);
+
+        $donation->daily_meal_id = $meal->id;
+        $donation->date = $meal->meal_date?->toDateString();
+        $donation->donation_date = $meal->meal_date?->toDateString();
+        $donation->save();
+
+        $this->closeAllocate();
+
+        Notification::make()->title('Donația a fost alocată zilei alese.')->success()->send();
     }
 
     private function noteKey(int $mealId, int $congregationId): string

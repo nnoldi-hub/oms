@@ -18,7 +18,7 @@ use Illuminate\Support\Collection;
 class SupportPlanService
 {
     /**
-     * @return array{days: list<array<string, mixed>>, categories: list<array<string, mixed>>, warnings: list<array{type: string, message: string}>, contributions: int, uncontacted: int}
+     * @return array{days: list<array<string, mixed>>, categories: list<array<string, mixed>>, warnings: list<array{type: string, message: string}>, unallocated: list<array<string, mixed>>, allocation_days: list<array{id: int, label: string}>, contributions: int, uncontacted: int}
      */
     public function build(?Week $week): array
     {
@@ -40,6 +40,8 @@ class SupportPlanService
             'days' => $days,
             'categories' => $this->categories($donations),
             'warnings' => $this->warnings($week, $meals, $donations, $days),
+            'unallocated' => $this->unallocated($meals),
+            'allocation_days' => $this->allocationDays($meals),
             'contributions' => $donations->count(),
             'uncontacted' => (int) collect($days)->sum('uncontacted_count'),
         ];
@@ -167,6 +169,66 @@ class SupportPlanService
         }
 
         return $categories;
+    }
+
+    /**
+     * Donatiile care au congregatie/descriere, dar nu au fost inca legate de o zi.
+     *
+     * @param  Collection<int, DailyMeal>  $meals
+     * @return list<array<string, mixed>>
+     */
+    private function unallocated(Collection $meals): array
+    {
+        return Donation::query()
+            ->with(['donorCongregation', 'congregation', 'ingredient'])
+            ->whereNull('daily_meal_id')
+            ->where('status', '!=', Donation::STATUS_CANCELLED)
+            ->orderBy('date')
+            ->get()
+            ->map(function (Donation $donation) use ($meals): array {
+                $date = $donation->date?->toDateString() ?? $donation->donation_date?->toDateString();
+                $suggested = $date === null
+                    ? null
+                    : $meals->first(fn (DailyMeal $meal): bool => $meal->meal_date?->toDateString() === $date);
+
+                return [
+                    'donation' => $donation,
+                    'congregation' => $donation->donorCongregation ?? $donation->congregation,
+                    'description' => trim((string) $donation->description),
+                    'quantity' => $donation->quantity !== null
+                        ? rtrim(rtrim(number_format((float) $donation->quantity, 2, '.', ''), '0'), '.')
+                        : '',
+                    'unit' => (string) $donation->unit,
+                    'date' => $donation->date?->translatedFormat('d.m.Y') ?? '',
+                    'storage' => $donation->storageLabel(),
+                    'delivery_until' => $donation->deliveryUntilLabel(),
+                    'suggested_meal_id' => $suggested?->id,
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Zilele din filtrul curent, folosite la alocarea unei donatii fara zi.
+     *
+     * @param  Collection<int, DailyMeal>  $meals
+     * @return list<array{id: int, label: string}>
+     */
+    private function allocationDays(Collection $meals): array
+    {
+        return $meals
+            ->filter(fn (DailyMeal $meal): bool => $meal->meal_date !== null)
+            ->map(fn (DailyMeal $meal): array => [
+                'id' => (int) $meal->id,
+                'label' => sprintf(
+                    '%s · gătește %s',
+                    $meal->meal_date->translatedFormat('D d.m.Y'),
+                    $meal->cookingCongregation?->name ?? '—',
+                ),
+            ])
+            ->values()
+            ->all();
     }
 
     /**

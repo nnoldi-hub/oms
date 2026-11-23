@@ -401,6 +401,18 @@
                                     </p>
                                 </div>
                             @endif
+
+                            @php($deliveryDetails = $this->deliveryDetailsByDate[$dailyMeal->meal_date->toDateString()] ?? [])
+                            @if ($this->canOrganize($dailyMeal) && $deliveryDetails !== [])
+                                <div>
+                                    <p class="oms-card__label">Păstrare și livrare</p>
+                                    <div style="display:grid;gap:4px;font-size:12px;line-height:1.5;">
+                                        @foreach ($deliveryDetails as $detail)
+                                            <div>{{ $detail['label'] }}</div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
                             @endif
 
                             <div class="oms-card__actions">

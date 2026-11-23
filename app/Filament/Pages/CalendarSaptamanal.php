@@ -1872,6 +1872,81 @@ class CalendarSaptamanal extends Page
     }
 
     /**
+     * Detaliile de pastrare/livrare ale donatiilor, doar pentru administrator
+     * si pentru coordonatorul care gateste in ziua respectiva.
+     *
+     * @return array<string, list<array{label: string, storage: string|null, delivery_until: string|null}>>
+     */
+    public function getDeliveryDetailsByDateProperty(): array
+    {
+        $week = $this->selectedWeek;
+        $user = auth()->user();
+
+        if ($week === null || $user === null) {
+            return [];
+        }
+
+        $details = [];
+
+        foreach ($week->dailyMeals as $meal) {
+            if (! ($user->isAdmin() || ($user->isCoordinator() && CongregationAccess::canManageMeal($user, $meal)))) {
+                continue;
+            }
+
+            $date = $meal->meal_date?->toDateString();
+
+            if ($date === null) {
+                continue;
+            }
+
+            $donations = Donation::query()
+                ->with(['donorCongregation', 'congregation'])
+                ->where('status', '!=', Donation::STATUS_CANCELLED)
+                ->where(function ($query) use ($meal, $date): void {
+                    $query->where('daily_meal_id', $meal->id)
+                        ->orWhereDate('date', $date)
+                        ->orWhereDate('donation_date', $date);
+                })
+                ->where(function ($query): void {
+                    $query->whereNotNull('storage_method')
+                        ->orWhereNotNull('delivery_until');
+                })
+                ->orderBy('date')
+                ->get();
+
+            foreach ($donations as $donation) {
+                $storage = $donation->storageLabel();
+                $delivery = $donation->deliveryUntilLabel();
+                $quantity = $donation->quantity !== null
+                    ? rtrim(rtrim(number_format((float) $donation->quantity, 2, '.', ''), '0'), '.').' '.$donation->unit
+                    : '';
+
+                $parts = array_values(array_filter([
+                    $donation->donorCongregation?->name ?? $donation->congregation?->name,
+                    trim((string) $donation->description) ?: null,
+                    $quantity !== '' ? trim($quantity) : null,
+                    $storage !== null ? 'Păstrare: '.$storage : null,
+                    $delivery !== null ? 'Livrare până: '.$delivery : null,
+                ], fn ($part): bool => filled($part)));
+
+                if ($parts === []) {
+                    continue;
+                }
+
+                $details[$date][$donation->id] = [
+                    'label' => implode(' · ', $parts),
+                    'storage' => $storage,
+                    'delivery_until' => $delivery,
+                ];
+            }
+        }
+
+        return collect($details)
+            ->map(fn (array $items): array => array_values($items))
+            ->all();
+    }
+
+    /**
      * Acoperirea prin donatii a costului estimat al saptamanii selectate.
      *
      * @return array{received: float, promised: float, total: float, items: int, estimated_cost: float, net_cost: float, remaining: float, coverage_percent: float}

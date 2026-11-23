@@ -36,6 +36,18 @@ class Donation extends Model
 
     public const KIND_DRINK = 'cafea_ceai';
 
+    public const STORAGE_COLD = 'rece';
+
+    public const STORAGE_DRY = 'uscat';
+
+    public const STORAGE_FROZEN = 'congelat';
+
+    public const STORAGE_OPTIONS = [
+        self::STORAGE_COLD => 'La rece',
+        self::STORAGE_DRY => 'La uscat',
+        self::STORAGE_FROZEN => 'Congelat',
+    ];
+
     /** Categoriile folosite in Planul de sprijin si in rezumatul antiduplicare. */
     public const CONTRIBUTION_CATEGORIES = [
         self::KIND_SWEET_SNACK => 'Gustări dulci',
@@ -57,8 +69,11 @@ class Donation extends Model
         'donation_date',
         'description',
         'food_type',
+        'ingredient_id',
         'quantity',
         'unit',
+        'storage_method',
+        'delivery_until',
         'amount_ron',
         'estimated_value',
         'donor_name',
@@ -71,6 +86,7 @@ class Donation extends Model
         return [
             'date' => 'date',
             'donation_date' => 'date',
+            'delivery_until' => 'datetime',
             'quantity' => 'decimal:2',
             'amount_ron' => 'decimal:2',
             'estimated_value' => 'decimal:2',
@@ -157,6 +173,11 @@ class Donation extends Model
         return $this->belongsTo(User::class, 'recorded_by');
     }
 
+    public function ingredient(): BelongsTo
+    {
+        return $this->belongsTo(Ingredient::class);
+    }
+
     public function scopeVisibleTo(Builder $query, ?User $user): Builder
     {
         if ($user?->isScopedToCongregation()) {
@@ -212,5 +233,17 @@ class Donation extends Model
         return array_key_exists($this->kind, self::CONTRIBUTION_CATEGORIES)
             ? (string) $this->kind
             : null;
+    }
+
+    public function storageLabel(): ?string
+    {
+        return $this->storage_method === null
+            ? null
+            : (self::STORAGE_OPTIONS[$this->storage_method] ?? (string) $this->storage_method);
+    }
+
+    public function deliveryUntilLabel(): ?string
+    {
+        return $this->delivery_until?->translatedFormat('d.m H:i');
     }
 }

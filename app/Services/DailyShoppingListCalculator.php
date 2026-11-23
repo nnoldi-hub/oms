@@ -109,6 +109,36 @@ class DailyShoppingListCalculator
     }
 
     /**
+     * Necesarul de ingrediente al zilei, fara preturi si fara scaderea donatiilor.
+     * Este folosit in Planul de sprijin pentru a arata cat trebuie adus.
+     *
+     * @return list<array{name: string, quantity: float, unit: string}>
+     */
+    public function ingredientNeeds(DailyMeal $dailyMeal): array
+    {
+        $components = collect($this->components->for($dailyMeal))
+            ->filter(fn (array $component): bool => $component['menu'] !== null);
+
+        $ingredients = [];
+
+        foreach ($components as $component) {
+            foreach ($component['requirements']['ingredients'] as $ingredient) {
+                $this->addIngredient($ingredients, $ingredient);
+            }
+        }
+
+        return collect($ingredients)
+            ->map(fn (array $ingredient): array => [
+                'name' => (string) $ingredient['name'],
+                'quantity' => round((float) $ingredient['quantity'], 3),
+                'unit' => (string) $ingredient['unit'],
+            ])
+            ->sortBy(fn (array $ingredient): string => mb_strtolower($ingredient['name']))
+            ->values()
+            ->all();
+    }
+
+    /**
      * @param  array<string, array<string, mixed>>  $ingredients
      * @param  array<string, mixed>  $ingredient
      */
