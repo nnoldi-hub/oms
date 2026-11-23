@@ -22,9 +22,21 @@ class WeekScheduleSummaryTest extends TestCase
         $cooks = Congregation::factory()->create(['name' => 'Bucuresti Est']);
 
         $monFri = Week::factory()->for($cooks)->create(['week_number' => 1, 'start_date' => '2026-11-30']);
+        $monFriMeals = collect();
         foreach (['2026-11-30', '2026-12-01', '2026-12-02', '2026-12-03', '2026-12-04'] as $date) {
-            DailyMeal::factory()->for($monFri)->for($cooks)->create(['meal_date' => $date]);
+            $monFriMeals->push(DailyMeal::factory()->for($monFri)->for($cooks)->create(['meal_date' => $date]));
         }
+
+        [$berceni, $romani, $uverturii] = Congregation::factory()
+            ->count(3)
+            ->sequence(
+                fn () => ['name' => 'Bucuresti Berceni'],
+                fn () => ['name' => 'Bucuresti Noi Rromani'],
+                fn () => ['name' => 'Bucuresti Uverturii'],
+            )
+            ->create();
+        $monFriMeals[0]->syncContributingCongregations([$berceni->id, $romani->id, $uverturii->id]);
+        $monFriMeals[1]->syncContributingCongregations([$berceni->id, $romani->id, $uverturii->id]);
 
         $monSat = Week::factory()->for($cooks)->create(['week_number' => 2, 'start_date' => '2026-12-07']);
         foreach (['2026-12-07', '2026-12-08', '2026-12-09', '2026-12-10', '2026-12-11', '2026-12-12'] as $date) {
@@ -53,6 +65,18 @@ class WeekScheduleSummaryTest extends TestCase
         $this->assertSame('luni–marți, joi–vineri', $summaries[4]['working_days']);
         $this->assertSame(4, $summaries[4]['days_count']);
         $this->assertSame('Bucuresti Est', $summaries[1]['cooking']);
+        $this->assertSame(
+            'Bucuresti Berceni, Bucuresti Noi Rromani, Bucuresti Uverturii',
+            $summaries[1]['contributors'],
+        );
+        $this->assertSame(3, $summaries[1]['contributors_count']);
+        $this->assertCount(5, $summaries[1]['contributors_by_day']);
+        $this->assertSame(
+            ['Bucuresti Berceni', 'Bucuresti Noi Rromani', 'Bucuresti Uverturii'],
+            $summaries[1]['contributors_by_day'][0]['names'],
+        );
+        $this->assertSame([], $summaries[1]['contributors_by_day'][2]['names']);
+        $this->assertSame('Nealocata', $summaries[2]['contributors']);
     }
 
     public function test_final_week_lists_all_cooking_congregations(): void
@@ -84,8 +108,11 @@ class WeekScheduleSummaryTest extends TestCase
         $titan = Congregation::factory()->create(['name' => 'Bucuresti Titan']);
         $contributor = Congregation::factory()->create(['name' => 'Bucuresti Berceni']);
 
-        Week::factory()->for($est)->create(['week_number' => 1, 'start_date' => '2026-11-30']);
+        $estWeek = Week::factory()->for($est)->create(['week_number' => 1, 'start_date' => '2026-11-30']);
         Week::factory()->for($titan)->create(['week_number' => 2, 'start_date' => '2026-12-07']);
+
+        $estMeal = DailyMeal::factory()->for($estWeek)->for($est)->create(['meal_date' => '2026-11-30']);
+        $estMeal->syncContributingCongregations([$contributor->id]);
 
         $cookingCoordinator = User::factory()->create([
             'role' => 'coordinator',
@@ -107,7 +134,9 @@ class WeekScheduleSummaryTest extends TestCase
             ->assertSee('Rezumat program')
             ->assertSee('Săptămâna 1')
             ->assertSee('Bucuresti Est')
-            ->assertSee('Bucuresti Titan');
+            ->assertSee('Bucuresti Titan')
+            ->assertSee('Contribuie')
+            ->assertSee('Bucuresti Berceni');
 
         $this->actingAs($contributorCoordinator);
         $this->assertFalse(app(WeekScheduleSummaryService::class)->canView());
