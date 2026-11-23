@@ -18,7 +18,7 @@ return new class extends Migration
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->foreignId('congregation_id')->nullable()->constrained()->nullOnDelete();
-            $table->enum('role', ['admin', 'coordinator', 'construction', 'kitchen'])->default('coordinator')->index();
+            $table->enum('role', ['admin', 'coordinator', 'construction', 'kitchen', 'support_assistant'])->default('coordinator')->index();
             $table->rememberToken();
             $table->timestamps();
         });

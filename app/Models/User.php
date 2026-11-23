@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -19,9 +20,10 @@ class User extends Authenticatable implements FilamentUser
         'supply_manager',
         'congregation_responsible',
         'project_supervisor',
+        'support_assistant',
     ];
 
-    /** @use HasFactory<\Database\Factories\UserFactory> */
+    /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
     /**
@@ -98,6 +100,11 @@ class User extends Authenticatable implements FilamentUser
     public function isProjectSupervisor(): bool
     {
         return $this->role === 'project_supervisor';
+    }
+
+    public function isSupportAssistant(): bool
+    {
+        return $this->role === 'support_assistant';
     }
 
     public function canManageSupply(): bool

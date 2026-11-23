@@ -46,8 +46,7 @@ class ProgramGeneral extends Page
             ->orderBy('week_number')
             ->with([
                 'dailyMeals' => fn (HasMany $query) => $query->orderBy('meal_date')->orderBy('id'),
-                'dailyMeals.congregation',
-                'dailyMeals.contributingCongregations',
+                'dailyMeals.cookingCongregation',
                 'dailyMeals.menu',
                 'dailyMeals.soupMenu',
                 'dailyMeals.dessertMenu',
@@ -63,16 +62,17 @@ class ProgramGeneral extends Page
 
     /**
      * Randurile tabelului, doar cu date de programare (fara costuri, portii,
-     * persoane sau contributii).
+     * persoane sau contributii). Se afiseaza doar congregatia care gatesc;
+     * contribuitorii sunt in Plan sprijin si in Rezumatul programului.
      *
-     * @return list<array{date: string, congregation: string, main: ?string, soup: ?string, dessert: ?string, is_free_day: bool, is_cooked: bool, actual: ?string}>
+     * @return list<array{date: string, cooking: string, main: ?string, soup: ?string, dessert: ?string, is_free_day: bool, is_cooked: bool, actual: ?string}>
      */
     public function getProgramDaysProperty(): array
     {
         return $this->selectedWeek?->dailyMeals
             ->map(fn (DailyMeal $meal): array => [
                 'date' => $meal->meal_date?->translatedFormat('l, d.m.Y') ?? '-',
-                'congregation' => $meal->contributingCongregationNames() ?: 'Nealocata',
+                'cooking' => $meal->cookingCongregation?->name ?? 'Nealocata',
                 'main' => $meal->menu?->name,
                 'soup' => $meal->soupMenu?->name,
                 'dessert' => $meal->dessertMenu?->name,

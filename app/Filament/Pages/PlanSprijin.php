@@ -73,7 +73,9 @@ class PlanSprijin extends Page
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->isAdmin() ?? false;
+        $user = auth()->user();
+
+        return ($user?->isAdmin() ?? false) || ($user?->isSupportAssistant() ?? false);
     }
 
     public function updatedWeekFilter(): void
@@ -186,7 +188,7 @@ class PlanSprijin extends Page
 
     public function setContactStatus(int $mealId, int $congregationId, string $status): void
     {
-        $this->authorizeAdmin();
+        $this->authorizeSupportPlan();
 
         if (! array_key_exists($status, ContactStatus::options())) {
             return;
@@ -205,7 +207,7 @@ class PlanSprijin extends Page
 
     public function saveContactNotes(int $mealId, int $congregationId): void
     {
-        $this->authorizeAdmin();
+        $this->authorizeSupportPlan();
 
         $meal = DailyMeal::query()->with('contributingCongregations')->findOrFail($mealId);
         $congregation = $meal->contributingCongregations()->whereKey($congregationId)->first();
@@ -222,7 +224,7 @@ class PlanSprijin extends Page
 
     public function openAddContribution(int $mealId, int $congregationId): void
     {
-        $this->authorizeAdmin();
+        $this->authorizeSupportPlan();
 
         $this->addingMealId = $mealId;
         $this->addingCongregationId = $congregationId;
@@ -243,7 +245,7 @@ class PlanSprijin extends Page
 
     public function saveContribution(): void
     {
-        $this->authorizeAdmin();
+        $this->authorizeSupportPlan();
 
         $this->validate([
             'addingMealId' => ['required', 'integer', 'exists:daily_meals,id'],
@@ -301,7 +303,7 @@ class PlanSprijin extends Page
 
     public function markReceived(int $donationId): void
     {
-        $this->authorizeAdmin();
+        $this->authorizeSupportPlan();
 
         $donation = Donation::query()->findOrFail($donationId);
 
@@ -315,7 +317,7 @@ class PlanSprijin extends Page
 
     public function openAllocate(int $donationId): void
     {
-        $this->authorizeAdmin();
+        $this->authorizeSupportPlan();
 
         $donation = Donation::query()->findOrFail($donationId);
         $date = $donation->date?->toDateString() ?? $donation->donation_date?->toDateString();
@@ -337,7 +339,7 @@ class PlanSprijin extends Page
 
     public function allocateDonation(): void
     {
-        $this->authorizeAdmin();
+        $this->authorizeSupportPlan();
 
         $this->validate([
             'allocationDonationId' => ['required', 'integer', 'exists:donations,id'],
@@ -381,8 +383,10 @@ class PlanSprijin extends Page
         }
     }
 
-    private function authorizeAdmin(): void
+    private function authorizeSupportPlan(): void
     {
-        abort_unless(auth()->user()?->isAdmin() ?? false, 403);
+        $user = auth()->user();
+
+        abort_unless(($user?->isAdmin() ?? false) || ($user?->isSupportAssistant() ?? false), 403);
     }
 }

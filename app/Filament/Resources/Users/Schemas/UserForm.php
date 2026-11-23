@@ -25,6 +25,7 @@ class UserForm
             'supply_manager' => 'Responsabil aprovizionare',
             'congregation_responsible' => 'Responsabil congregatie',
             'project_supervisor' => 'Supraveghetor proiect',
+            'support_assistant' => 'Asistent sprijin (doar Plan sprijin)',
         ];
     }
 

@@ -4,6 +4,9 @@ namespace Tests\Feature;
 
 use App\Filament\Pages\CalendarSaptamanal;
 use App\Filament\Pages\PlanSprijin;
+use App\Filament\Pages\ProgramGeneral;
+use App\Filament\Resources\CongregationSupports\CongregationSupportResource;
+use App\Filament\Resources\Donations\DonationResource;
 use App\Models\Congregation;
 use App\Models\DailyMeal;
 use App\Models\Donation;
@@ -291,6 +294,33 @@ class PlanSprijinTest extends TestCase
         Livewire::test(CalendarSaptamanal::class)
             ->set('weekId', $week->id)
             ->assertDontSee($needle);
+    }
+
+    public function test_support_assistant_manages_only_the_support_plan(): void
+    {
+        ['week' => $week, 'meal' => $meal, 'contributors' => $contributors] = $this->weekWithContributors();
+        $assistant = User::factory()->create(['role' => 'support_assistant']);
+
+        $this->actingAs($assistant);
+
+        $this->get(PlanSprijin::getUrl(panel: 'admin'))->assertOk();
+
+        Livewire::test(PlanSprijin::class)
+            ->set('weekFilter', (string) $week->id)
+            ->assertSee('Congregatia Alpha')
+            ->call('openAddContribution', $meal->id, $contributors[0]->id)
+            ->set('newDescription', 'Gustari pentru asistent')
+            ->call('saveContribution')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('donations', [
+            'description' => 'Gustari pentru asistent',
+            'recorded_by' => $assistant->id,
+        ]);
+
+        $this->get(ProgramGeneral::getUrl(panel: 'admin'))->assertForbidden();
+        $this->get(CongregationSupportResource::getUrl('index'))->assertForbidden();
+        $this->get(DonationResource::getUrl('index'))->assertForbidden();
     }
 
     /** @return array{week: Week, meal: DailyMeal, contributors: list<Congregation>} */

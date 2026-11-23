@@ -19,7 +19,7 @@ class ProgramGeneralTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_a_coordinator_sees_all_congregations_days_without_costs_portions_people_or_contributions(): void
+    public function test_a_coordinator_sees_only_cooking_congregations_without_costs_portions_people_or_contributions(): void
     {
         $own = Congregation::factory()->create(['name' => 'Congregatia mea']);
         $other = Congregation::factory()->create(['name' => 'Balta Alba']);
@@ -41,6 +41,8 @@ class ProgramGeneralTest extends TestCase
             'delivery_time' => '18:30',
             'notes' => 'Nota secreta a zilei',
         ]);
+        $contributor = Congregation::factory()->create(['name' => 'Congregatia Contribuitoare Ascunsa']);
+        $ownDay->syncContributingCongregations([$contributor->id]);
         DailyMeal::factory()->for($week)->for($other)->for($main)->create(['meal_date' => '2026-12-08']);
         DailyMeal::factory()->for($week)->for($own)->create([
             'meal_date' => '2026-12-09',
@@ -68,6 +70,7 @@ class ProgramGeneralTest extends TestCase
             ->assertSee('Program general')
             ->assertSee('Congregatia mea')
             ->assertSee('Balta Alba')
+            ->assertDontSee('Congregatia Contribuitoare Ascunsa')
             ->assertSee('Pilaf general')
             ->assertSee('Ciorba generala')
             ->assertSee('Napolitana generala')

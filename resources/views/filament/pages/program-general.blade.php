@@ -23,8 +23,8 @@
                 <p class="text-sm font-semibold uppercase tracking-wide text-success-600">🗓️ Vedere de ansamblu</p>
                 <h1 class="mt-2 font-bold">Program general</h1>
                 <p class="mt-2 text-sm text-gray-500">
-                    Programul saptamanal al tuturor congregatiilor, doar pentru citire.
-                    Editarea se face din calendarul saptamanal, pe zilele congregatiei tale.
+                    Programul saptamanal al congregatiilor care gatesc, doar pentru citire.
+                    Congregatiile care aduc sprijin sunt in Plan sprijin si in Rezumatul programului.
                 </p>
             </div>
             <div class="hidden text-right text-sm text-gray-500 md:block">
@@ -49,13 +49,13 @@
             </div>
         </x-filament::section>
 
-        <x-filament::section heading="Zilele programate" description="Toate congregatiile: data, meniurile si starea de gatire. Fara costuri, portii, persoane sau contributii.">
+        <x-filament::section heading="Zilele programate" description="Doar congregatiile care gatesc: data, meniurile si starea de gatire. Fara costuri, portii, persoane sau contributii.">
             <div class="program-table-wrap">
                 <table class="program-table">
                     <thead>
                         <tr>
                             <th>Data</th>
-                            <th>Congregatia</th>
+                            <th>Gateste</th>
                             <th>Fel principal</th>
                             <th>Ciorba</th>
                             <th>Desert</th>
@@ -67,7 +67,7 @@
                         @forelse ($this->programDays as $day)
                             <tr>
                                 <td class="font-semibold">{{ $day['date'] }}</td>
-                                <td>{{ $day['congregation'] }}</td>
+                                <td>{{ $day['cooking'] }}</td>
                                 <td>
                                     @if ($day['is_free_day'])
                                         <span class="program-badge program-badge--free">Zi libera</span>
