@@ -47,7 +47,7 @@ class ThreeCongregationsPerDayTest extends TestCase
             ->all());
     }
 
-    public function test_a_coordinator_sees_only_days_where_their_congregation_cooks_or_contributes(): void
+    public function test_a_cooking_coordinator_has_scoped_day_access_and_sees_the_global_summary(): void
     {
         [$mine, $second, $third, $other] = Congregation::factory()->count(4)->create();
         $coordinator = User::factory()->create([
@@ -76,7 +76,8 @@ class ThreeCongregationsPerDayTest extends TestCase
             ->set('weekId', $week->id)
             ->assertSee($second->name)
             ->assertSee($third->name)
-            ->assertDontSee($other->name);
+            // Rezumatul programului este global pentru congregatiile care gatesc.
+            ->assertSee($other->name);
     }
 
     public function test_an_admin_can_save_day_contributors_and_is_warned_when_there_are_not_three(): void

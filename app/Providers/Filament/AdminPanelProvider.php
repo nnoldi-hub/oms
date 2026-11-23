@@ -8,6 +8,7 @@ use App\Filament\Widgets\RecentMealChanges;
 use App\Filament\Widgets\SupplyStatsOverview;
 use App\Filament\Widgets\TomorrowMealOverview;
 use App\Filament\Widgets\TomorrowMessageWidget;
+use App\Filament\Widgets\WeeklyScheduleSummary;
 use App\Models\Menu;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -78,6 +79,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
+                WeeklyScheduleSummary::class,
                 TomorrowMealOverview::class,
                 TomorrowMessageWidget::class,
                 OmsStatsOverview::class,

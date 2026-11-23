@@ -22,6 +22,7 @@ use App\Services\MenuUsageInsight;
 use App\Services\PeriodProgramPlanner;
 use App\Services\WeekChangeRequestService;
 use App\Services\WeekCongregationChanger;
+use App\Services\WeekScheduleSummaryService;
 use App\Support\CongregationAccess;
 use App\Support\CongregationRole;
 use Carbon\CarbonImmutable;
@@ -264,6 +265,17 @@ class CalendarSaptamanal extends Page
             'dailyMeals.volunteers',
             'dailyMeals.workTeams',
         ]);
+    }
+
+    public function getCanViewScheduleSummaryProperty(): bool
+    {
+        return app(WeekScheduleSummaryService::class)->canView();
+    }
+
+    /** @return Collection<int, array{week_id: int, week_number: int, period: string, working_days: string, cooking: string, days_count: int}> */
+    public function getScheduleSummaryProperty(): Collection
+    {
+        return app(WeekScheduleSummaryService::class)->summaries();
     }
 
     /**

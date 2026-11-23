@@ -116,6 +116,13 @@
             </div>
         </div>
 
+        @if ($this->canViewScheduleSummary)
+            @include('filament.partials.weekly-schedule-summary', [
+                'weeks' => $this->scheduleSummary,
+                'selectedWeekId' => $this->weekId,
+            ])
+        @endif
+
         @if ($this->selectedWeek)
             <div class="oms-calendar__weekdays">
                 <span class="oms-calendar__weekdays-label">Zile lucratoare</span>

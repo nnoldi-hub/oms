@@ -62,10 +62,23 @@ class CongregationAccess
             return false;
         }
 
+        return ! self::cooksAnywhere($user);
+    }
+
+    /**
+     * Un coordonator pregateste masa dacă apare ca congregație care gătește
+     * intr-o saptamana sau intr-o zi, chiar si in saptamana speciala de final.
+     */
+    public static function cooksAnywhere(User $user): bool
+    {
+        if (! self::hasCongregation($user)) {
+            return false;
+        }
+
         $congregationId = (int) $user->congregation_id;
 
-        return ! Week::query()->where('congregation_id', $congregationId)->exists()
-            && ! DailyMeal::query()->where('congregation_id', $congregationId)->exists();
+        return Week::query()->where('congregation_id', $congregationId)->exists()
+            || DailyMeal::query()->where('congregation_id', $congregationId)->exists();
     }
 
     /**
