@@ -90,6 +90,75 @@
             @endforeach
         </div>
 
+        @php($fund = $this->fund)
+        <x-filament::section heading="Fond din donații" description="Donații în bani primite, cheltuieli pentru alimente și soldul rămas.">
+            <div class="budget-kpis">
+                @foreach ([
+                    ['icon' => '💰', 'label' => 'Încasări înregistrate', 'value' => number_format($fund['income'], 2, '.', ' ').' RON', 'class' => 'budget-kpi--primary'],
+                    ['icon' => '🧾', 'label' => 'Cheltuieli înregistrate', 'value' => number_format($fund['expense'], 2, '.', ' ').' RON', 'class' => 'budget-kpi--spent'],
+                    ['icon' => '⚖️', 'label' => 'Disponibil în fond', 'value' => number_format($fund['balance'], 2, '.', ' ').' RON', 'class' => $fund['balance'] < 0 ? 'budget-status--over' : 'budget-kpi--primary'],
+                ] as $card)
+                    <article class="budget-kpi {{ $card['class'] }}">
+                        <div class="budget-kpi-icon">{{ $card['icon'] }}</div>
+                        <p class="budget-kpi-value">{{ $card['value'] }}</p>
+                        <p class="budget-kpi-label mt-2">{{ $card['label'] }}</p>
+                    </article>
+                @endforeach
+            </div>
+
+            <h3 class="mt-6 text-sm font-semibold uppercase tracking-wide text-gray-500">Tranzacții și explicații</h3>
+            <div class="budget-table-wrap mt-3">
+                <table class="budget-table">
+                    <thead><tr><th>Data</th><th>Tip</th><th>Suma</th><th>Categorie</th><th>De la / către</th><th>Din donație</th><th>Explicație</th><th>Înregistrat de</th></tr></thead>
+                    <tbody>
+                        @forelse ($fund['transactions'] as $transaction)
+                            <tr>
+                                <td class="whitespace-nowrap font-semibold">{{ $transaction['date']->format('d.m.Y') }}</td>
+                                <td>
+                                    <span class="budget-status {{ $transaction['type'] === 'income' ? 'budget-status--ok' : 'budget-status--over' }}">{{ $transaction['type_label'] }}</span>
+                                </td>
+                                <td class="whitespace-nowrap font-semibold {{ $transaction['signed_amount'] < 0 ? 'text-danger-600 dark:text-danger-400' : 'text-success-600 dark:text-success-400' }}">
+                                    {{ $transaction['signed_amount'] > 0 ? '+' : '' }}{{ number_format($transaction['signed_amount'], 2, '.', ' ') }} RON
+                                </td>
+                                <td>{{ $transaction['category'] }}</td>
+                                <td>{{ $transaction['counterparty'] ?: '—' }}</td>
+                                <td>{{ $transaction['donation'] ?: '—' }}</td>
+                                <td class="max-w-sm">{{ $transaction['description'] }}</td>
+                                <td>{{ $transaction['recorded_by'] ?: '—' }}</td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="8" class="p-6 text-center text-gray-500">Nu există tranzacții înregistrate.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 class="mt-6 text-sm font-semibold uppercase tracking-wide text-gray-500">Disponibil pe donații în bani</h3>
+            <div class="budget-table-wrap mt-3">
+                <table class="budget-table">
+                    <thead><tr><th>Data primire</th><th>Donator / donație</th><th>Primită</th><th>Cheltuită</th><th>Rămasă</th></tr></thead>
+                    <tbody>
+                        @forelse ($fund['donations'] as $donation)
+                            <tr>
+                                <td class="whitespace-nowrap font-semibold">{{ $donation['date']?->format('d.m.Y') ?? '—' }}</td>
+                                <td>
+                                    {{ $donation['label'] }}
+                                    @if ($donation['description'])
+                                        <span class="block text-xs text-gray-500">{{ $donation['description'] }}</span>
+                                    @endif
+                                </td>
+                                <td>{{ number_format($donation['received'], 2, '.', ' ') }} RON</td>
+                                <td>{{ number_format($donation['spent'], 2, '.', ' ') }} RON</td>
+                                <td class="font-semibold">{{ number_format($donation['remaining'], 2, '.', ' ') }} RON</td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="5" class="p-6 text-center text-gray-500">Nu există donații în bani confirmate.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </x-filament::section>
+
         <x-filament::section heading="Buget saptamanal" description="Comparatie intre costul estimat al meniurilor si sumele cheltuite pentru fiecare saptamana.">
             <div class="budget-table-wrap">
                 <table class="budget-table">

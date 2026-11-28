@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Services\DonationFundService;
 use Database\Factories\DonationFactory;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Donation extends Model
 {
@@ -117,6 +120,14 @@ class Donation extends Model
 
             $donation->donor_congregation_id ??= $donation->congregation_id;
         });
+
+        static::saved(function (Donation $donation): void {
+            app(DonationFundService::class)->syncIncome($donation);
+        });
+
+        static::deleting(function (Donation $donation): void {
+            app(DonationFundService::class)->deleteLinks($donation);
+        });
     }
 
     private function normalizeLegacyFields(): void
@@ -178,6 +189,16 @@ class Donation extends Model
         return $this->belongsTo(Ingredient::class);
     }
 
+    public function fundTransactions(): HasMany
+    {
+        return $this->hasMany(FoodFundTransaction::class);
+    }
+
+    public function incomeTransaction(): HasOne
+    {
+        return $this->hasOne(FoodFundTransaction::class)->where('type', 'income');
+    }
+
     public function scopeVisibleTo(Builder $query, ?User $user): Builder
     {
         if ($user?->isScopedToCongregation()) {
@@ -195,6 +216,11 @@ class Donation extends Model
     public function scopePromised(Builder $query): Builder
     {
         return $query->where('status', self::STATUS_PROMISED);
+    }
+
+    public function scopeMoney(Builder $query): Builder
+    {
+        return $query->where('kind', self::KIND_MONEY);
     }
 
     public function scopeDeductibleFromShoppingList(Builder $query): Builder
@@ -245,5 +271,15 @@ class Donation extends Model
     public function deliveryUntilLabel(): ?string
     {
         return $this->delivery_until?->translatedFormat('d.m H:i');
+    }
+
+    public function fundLabel(): string
+    {
+        $source = $this->donor_name
+            ?: $this->donorCongregation?->name
+            ?: 'Donație';
+        $date = $this->date?->format('d.m.Y') ?? '';
+
+        return trim($source.($date !== '' ? ' · '.$date : ''));
     }
 }

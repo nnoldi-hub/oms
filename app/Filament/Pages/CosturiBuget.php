@@ -7,6 +7,7 @@ use App\Models\FoodFundTransaction;
 use App\Models\SupplyItem;
 use App\Models\Week;
 use App\Services\DailyMealCostCalculator;
+use App\Services\DonationFundService;
 use App\Services\DonationSummaryService;
 use App\Support\CongregationAccess;
 use Carbon\CarbonImmutable;
@@ -134,6 +135,14 @@ class CosturiBuget extends Page
         }
 
         return $summary->coverage($estimatedCost, $summary->forWeek($week));
+    }
+
+    /**
+     * @return array{income: float, expense: float, balance: float, transactions: list<array<string, mixed>>, donations: list<array<string, mixed>>}
+     */
+    public function getFundProperty(DonationFundService $service): array
+    {
+        return $service->statement();
     }
 
     public function getSupplyCostProperty(): float

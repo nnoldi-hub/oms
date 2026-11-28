@@ -2,15 +2,19 @@
 
 namespace App\Filament\Resources\FoodFundTransactions;
 
+use App\Models\Donation;
 use App\Models\FoodFundTransaction;
+use App\Services\DonationFundService;
 use BackedEnum;
+use Closure;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
@@ -20,11 +24,17 @@ use Illuminate\Database\Eloquent\Builder;
 class FoodFundTransactionResource extends Resource
 {
     protected static ?string $model = FoodFundTransaction::class;
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBanknotes;
+
     protected static ?string $navigationLabel = 'Fonduri alimente';
+
     protected static string|\UnitEnum|null $navigationGroup = 'Aprovizionare';
+
     protected static ?int $navigationSort = 3;
+
     protected static ?string $modelLabel = 'operatiune financiara';
+
     protected static ?string $pluralModelLabel = 'operatiuni financiare';
 
     public static function canAccess(): bool
@@ -54,6 +64,11 @@ class FoodFundTransactionResource extends Resource
         $user = auth()->user();
 
         if (! ($user?->canManageCongregationFunds() ?? false)) {
+            return false;
+        }
+
+        // Încasarea generată de o donație se modifică doar din modulul Donații.
+        if ($record->donation_id !== null && $record->type === 'income') {
             return false;
         }
 
@@ -97,6 +112,36 @@ class FoodFundTransactionResource extends Resource
                 'transport' => 'Transport',
                 'other' => 'Altele',
             ])->searchable(),
+            Select::make('donation_id')
+                ->label('Din donația')
+                ->options(fn (): array => app(DonationFundService::class)->expenseOptions())
+                ->searchable()
+                ->preload()
+                ->nullable()
+                ->visible(fn (Get $get): bool => $get('type') === 'expense')
+                ->helperText('Opțional: alege donația în bani din care se cheltuiește suma.')
+                ->rule(fn (Get $get, $record): Closure => function (string $attribute, mixed $value, Closure $fail) use ($get, $record): void {
+                    if (blank($value) || blank($get('amount'))) {
+                        return;
+                    }
+
+                    $donation = Donation::query()->visibleTo(auth()->user())->find($value);
+
+                    if ($donation === null) {
+                        $fail('Donația selectată nu este disponibilă.');
+
+                        return;
+                    }
+
+                    $available = app(DonationFundService::class)->availableAmount(
+                        $donation,
+                        $record instanceof FoodFundTransaction ? $record : null,
+                    );
+
+                    if ((float) $get('amount') > $available + 0.009) {
+                        $fail('Suma depășește disponibilul donației ('.number_format($available, 2, '.', ' ').' RON).');
+                    }
+                }),
             TextInput::make('counterparty')->label('De la / catre')->maxLength(160)->helperText('Persoana, congregatia sau magazinul'),
             Select::make('payment_method')->label('Metoda de plata')->options([
                 'cash' => 'Numerar',
@@ -116,6 +161,13 @@ class FoodFundTransactionResource extends Resource
             TextColumn::make('amount')->label('Suma')->money('RON')->sortable(),
             TextColumn::make('congregation.name')->label('Congregatie')->placeholder('-')->sortable(),
             TextColumn::make('category')->label('Categorie')->badge(),
+            TextColumn::make('donation_id')
+                ->label('Donație')
+                ->formatStateUsing(fn (FoodFundTransaction $record): ?string => $record->donation !== null
+                    ? app(DonationFundService::class)->donationLabel($record->donation)
+                    : null)
+                ->placeholder('—')
+                ->toggleable(),
             TextColumn::make('counterparty')->label('De la / catre')->searchable(),
             TextColumn::make('description')->label('Detalii')->limit(45)->searchable(),
             TextColumn::make('recordedBy.name')->label('Inregistrat de'),

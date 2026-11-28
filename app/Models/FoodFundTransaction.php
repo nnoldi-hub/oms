@@ -20,6 +20,7 @@ class FoodFundTransaction extends Model
         'recorded_by',
         'daily_meal_id',
         'congregation_id',
+        'donation_id',
         'volunteer_contribution_status',
     ];
 
@@ -39,6 +40,18 @@ class FoodFundTransaction extends Model
 
             if ($transaction->congregation_id === null && $transaction->daily_meal_id !== null) {
                 $transaction->congregation_id = DailyMeal::query()->whereKey($transaction->daily_meal_id)->value('congregation_id');
+            }
+
+            if ($transaction->donation_id !== null) {
+                $donationCongregationId = Donation::query()->whereKey($transaction->donation_id)->value('congregation_id');
+
+                if ($donationCongregationId !== null) {
+                    if ($transaction->congregation_id === null) {
+                        $transaction->congregation_id = $donationCongregationId;
+                    } elseif ((int) $donationCongregationId !== (int) $transaction->congregation_id) {
+                        throw new AuthorizationException('Donația selectată aparține altei congregații.');
+                    }
+                }
             }
         });
     }
@@ -76,6 +89,11 @@ class FoodFundTransaction extends Model
     public function dailyMeal(): BelongsTo
     {
         return $this->belongsTo(DailyMeal::class);
+    }
+
+    public function donation(): BelongsTo
+    {
+        return $this->belongsTo(Donation::class);
     }
 
     public function scopeIncome($query)

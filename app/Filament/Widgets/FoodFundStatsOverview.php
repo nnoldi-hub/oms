@@ -17,8 +17,8 @@ class FoodFundStatsOverview extends StatsOverviewWidget
 
     protected function getStats(): array
     {
-        $income = (float) FoodFundTransaction::query()->where('type', 'income')->sum('amount');
-        $expense = (float) FoodFundTransaction::query()->where('type', 'expense')->sum('amount');
+        $income = (float) FoodFundTransaction::query()->visibleTo(auth()->user())->where('type', 'income')->sum('amount');
+        $expense = (float) FoodFundTransaction::query()->visibleTo(auth()->user())->where('type', 'expense')->sum('amount');
         $balance = $income - $expense;
 
         return [

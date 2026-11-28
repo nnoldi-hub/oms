@@ -5,11 +5,13 @@ namespace App\Filament\Resources\Donations;
 use App\Filament\Resources\Donations\Pages\CreateDonation;
 use App\Filament\Resources\Donations\Pages\EditDonation;
 use App\Filament\Resources\Donations\Pages\ListDonations;
+use App\Filament\Resources\FoodFundTransactions\FoodFundTransactionResource;
 use App\Models\Congregation;
 use App\Models\DailyMeal;
 use App\Models\Donation;
 use App\Support\CongregationAccess;
 use BackedEnum;
+use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DatePicker;
@@ -158,6 +160,15 @@ class DonationResource extends Resource
             TextColumn::make('donorCongregation.name')->label('Congregatia donatoare')->placeholder('-')->sortable(),
             TextColumn::make('congregation.name')->label('Congregatie')->placeholder('-')->sortable(),
         ])->defaultSort('date', 'desc')->recordActions([
+            Action::make('spend')
+                ->label('Cheltuiește')
+                ->icon(Heroicon::OutlinedShoppingBag)
+                ->color('success')
+                ->visible(fn (Donation $record): bool => $record->kind === Donation::KIND_MONEY
+                    && in_array($record->status, [Donation::STATUS_RECEIVED, Donation::STATUS_USED], true)
+                    && (float) $record->amount_ron > 0
+                    && (auth()->user()?->canManageCongregationFunds() ?? false))
+                ->url(fn (Donation $record): string => FoodFundTransactionResource::getUrl('create', ['donation_id' => $record->id])),
             EditAction::make(),
             DeleteAction::make(),
         ]);
